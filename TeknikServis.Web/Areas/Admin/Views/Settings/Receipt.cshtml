@@ -1,0 +1,58 @@
+﻿@model TeknikServis.Core.Entities.ReceiptSetting
+
+@{
+    ViewData["Title"] = "Fiş Ayarları";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-0">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-print me-2"></i>Servis Fişi Ayarları</h5>
+            </div>
+            <div class="card-body p-4">
+
+                <form asp-action="Receipt" method="post" enctype="multipart/form-data">
+
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-bold d-block">Mevcut Logo</label>
+                        @if (!string.IsNullOrEmpty(Model.LogoPath))
+                        {
+                            <img src="@Model.LogoPath" class="img-thumbnail mb-2" style="max-height: 100px;" />
+                        }
+                        else
+                        {
+                            <div class="alert alert-secondary py-2 d-inline-block">Logo Yok (Varsayılan İkon Kullanılıyor)</div>
+                        }
+
+                        <div class="input-group mt-2">
+                            <label class="input-group-text"><i class="fa-solid fa-image"></i></label>
+                            <input type="file" name="logoFile" class="form-control" accept="image/*" />
+                        </div>
+                        <div class="form-text text-muted small">Yeni logo yüklerseniz eskisi değişir. (Önerilen: Şeffaf PNG)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Logo Altı Yazısı / Slogan</label>
+                        <input asp-for="HeaderText" class="form-control" placeholder="Örn: Müşteri Hizmetleri ve Teknik Destek Merkezi" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Servis Şartları (Maddeler Halinde)</label>
+                        <textarea asp-for="ServiceTerms" class="form-control" rows="8" placeholder="1. Cihaz teslim süresi..."></textarea>
+                        <div class="form-text text-muted small">
+                            İpucu: Her maddeyi yeni bir satıra yazın. Fiş üzerinde maddeler halinde görünecektir.
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fa-solid fa-save me-2"></i>Ayarları Kaydet
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>

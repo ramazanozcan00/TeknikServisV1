@@ -1,0 +1,78 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.ServiceTicketPart>
+
+@{
+    ViewData["Title"] = "Parça Hareketleri";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0 text-dark">
+                <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>@ViewBag.PartName
+            </h4>
+            <div class="text-muted small">
+                Stok Kodu: <span class="fw-bold">@ViewBag.StockCode</span> |
+                Mevcut Stok: <span class="fw-bold text-success">@ViewBag.CurrentStock</span>
+            </div>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Listeye Dön
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light small text-uppercase text-muted">
+                        <tr>
+                            <th class="ps-4">İşlem Tarihi</th>
+                            <th>Fiş No</th>
+                            <th>Müşteri</th>
+                            <th class="text-center">Adet</th>
+                            <th class="text-end">Satış Fiyatı</th>
+                            <th class="text-end pe-4">Toplam</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-4 text-muted">
+                                    <i class="fa-regular fa-calendar me-1"></i>@item.CreatedDate.ToString("dd.MM.yyyy HH:mm")
+                                </td>
+                                <td>
+                                    <a asp-controller="ServiceTicket" asp-action="Details" asp-route-id="@item.ServiceTicketId" target="_blank" class="badge bg-dark text-decoration-none font-monospace p-2">
+                                        <i class="fa-solid fa-ticket me-1"></i>@(item.ServiceTicket?.FisNo ?? "Silinmiş")
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">@item.ServiceTicket?.Customer?.FirstName @item.ServiceTicket?.Customer?.LastName</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3">
+                                        -@item.Quantity
+                                    </span>
+                                </td>
+                                <td class="text-end text-muted">@item.Price.ToString("C2")</td>
+                                <td class="text-end pe-4 fw-bold text-success">@item.TotalPrice.ToString("C2")</td>
+                            </tr>
+                        }
+
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="text-muted opacity-50 mb-2">
+                                        <i class="fa-solid fa-box-open fa-3x"></i>
+                                    </div>
+                                    <p class="text-muted mb-0">Bu parça henüz hiçbir serviste kullanılmamış.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

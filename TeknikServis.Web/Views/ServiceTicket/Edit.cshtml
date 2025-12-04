@@ -1,0 +1,159 @@
+﻿@model TeknikServis.Core.Entities.ServiceTicket
+
+@{
+    ViewData["Title"] = "Kaydı Düzenle";
+    bool isAdmin = User.IsInRole("Admin"); // Admin kontrolü
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card shadow-lg border-0">
+
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><i class="fa-solid fa-pen-to-square me-2"></i>Servis Kaydını Düzenle</h5>
+                    <span class="badge bg-dark fs-6 font-monospace">#@Model.FisNo</span>
+                </div>
+
+                <div class="card-body p-4">
+                    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="alert alert-light border mb-4 d-flex align-items-center shadow-sm">
+                            <div class="bg-primary text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <i class="fa-solid fa-user fs-5"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Müşteri</small>
+                                <strong class="fs-5">
+                                    @Model.Customer?.FirstName @Model.Customer?.LastName
+                                    <span class="text-muted fs-6 ms-1">(@Model.Customer?.Phone)</span>
+                                </strong>
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3">Cihaz Bilgileri</h6>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Cihaz Türü</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-laptop text-primary"></i></span>
+                                    <select asp-for="DeviceTypeId" class="form-select" asp-items="ViewBag.DeviceTypes" required></select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Marka</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-tag text-primary"></i></span>
+                                    <select asp-for="DeviceBrandId" class="form-select" asp-items="ViewBag.DeviceBrands" required></select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Model</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-mobile-screen text-primary"></i></span>
+                                    <input asp-for="DeviceModel" class="form-control" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Seri No (IMEI)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-barcode text-secondary"></i></span>
+                                    <input asp-for="SerialNumber" class="form-control font-monospace" />
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-success">Garanti Durumu</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-shield-halved text-success"></i></span>
+                                    <select asp-for="IsWarranty" class="form-select">
+                                        <option value="false">Garantisiz</option>
+                                        <option value="true">Garantili</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-danger">Atanan Teknisyen</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-user-gear text-danger"></i></span>
+
+                                    @if (isAdmin)
+                                    {
+                                        <select asp-for="TechnicianId" class="form-select" asp-items="ViewBag.Technicians">
+                                            <option value="">-- Atama Yok --</option>
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <select asp-for="TechnicianId" class="form-select" asp-items="ViewBag.Technicians" disabled>
+                                            <option value="">-- Atama Yok --</option>
+                                        </select>
+                                        <input type="hidden" asp-for="TechnicianId" />
+                                    }
+                                </div>
+                                @if (!isAdmin)
+                                {
+                                    <div class="form-text text-muted small" style="font-size: 10px;">
+                                        <i class="fa-solid fa-lock me-1"></i>Sadece yönetici değiştirebilir.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3">Arıza Detayları</h6>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Müşteri Şikayeti</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-triangle-exclamation text-warning"></i></span>
+                                <textarea asp-for="ProblemDescription" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Teknisyen İşlemleri / Notları</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-screwdriver text-info"></i></span>
+
+                                @if (isAdmin)
+                                {
+                                    <textarea asp-for="TechnicianNotes" class="form-control font-monospace" rows="3" placeholder="Yönetici notu ekleyebilir..."></textarea>
+                                }
+                                else
+                                {
+                                    <textarea asp-for="TechnicianNotes" class="form-control font-monospace" rows="3" readonly style="background-color: #e9ecef;"></textarea>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-4 bg-light p-3 rounded border d-flex align-items-center justify-content-between">
+                            <div>
+                                <label class="form-label fw-bold mb-1"><i class="fa-solid fa-camera me-2 text-success"></i>Cihaz Fotoğrafı</label>
+                                <div class="small text-muted">Değiştirmek için yeni dosya seçin.</div>
+                            </div>
+                            <div>
+                                @if (!string.IsNullOrEmpty(Model.PhotoPath))
+                                {
+                                    <a href="@Model.PhotoPath" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-eye me-1"></i>Mevcut Foto</a>
+                                }
+                                <input type="file" name="photo" class="form-control form-control-sm d-inline-block w-auto ms-2" accept="image/*" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light border px-4">İptal</a>
+                            <button type="submit" class="btn btn-warning px-4 fw-bold shadow-sm">
+                                <i class="fa-solid fa-floppy-disk me-2"></i>Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

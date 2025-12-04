@@ -1,0 +1,35 @@
+﻿@{
+    ViewData["Title"] = "Erişim Engellendi";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+
+            <div class="mb-4">
+                <i class="fa-solid fa-user-lock text-danger" style="font-size: 80px;"></i>
+            </div>
+
+            <h2 class="fw-bold text-danger mb-3">Erişim Engellendi!</h2>
+
+            <p class="lead text-muted mb-4">
+                Üzgünüz, bu sayfayı görüntülemek veya bu işlemi yapmak için gerekli
+                <strong>yetkiye sahip değilsiniz.</strong>
+            </p>
+
+            <div class="alert alert-warning border-0 shadow-sm d-inline-block text-start p-3 mb-4">
+                <small><i class="fa-solid fa-circle-info me-2"></i>Eğer bir hata olduğunu düşünüyorsanız lütfen yöneticinizle iletişime geçin.</small>
+            </div>
+
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                <a asp-controller="Home" asp-action="Index" class="btn btn-primary px-4 gap-3">
+                    <i class="fa-solid fa-house me-2"></i>Ana Sayfaya Dön
+                </a>
+                <a href="javascript:history.back()" class="btn btn-outline-secondary px-4">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Geri Git
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>

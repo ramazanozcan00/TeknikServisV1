@@ -1,0 +1,454 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using TeknikServis.Web.Extensions
+@inject SignInManager<TeknikServis.Core.Entities.AppUser> SignInManager
+@inject UserManager<TeknikServis.Core.Entities.AppUser> UserManager
+
+@{
+    // --- 1. KULLANICI YETKİLERİNİ VERİTABANINDAN ÇEK ---
+    bool isSidebarVisible = true;
+    bool isAdmin = false;
+    bool isTechnician = false;
+
+    // Menü Yetkileri
+    bool showHome = false;
+    bool showCustomer = false;
+    bool showService = false;
+    bool showBarcode = false;
+    bool showStock = false; // Yeni
+    bool showEDevlet = false;
+    bool showAudit = false;
+    bool showSupport = false;
+
+    if (SignInManager.IsSignedIn(User))
+    {
+        var user = await UserManager.GetUserAsync(User);
+        if (user != null)
+        {
+            isSidebarVisible = user.IsSidebarVisible;
+            isAdmin = await UserManager.IsInRoleAsync(user, "Admin");
+            isTechnician = await UserManager.IsInRoleAsync(user, "Technician");
+
+            if (isAdmin)
+            {
+                showHome = showCustomer = showService = showBarcode = showStock = showEDevlet = showAudit = showSupport = true;
+            }
+            else
+            {
+                var claims = await UserManager.GetClaimsAsync(user);
+
+                showHome = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Home");
+                showCustomer = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Customer");
+                showService = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Service");
+                showBarcode = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Barcode");
+                showStock = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Stock"); // Yeni
+                showEDevlet = claims.Any(c => c.Type == "MenuAccess" && c.Value == "EDevlet");
+                showAudit = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Audit");
+                showSupport = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Support");
+            }
+        }
+    }
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Teknik Servis Pro</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --sidebar-bg: #1e293b;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 80px;
+            --header-height: 64px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            color: #fff;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            @(!isSidebarVisible ? "transform: translateX(-100%);" : "")
+        }
+
+            .sidebar.collapsed {
+                width: var(--sidebar-collapsed-width);
+            }
+
+        /* MAIN CONTENT */
+        .main-content {
+            margin-left: @(isSidebarVisible ? "var(--sidebar-width)" : "0");
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: @(isSidebarVisible ? "calc(100% - var(--sidebar-width))" : "100%");
+        }
+
+            .main-content.expanded {
+                margin-left: var(--sidebar-collapsed-width);
+                width: calc(100% - var(--sidebar-collapsed-width));
+            }
+
+        .sidebar .logo-area {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sidebar-menu {
+            flex-grow: 1;
+            padding-top: 10px;
+            overflow-y: auto;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #cbd5e1;
+            text-decoration: none;
+            transition: 0.2s;
+            border-left: 4px solid transparent;
+        }
+
+            .sidebar-link:hover {
+                background-color: rgba(255,255,255,0.05);
+                color: #fff;
+            }
+
+            .sidebar-link.active-link {
+                background-color: rgba(37, 99, 235, 0.1);
+                color: #60a5fa;
+                border-left-color: #60a5fa;
+            }
+
+            .sidebar-link i {
+                min-width: 30px;
+                font-size: 1.1rem;
+                text-align: center;
+                margin-right: 10px;
+            }
+
+        .sidebar.collapsed .sidebar-link span, .sidebar.collapsed .logo-area span {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-link {
+            justify-content: center;
+            padding: 12px 0;
+        }
+
+            .sidebar.collapsed .sidebar-link i {
+                margin-right: 0;
+            }
+
+        .topbar {
+            height: var(--header-height);
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .notification-dropdown {
+            width: 380px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #global-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="global-loader" class="d-none">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+        <div class="mt-2 fw-bold text-dark">İşleniyor...</div>
+    </div>
+
+    <div class="sidebar @(isSidebarVisible ? "" : "d-none")" id="sidebar">
+        <div class="logo-area">
+            <div class="bg-primary rounded p-1 me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="fa-solid fa-wrench fa-sm"></i>
+            </div>
+            <span>TeknikServis<span class="text-primary">PRO</span></span>
+        </div>
+
+        <div class="sidebar-menu">
+            @if (SignInManager.IsSignedIn(User))
+            {
+                // --- NORMAL KULLANICI MENÜLERİ ---
+                @if (!isTechnician)
+                {
+                    if (showHome)
+                    {
+                        <a asp-area="" asp-controller="Home" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active-link" : "")"><i class="fa-solid fa-home"></i><span>Ana Sayfa</span></a>
+                    }
+                    if (showCustomer)
+                    {
+
+                        <a asp-area="" asp-controller="Customer" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Customer" ? "active-link" : "")"><i class="fa-solid fa-users"></i><span>Müşteriler</span></a>
+                    }
+                    if (showService)
+                    {
+
+                        <a asp-area="" asp-controller="ServiceTicket" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceTicket" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active-link" : "")"><i class="fa-solid fa-clipboard-list"></i><span>Servis Kayıtları</span></a>
+                    }
+                    if (showBarcode)
+                    {
+
+                        <a asp-area="" asp-controller="ServiceTicket" asp-action="Scan" class="sidebar-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Scan" ? "active-link" : "")"><i class="fa-solid fa-qrcode"></i><span>Barkod Tara</span></a>
+                    }
+
+                    // YENİ: Stok Menüsü
+                    if (showStock)
+                    {
+                        <a asp-area="" asp-controller="SparePart" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "SparePart" ? "active-link" : "")">
+                            <i class="fa-solid fa-boxes-stacked"></i><span>Yedek Parça / Stok</span>
+                        </a>
+                    }
+
+                    if (showEDevlet)
+                    {
+
+                        <a asp-area="" asp-controller="EDevlet" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "EDevlet" ? "active-link" : "")"><i class="fa-solid fa-building-columns"></i><span>E-Devlet</span></a>
+                    }
+                    if (showAudit)
+                    {
+
+                        <a asp-area="" asp-controller="AuditLog" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AuditLog" ? "active-link" : "")"><i class="fa-solid fa-history"></i><span>Geçmiş</span></a>
+                    }
+                }
+
+                // --- TEKNİSYEN ÖZEL ---
+                @if (isTechnician)
+                {
+                    <a asp-controller="ServiceTicket" asp-action="TechnicianPanel" class="sidebar-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "TechnicianPanel" ? "active-link" : "")"><i class="fa-solid fa-screwdriver-wrench"></i><span>İşlerim / Paneli</span></a>
+                }
+
+                // --- ORTAK MENÜ ---
+                if (showSupport)
+                {
+                    <a asp-area="" asp-controller="Support" asp-action="Index" class="sidebar-link position-relative"><i class="fa-solid fa-headset"></i><span>Destek</span><span id="support-badge" class="position-absolute top-50 end-0 translate-middle-y me-3 badge rounded-pill bg-danger d-none">0</span></a>
+                }
+            }
+        </div>
+
+        @if (SignInManager.IsSignedIn(User))
+        {
+            <div class="p-3 border-top border-secondary">
+                <a asp-area="" asp-controller="Account" asp-action="Logout" class="sidebar-link text-danger ps-0">
+                    <i class="fa-solid fa-power-off ms-3 me-2"></i><span>Güvenli Çıkış</span>
+                </a>
+            </div>
+        }
+    </div>
+
+    <div class="main-content" id="main-content">
+        <div class="topbar">
+            <div class="d-flex align-items-center">
+                @if (isSidebarVisible)
+                {
+                    <button class="btn btn-light border-0 me-3" id="sidebar-toggle"><i class="fa-solid fa-bars fs-5"></i></button>
+                }
+                <h5 class="mb-0 fw-bold text-secondary d-none d-sm-block">@ViewData["Title"]</h5>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                @if (SignInManager.IsSignedIn(User))
+                {
+                    @await Component.InvokeAsync("BranchSwitcher")
+
+                    <div class="dropdown">
+                        <a class="text-secondary position-relative me-2" href="#" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-bell fs-5"></i><span id="announcement-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 10px;">0</span></a>
+                        <div class="dropdown-menu dropdown-menu-end shadow border-0 notification-dropdown" id="announcement-list"><div class="text-center py-2 text-muted small">Yükleniyor...</div></div>
+                    </div>
+
+                    @if (isAdmin)
+                    {
+                        <div class="dropdown">
+                            <button class="btn btn-light border dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown"><i class="fa-solid fa-user-shield text-danger me-1"></i>Yönetim</button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><h6 class="dropdown-header">Admin Paneli</h6></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Personnel" asp-action="Index"><i class="fa-solid fa-users-gear me-2 text-primary"></i>Personel</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Branch" asp-action="Index"><i class="fa-solid fa-building me-2 text-warning"></i>Şubeler</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Definition" asp-action="Index"><i class="fa-solid fa-list-check me-2 text-secondary"></i>Tanımlamalar</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Backup" asp-action="Index"><i class="fa-solid fa-database me-2 text-success"></i>Veritabanı</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Announcement" asp-action="Index"><i class="fa-solid fa-bullhorn me-2 text-primary"></i>Duyurular</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Email"><i class="fa-solid fa-envelope-open-text me-2 text-info"></i>Mail Ayar</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Receipt"><i class="fa-solid fa-print me-2 text-dark"></i>Fiş Ayar</a></li>
+                            </ul>
+                        </div>
+                    }
+
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                            <div class="text-end d-none d-md-block lh-1">
+                                <div class="fw-bold text-dark small">@User.GetFullName()</div>
+                                <div class="text-muted" style="font-size: 11px;">@User.GetBranchName()</div>
+                            </div>
+                            <div class="avatar bg-light rounded-circle d-flex align-items-center justify-content-center text-primary border" style="width: 38px; height: 38px;"><i class="fa-solid fa-user"></i></div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                            <li><span class="dropdown-header">Hesabım</span></li>
+                            <li><a class="dropdown-item" href="#"><i class="fa-solid fa-id-card me-2 text-secondary"></i>Profil</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger fw-bold" asp-area="" asp-controller="Account" asp-action="Logout"><i class="fa-solid fa-power-off me-2"></i>Güvenli Çıkış</a></li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+
+                    <a class="btn btn-primary btn-sm" asp-area="" asp-controller="Account" asp-action="Login">Giriş Yap</a>
+                }
+            </div>
+        </div>
+
+        <div class="p-4 flex-grow-1">@RenderBody()</div>
+        <footer class="bg-white border-top py-3 text-center text-muted small mt-auto">&copy; @DateTime.Now.Year - Teknik Servis Pro</footer>
+    </div>
+
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <div id="chat-launcher" class="position-fixed bottom-0 end-0 m-4 bg-primary text-white rounded-pill shadow d-flex align-items-center px-4 py-3" style="cursor: pointer; z-index: 9999; gap: 10px;"><i class="fa-solid fa-comments fs-4"></i><span class="fw-bold d-none d-md-block">Destek</span><span id="chat-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">!</span></div>
+        <div id="chat-window" class="position-fixed bottom-0 end-0 m-4 bg-white shadow-lg rounded d-none" style="width: 350px; height: 450px; z-index: 9999; display: flex; flex-direction: column;">
+            <div class="bg-primary text-white p-3 d-flex justify-content-between align-items-center rounded-top"><h6 class="mb-0 fw-bold"><i class="fa-solid fa-headset me-2"></i>Canlı Destek</h6><button type="button" class="btn-close btn-close-white small" id="chat-close"></button></div>
+            <div class="flex-grow-1 d-flex flex-column" style="overflow: hidden;">
+                @if (isAdmin)
+                {
+                    <div id="admin-user-list" class="h-100 overflow-auto p-2"><div class="text-center text-muted mt-5 small">Bekleyen yok.</div></div>
+                    <div id="admin-chat-view" class="d-none flex-column h-100"><div class="bg-light p-2 border-bottom d-flex align-items-center"><button class="btn btn-sm btn-outline-secondary me-2" id="back-to-list"><i class="fa-solid fa-arrow-left"></i></button><strong id="chatting-with-name">User</strong><input type="hidden" id="chatting-with-id" /></div><div id="admin-messages" class="flex-grow-1 overflow-auto p-3 bg-light"></div><div class="p-2 border-top bg-white d-flex"><input type="text" id="admin-message-input" class="form-control me-2" placeholder="Cevap..." /><button class="btn btn-primary" id="admin-send-btn"><i class="fa-solid fa-paper-plane"></i></button></div></div>
+                }
+                else
+                {
+                    <div id="user-messages" class="flex-grow-1 overflow-auto p-3 bg-light"><div class="text-center text-muted small mt-2">Sohbet Yükleniyor...</div></div>
+                    <div class="p-2 border-top bg-white d-flex"><input type="text" id="user-message-input" class="form-control me-2" placeholder="Mesaj..." /><button class="btn btn-primary" id="user-send-btn"><i class="fa-solid fa-paper-plane"></i></button></div>
+                }
+            </div>
+        </div>
+    }
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+    <script>
+        const sidebar = document.getElementById('sidebar'); const mainContent = document.getElementById('main-content'); const toggleBtn = document.getElementById('sidebar-toggle');
+        if(toggleBtn){ if (localStorage.getItem('sidebar-collapsed') === 'true') { sidebar.classList.add('collapsed'); mainContent.classList.add('expanded'); } toggleBtn.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); mainContent.classList.toggle('expanded'); localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed')); }); }
+        toastr.options = { "closeButton": true, "progressBar": true, "positionClass": "toast-top-right" };
+        $(document).ready(function () {
+             @if (TempData["Success"] != null)
+            {
+                 <text>toastr.success('@Html.Raw(Json.Serialize(TempData["Success"]))');</text>
+             }
+             @if (TempData["Error"] != null)
+            {
+                 <text>toastr.error('@Html.Raw(Json.Serialize(TempData["Error"]))');</text>
+             }
+             @if (SignInManager.IsSignedIn(User))
+            {
+                 <text>
+                     $.get('/Support/CheckNewReplies', function(data) { if (data.count > 0) $('#support-badge').text(data.count).removeClass('d-none'); });
+                     $.get('/Notification/GetAnnouncements', function(data) { const list = $('#announcement-list'); list.empty(); if(data.length>0) { $('#announcement-badge').text(data.length).removeClass('d-none'); list.append('<div class="dropdown-header fw-bold">Duyurular</div>'); data.forEach(i => list.append(`<div class="notification-item border-bottom p-2 small"><div class="fw-bold text-primary">${i.title}</div><div class="text-muted text-truncate">${i.content}</div></div>`)); } else { list.append('<div class="text-center py-2 text-muted small">Duyuru yok.</div>'); } });
+                     $(document).on('submit', 'form', function () { if($(this).valid && !$(this).valid()) return; $('#global-loader').removeClass('d-none'); $(this).find('button[type="submit"]').prop('disabled', true).html('...'); });
+                     @if (!isAdmin)
+                    {
+                         <text>$.get('/Chat/CheckUnread', function(d){if(d.count>0)$('#chat-badge').removeClass('d-none');});</text>
+                     }
+                 </text>
+             }
+        });
+        @if (SignInManager.IsSignedIn(User))
+        {
+            <text>
+                const conn = new signalR.HubConnectionBuilder().withUrl("/supportHub").build();
+                const lnc = document.getElementById('chat-launcher'); const win = document.getElementById('chat-window'); const badge = document.getElementById('chat-badge');
+                lnc.onclick=()=>{win.classList.remove('d-none');lnc.classList.add('d-none');badge.classList.add('d-none'); if(typeof loadAdmin==='function')loadAdmin(); if(typeof loadUser==='function')loadUser();};
+                document.getElementById('chat-close').onclick=()=>{win.classList.add('d-none');lnc.classList.remove('d-none');};
+                conn.start().catch(e=>console.error(e));
+                function addMsg(cont,txt,pos,style,name=''){const d=document.createElement('div');d.className=`d-flex flex-column align-items-${pos==='end'?'end':'start'} mb-2`;let n=name?`<small class="text-muted mb-1" style="font-size:10px;">${name}</small>`:'';d.innerHTML=`${n}<div class="p-2 rounded shadow-sm ${style} chat-msg">${txt}</div>`;cont.appendChild(d);cont.scrollTop=cont.scrollHeight;}
+                @if (isAdmin)
+                {
+                    <text>
+                        const uList=document.getElementById('admin-user-list'); const cView=document.getElementById('admin-chat-view'); const mCont=document.getElementById('admin-messages'); const cId=document.getElementById('chatting-with-id');
+                        function loadAdmin(){$.get('/Chat/GetActiveChats', d=>{uList.innerHTML='';if(d.length===0){uList.innerHTML='<div class="text-center text-muted mt-5 small">Yok.</div>';return;} d.forEach(c=>addList(c.userId,c.userName,c.lastMessage,c.unreadCount>0));});}
+                        conn.on("ReceiveMessage", (id,name,msg)=>{if(win.classList.contains('d-none'))badge.classList.remove('d-none'); toastr.info(name+' mesaj attı'); addList(id,name,msg,true); if(cId.value===id && !cView.classList.contains('d-none')) addMsg(mCont,msg,'start','bg-white border text-dark',name);});
+                        function addList(id,name,msg,ur){let it=document.getElementById('r-'+id); let b=ur?'<span class="badge bg-danger rounded-pill">Yeni</span>':'<span class="d-none"></span>'; if(it){it.querySelector('small').innerText=msg;if(ur)it.querySelector('.badge').classList.remove('d-none');uList.prepend(it);}else{if(uList.innerText.includes('Yok'))uList.innerHTML=''; let d=document.createElement('div');d.id='r-'+id;d.className='p-2 border-bottom d-flex justify-content-between align-items-center bg-white mb-1 rounded';d.style.cursor='pointer';d.innerHTML=`<div><strong>${name}</strong><br><small class="text-muted text-truncate d-block" style="max-width:150px;">${msg}</small></div>${b}`;d.onclick=()=>openC(id,name);uList.prepend(d);}}
+                        function openC(id,name){uList.classList.add('d-none');cView.classList.remove('d-none');cView.classList.add('d-flex');document.getElementById('chatting-with-name').innerText=name;cId.value=id;mCont.innerHTML='...';$.get('/Chat/GetHistory?userId='+id, m=>{mCont.innerHTML='';m.forEach(x=>addMsg(mCont,x.message,x.sender==='Admin'?'end':'start',x.sender==='Admin'?'bg-primary text-white':'bg-white border text-dark',x.sender==='Admin'?'Siz':x.senderName)); let r=document.getElementById('r-'+id);if(r)r.querySelector('.badge').classList.add('d-none');});}
+                        document.getElementById('back-to-list').onclick=()=>{cView.classList.add('d-none');cView.classList.remove('d-flex');uList.classList.remove('d-none');cId.value='';loadAdmin();};
+                        document.getElementById('admin-send-btn').onclick=sendA; document.getElementById('admin-message-input').onkeypress=e=>{if(e.key==='Enter')sendA();};
+                        function sendA(){let i=document.getElementById('admin-message-input');let m=i.value;let id=cId.value;if(m&&id){conn.invoke("SendMessageToUser",id,m);addMsg(mCont,m,'end','bg-primary text-white','Siz');i.value='';}}
+                    </text>
+                }
+                else
+                {
+
+                    <text>
+                        const uCont=document.getElementById('user-messages');
+                        function loadUser(){$.get('/Chat/GetHistory?userId=me', m=>{uCont.innerHTML='';if(m.length===0)uCont.innerHTML='<div class="text-center mt-2 small">Merhaba!</div>'; m.forEach(x=>addMsg(uCont,x.message,x.sender==='User'?'end':'start',x.sender==='User'?'bg-primary text-white':'bg-white border text-dark'));});}
+                        conn.on("ReceiveSupportMessage", (msg,name)=>{if(win.classList.contains('d-none'))badge.classList.remove('d-none'); addMsg(uCont,msg,'start','bg-white border text-dark',name);toastr.success('Cevap geldi');});
+                        document.getElementById('user-send-btn').onclick=sendU; document.getElementById('user-message-input').onkeypress=e=>{if(e.key==='Enter')sendU();};
+                        function sendU(){let i=document.getElementById('user-message-input');let m=i.value;if(m){conn.invoke("SendMessageToAdmins",m);addMsg(uCont,m,'end','bg-primary text-white');i.value='';}}
+                    </text>
+                }
+            </text>
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

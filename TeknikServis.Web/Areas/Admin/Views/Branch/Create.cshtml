@@ -1,0 +1,68 @@
+﻿@model TeknikServis.Core.Entities.Branch
+@{
+    ViewData["Title"] = "Yeni Şube Ekle";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger shadow-sm mb-4">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["Error"]
+            </div>
+        }
+
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0"><i class="fa-solid fa-shop me-2"></i>Yeni Şube Oluştur</h5>
+            </div>
+            <div class="card-body p-4">
+
+                <form asp-action="Create" method="post">
+
+                    <h6 class="fw-bold text-secondary mb-3 border-bottom pb-2">Şube Bilgileri</h6>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Şube Adı</label>
+                        <input asp-for="BranchName" class="form-control" placeholder="Örn: Kadıköy Merkez" required />
+                        <span asp-validation-for="BranchName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Telefon</label>
+                            <input asp-for="Phone" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Adres</label>
+                            <input asp-for="Address" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="card bg-light border mb-4 mt-4">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-database me-2"></i>Veritabanı Bağlantısı</h6>
+
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold text-success">Kullanılacak Veritabanı</label>
+                                <select name="selectedDbName" class="form-select" asp-items="ViewBag.DatabaseList" required>
+                                    <option value="">-- Veritabanı Seçiniz --</option>
+                                </select>
+                                <div class="form-text small">Listede olmayan bir veritabanı kullanmak istiyorsanız, önce "Veritabanı İşlemleri" sayfasından oluşturunuz.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-secondary px-4">İptal</a>
+                        <button type="submit" class="btn btn-success px-5 fw-bold">
+                            <i class="fa-solid fa-check me-2"></i>Şubeyi Oluştur
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>

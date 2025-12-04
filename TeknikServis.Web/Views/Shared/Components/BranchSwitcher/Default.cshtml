@@ -1,0 +1,28 @@
+﻿@model List<TeknikServis.Core.Entities.Branch>
+
+@if (Model != null && Model.Count > 1)
+{
+    <div class="dropdown d-inline-block">
+        <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="branchDropdown" data-bs-toggle="dropdown">
+            <i class="fa-solid fa-building-user me-1"></i>Şube Değiştir
+        </button>
+        <ul class="dropdown-menu shadow border-0" aria-labelledby="branchDropdown">
+            @foreach (var branch in Model)
+            {
+                var isActive = (Guid)ViewBag.CurrentBranchId == branch.Id;
+                <li>
+                    <form asp-controller="Account" asp-action="ChangeBranch" method="post" class="d-inline">
+                        <input type="hidden" name="branchId" value="@branch.Id" />
+                        <button type="submit" class="dropdown-item @(isActive ? "active" : "")">
+                            @if (isActive)
+                            {
+                                <i class="fa-solid fa-check me-2"></i>
+                            }
+                            @branch.BranchName
+                        </button>
+                    </form>
+                </li>
+            }
+        </ul>
+    </div>
+}

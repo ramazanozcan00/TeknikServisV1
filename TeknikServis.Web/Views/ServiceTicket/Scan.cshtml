@@ -1,0 +1,104 @@
+﻿@{
+    ViewData["Title"] = "Barkod Tara";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white text-center">
+                    <h5 class="mb-0"><i class="fa-solid fa-qrcode me-2"></i>QR Kod / Barkod Tara</h5>
+                </div>
+                <div class="card-body p-0 position-relative">
+
+                    <div id="reader" style="width: 100%; min-height: 300px; background: #000;"></div>
+
+                    <div id="error-msg" class="alert alert-danger m-3 d-none text-center small"></div>
+
+                    <div id="perm-btn" class="text-center p-4 d-none">
+                        <p>Kamera izni gerekiyor.</p>
+                        <button class="btn btn-primary" onclick="startCamera()">Kamerayı Başlat</button>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="text-muted small mb-0">Fiş üzerindeki QR Kodu okutunuz.</p>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary mt-2">Listeye Dön</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<script>
+    let html5QrCode;
+
+    function startCamera() {
+        document.getElementById('perm-btn').classList.add('d-none');
+        const errorDiv = document.getElementById('error-msg');
+        errorDiv.classList.add('d-none');
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        // Kamerayı Başlat
+        html5QrCode.start(
+            { facingMode: "environment" }, // Arka Kamera
+            config,
+            onScanSuccess,
+            onScanFailure
+        ).catch(err => {
+            console.error(err);
+            errorDiv.innerHTML = "Kamera hatası: " + err + "<br>Lütfen HTTPS kullandığınızdan ve izin verdiğinizden emin olun.";
+            errorDiv.classList.remove('d-none');
+            document.getElementById('perm-btn').classList.remove('d-none');
+        });
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // Okuma başarılı olduğunda durdur
+        html5QrCode.stop().then(() => {
+            toastr.info('Kod okundu: ' + decodedText, 'İşleniyor...');
+
+            // Sunucuya gönder
+            $.ajax({
+                url: '/ServiceTicket/FindTicketByFisNo',
+                type: 'GET',
+                data: { fisNo: decodedText },
+                success: function (response) {
+                    if (response.success) {
+                        toastr.success('Kayıt bulundu, yönlendiriliyorsunuz.');
+                        // 1 saniye sonra yönlendir (Toastr görünsün)
+                        setTimeout(() => {
+                            window.location.href = '/ServiceTicket/Details/' + response.id;
+                        }, 1000);
+                    } else {
+                        toastr.error(response.message);
+                        // Hata varsa 2 saniye sonra kamerayı tekrar aç
+                        setTimeout(() => { startCamera(); }, 2000);
+                    }
+                },
+                error: function () {
+                    toastr.error('Sunucuyla iletişim kurulamadı.');
+                    setTimeout(() => { startCamera(); }, 2000);
+                }
+            });
+        });
+    }
+
+    function onScanFailure(error) {
+        // Okuma sırasında sürekli hata fırlatabilir (çerçevede kod yoksa), bunu yoksayıyoruz.
+        // console.warn(`Code scan error = ${error}`);
+    }
+
+    // Sayfa yüklenince başlat
+    document.addEventListener("DOMContentLoaded", function () {
+        startCamera();
+    });
+</script>

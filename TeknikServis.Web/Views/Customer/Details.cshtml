@@ -1,0 +1,147 @@
+﻿@model TeknikServis.Core.Entities.Customer
+
+@{
+    ViewData["Title"] = "Müşteri Profili";
+    // Servis kayıtlarını tarihe göre (yeni en üstte) sıralayalım
+    var tickets = Model.ServiceTickets.OrderByDescending(x => x.CreatedDate).ToList();
+}
+
+<div class="container mt-4">
+    <!-- Geri Dön Butonu -->
+    <div class="mb-3">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left me-2"></i>Müşteri Listesine Dön
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- SOL TARAFTAKİ PROFİL KARTI -->
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body text-center pt-5 pb-4">
+                    <!-- Profil İkonu (Baş harfler) -->
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-sm"
+                         style="width: 100px; height: 100px; font-size: 40px; font-weight: bold;">
+                        @(Model.FirstName.Substring(0, 1))@(Model.LastName.Substring(0, 1))
+                    </div>
+
+                    <h3 class="fw-bold text-dark">@Model.FirstName @Model.LastName</h3>
+                    <p class="text-muted mb-4">Kayıtlı Müşteri</p>
+
+                    <div class="d-grid gap-2">
+                        <a href="tel:@Model.Phone" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-phone me-2"></i>Ara
+                        </a>
+                        <a href="mailto:@Model.Email" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-envelope me-2"></i>Mail At
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-white py-3">
+                    <ul class="list-group list-group-flush small">
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span class="text-muted">Telefon</span>
+                            <span class="fw-bold text-dark">@Model.Phone</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span class="text-muted">E-Posta</span>
+                            <span class="fw-bold text-dark">@(Model.Email ?? "-")</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span class="text-muted">Kayıt Tarihi</span>
+                            <span>@Model.CreatedDate.ToString("dd.MM.yyyy")</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span class="text-muted">Toplam Servis</span>
+                            <span class="badge bg-primary rounded-pill">@Model.ServiceTickets.Count</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAĞ TARAFTAKİ SERVİS GEÇMİŞİ -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Servis Geçmişi</h5>
+
+                    <!-- Bu Müşteriye Hızlı Kayıt Aç Butonu -->
+                    <!-- Not: İleride buraya parametre göndererek otomatik seçili gelmesini sağlayacağız -->
+                    <a asp-controller="ServiceTicket" asp-action="Create" class="btn btn-sm btn-primary">
+                        <i class="fa-solid fa-plus"></i> Yeni Kayıt
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="bg-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Cihaz</th>
+                                    <th>Seri No</th>
+                                    <th>Arıza</th>
+                                    <th>Durum</th>
+                                    <th>Tutar</th>
+                                    <th>Tarih</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in tickets)
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-dark">
+                                            <i class="fa-solid fa-mobile-screen me-2 text-muted"></i>
+                                            @item.DeviceBrand @item.DeviceModel
+                                        </td>
+                                        <td class="small font-monospace text-muted">@item.SerialNumber</td>
+                                        <td class="small text-truncate" style="max-width: 150px;">@item.ProblemDescription</td>
+                                        <td>
+                                            @if (item.Status == "Bekliyor")
+                                            {
+                                                <span class="badge bg-warning text-dark">Bekliyor</span>
+                                            }
+                                            else if (item.Status == "Tamamlandı")
+                                            {
+                                                <span class="badge bg-success">Tamamlandı</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info">@item.Status</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (item.TotalPrice.HasValue)
+                                            {
+                                                <span class="fw-bold text-success">@item.TotalPrice.Value.ToString("C2")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="small text-muted">@item.CreatedDate.ToString("dd.MM.yyyy")</td>
+                                        <td class="text-end pe-3">
+                                            <a asp-controller="ServiceTicket" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-light border">
+                                                <i class="fa-solid fa-chevron-right"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (tickets.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5 text-muted">
+                                            <i class="fa-solid fa-folder-open fs-1 mb-3 d-block text-light"></i>
+                                            Bu müşteriye ait servis kaydı bulunamadı.
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

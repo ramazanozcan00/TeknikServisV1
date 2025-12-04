@@ -1,0 +1,68 @@
+﻿@{
+    ViewData["Title"] = "IMEI Sorgulama";
+    var result = ViewBag.Result as TeknikServis.Web.Models.ImeiResult;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-danger text-white text-center py-4">
+                    <i class="fa-solid fa-building-columns fa-3x mb-2"></i>
+                    <h4 class="mb-0">E-Devlet IMEI Sorgulama</h4>
+                    <small>Cihaz Kayıt Durumu Kontrolü</small>
+                </div>
+                <div class="card-body p-4">
+
+                    <form asp-action="Query" method="post">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">IMEI Numarası</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-barcode"></i></span>
+                                <input type="text" name="imei" class="form-control" placeholder="15 haneli IMEI giriniz..." maxlength="15" required />
+                            </div>
+                            <div class="form-text">Cihazınızın arama ekranına *#06# yazarak öğrenebilirsiniz.</div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fa-solid fa-magnifying-glass me-2"></i>Sorgula
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+            @if (result != null)
+            {
+                <div class="card mt-4 border-0 shadow-sm animate__animated animate__fadeInUp">
+                    <div class="card-body text-center">
+                        @if (result.IsRegistered)
+                        {
+                            <div class="text-success mb-2">
+                                <i class="fa-solid fa-circle-check fa-4x"></i>
+                            </div>
+                            <h4 class="fw-bold text-success">KAYITLI</h4>
+                            <p class="lead mb-1">@result.StatusMessage</p>
+                            <span class="badge bg-secondary">@result.Model</span>
+                        }
+                        else
+                        {
+                            <div class="text-danger mb-2">
+                                <i class="fa-solid fa-circle-xmark fa-4x"></i>
+                            </div>
+                            <h4 class="fw-bold text-danger">KAYIT DIŞI / HATALI</h4>
+                            <p class="lead mb-1">@result.StatusMessage</p>
+                            <div class="alert alert-warning mt-3 small">
+                                Bu cihaz iletişime kapatılabilir. Lütfen kontrol ediniz.
+                            </div>
+                        }
+                        <div class="mt-3 text-muted font-monospace">Sorgulanan IMEI: @result.Imei</div>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>

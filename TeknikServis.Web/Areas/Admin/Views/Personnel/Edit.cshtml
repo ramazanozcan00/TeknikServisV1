@@ -1,0 +1,206 @@
+﻿@model TeknikServis.Web.Models.UserEditViewModel
+
+@{
+    ViewData["Title"] = "Personel Düzenle";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-0">
+            <div class="card-header bg-warning text-dark py-3">
+                <h5 class="mb-0"><i class="fa-solid fa-user-pen me-2"></i>Personel Düzenle</h5>
+            </div>
+            <div class="card-body p-4">
+
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3">Kişisel Bilgiler</h6>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ad Soyad</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-user text-secondary"></i></span>
+                                <input asp-for="FullName" class="form-control" />
+                            </div>
+                            <span asp-validation-for="FullName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">E-Posta</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-envelope text-secondary"></i></span>
+                                <input asp-for="Email" class="form-control" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3 mt-2">Şube & Rol</h6>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-bold text-secondary">Hangi Veritabanı?</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-database"></i></span>
+                                <select id="dbSelect" class="form-select" asp-items="ViewBag.DatabaseList">
+                                    <option value="">-- Önce Veritabanı Seçiniz --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-primary">Şube</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-building text-primary"></i></span>
+                                <select asp-for="BranchId" class="form-select" id="branchSelect"></select>
+                            </div>
+                            <span asp-validation-for="BranchId" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-danger">Yetki Rolü</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-user-shield text-danger"></i></span>
+                                <select asp-for="UserRole" class="form-select" asp-items="ViewBag.Roles"></select>
+                            </div>
+                            <span asp-validation-for="UserRole" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Erişebileceği Diğer Şubeler</label>
+                        <select asp-for="SelectedBranchIds" class="form-select" id="multiBranchSelect" multiple></select>
+                        <div class="form-text small">Seçili veritabanındaki diğer şubeleri buradan atayabilirsiniz.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Yeni Şifre <span class="text-muted fw-normal small">(Değiştirmek istemiyorsanız boş bırakın)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
+                            <input asp-for="Password" type="password" class="form-control" placeholder="******" />
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="card bg-light mb-4 border">
+                        <div class="card-body py-2">
+                            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-list-check me-2"></i>Menü Görünürlüğü</h6>
+
+                            <div class="row g-2">
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowHome"><label class="form-check-label" asp-for="ShowHome">Ana Sayfa</label></div></div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowCustomer"><label class="form-check-label" asp-for="ShowCustomer">Müşteriler</label></div></div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowService"><label class="form-check-label" asp-for="ShowService">Servis</label></div></div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" asp-for="ShowStock">
+                                        <label class="form-check-label" asp-for="ShowStock">Stok / Yedek Parça</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowBarcode"><label class="form-check-label" asp-for="ShowBarcode">Barkod</label></div></div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowEDevlet"><label class="form-check-label" asp-for="ShowEDevlet">E-Devlet</label></div></div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowAudit"><label class="form-check-label" asp-for="ShowAudit">Geçmiş</label></div></div>
+                                <div class="col-md-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowSupport"><label class="form-check-label" asp-for="ShowSupport">Destek</label></div></div>
+                            </div>
+                            <div class="form-text small text-muted mt-2">Seçili olmayan menüler gizlenecektir.</div>
+                        </div>
+                    </div>
+
+                    <div class="card bg-light mb-3 border">
+                        <div class="card-body py-2">
+                            <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-shield-halved me-2"></i>Erişim ve Güvenlik</h6>
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" asp-for="IsSidebarVisible">
+                                <label class="form-check-label fw-bold text-primary" asp-for="IsSidebarVisible">
+                                    Sol Menü (Sidebar) Görünsün
+                                </label>
+                                <div class="form-text small">Kapatılırsa, kullanıcı sol menüyü göremez (Tam ekran).</div>
+                            </div>
+
+                            <hr class="my-2">
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" asp-for="TwoFactorEnabled" id="chk2FA_Edit">
+                                <label class="form-check-label fw-bold" for="chk2FA_Edit">Girişte Doğrulama Kodu (2FA)</label>
+                            </div>
+
+                            <div class="d-flex gap-3 mt-3">
+                                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanCreate"><label class="form-check-label text-success" asp-for="CanCreate">Ekleme</label></div>
+                                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanEdit"><label class="form-check-label text-warning" asp-for="CanEdit">Düzenleme</label></div>
+                                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanDelete"><label class="form-check-label text-danger" asp-for="CanDelete">Silme</label></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card bg-warning bg-opacity-10 mb-4 border border-warning">
+                        <div class="card-body py-2">
+                            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-star-half-stroke me-2"></i>Kullanım Hakları (Deneme)</h6>
+                            <div class="row g-3">
+                                <div class="col-md-3"><label class="form-label small fw-bold">Fiş</label><input asp-for="PrintBalance" type="number" class="form-control text-center fw-bold" min="0" /></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Mail</label><input asp-for="MailBalance" type="number" class="form-control text-center fw-bold" min="0" /></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Müşteri</label><input asp-for="CustomerBalance" type="number" class="form-control text-center fw-bold" min="0" /></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Servis</label><input asp-for="TicketBalance" type="number" class="form-control text-center fw-bold" min="0" /></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between gap-2">
+                        <a asp-action="Index" class="btn btn-secondary px-4"><i class="fa-solid fa-arrow-left me-2"></i>Geri</a>
+                        <button type="submit" class="btn btn-warning px-5 fw-bold shadow-sm"><i class="fa-solid fa-check me-2"></i>Değişiklikleri Kaydet</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            var branchesData = @Html.Raw(ViewBag.BranchesJson);
+            var currentBranchId = '@Model.BranchId';
+            var selectedExtraBranches = @Html.Raw(Json.Serialize(Model.SelectedBranchIds));
+
+            $('#multiBranchSelect').select2({ theme: "bootstrap-5", width: '100%', placeholder: "Ek şubeleri seçiniz...", closeOnSelect: false });
+
+            function populateBranches(selectedDb) {
+                var branchSelect = $('#branchSelect');
+                var multiSelect = $('#multiBranchSelect');
+                branchSelect.empty(); multiSelect.empty();
+
+                if (selectedDb) {
+                    var filteredBranches = branchesData.filter(function(b) { return b.DbName === selectedDb; });
+                    branchSelect.append('<option value="">-- Şube Seçiniz --</option>');
+                    $.each(filteredBranches, function(index, item) {
+                        branchSelect.append(new Option(item.Name, item.Id));
+                        multiSelect.append(new Option(item.Name, item.Id));
+                    });
+                } else {
+                    branchSelect.append('<option value="">-- Önce Veritabanı Seçiniz --</option>');
+                }
+                multiSelect.trigger('change');
+            }
+
+            var userBranch = branchesData.find(b => b.Id === currentBranchId);
+            var userDb = userBranch ? userBranch.DbName : "";
+
+            if (userDb) {
+                $('#dbSelect').val(userDb);
+                populateBranches(userDb);
+                $('#branchSelect').val(currentBranchId);
+                if (selectedExtraBranches && selectedExtraBranches.length > 0) {
+                    $('#multiBranchSelect').val(selectedExtraBranches).trigger('change');
+                }
+            }
+
+            $('#dbSelect').on('change', function() { populateBranches($(this).val()); });
+        });
+    </script>
+}

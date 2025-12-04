@@ -1,0 +1,67 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.SupportRequest>
+@{
+    ViewData["Title"] = "Destek Talepleri";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="fa-solid fa-headset me-2"></i>Destek Talepleri</h3>
+    <a asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Yeni Talep</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="bg-light">
+                <tr>
+                    <th>Durum</th>
+                    <th>Konu</th>
+                    <th>Öncelik</th>
+                    <th>Tarih</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            @if (item.IsReplied)
+                            {
+                                <span class="badge bg-success">Yanıtlandı</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Bekliyor</span>
+                            }
+                        </td>
+                        <td class="fw-bold">@item.Subject</td>
+                        <td>
+                            @if (item.Priority == "Yüksek")
+                            {
+                                <span class="text-danger fw-bold"><i class="fa-solid fa-angles-up"></i> Yüksek</span>
+                            }
+                            else if (item.Priority == "Orta")
+                            {
+
+                                <span class="text-warning fw-bold"><i class="fa-solid fa-angle-up"></i> Orta</span>
+                            }
+                            else
+                            {
+
+                                <span class="text-success"><i class="fa-solid fa-angle-down"></i> Düşük</span>
+                            }
+                        </td>
+                        <td>@item.CreatedDate.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info">Detay / Cevap</a>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="5" class="text-center py-4 text-muted">Talep bulunamadı.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

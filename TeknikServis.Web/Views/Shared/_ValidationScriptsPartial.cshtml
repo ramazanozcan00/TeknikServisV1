@@ -1,0 +1,20 @@
+﻿<!-- Standart jQuery Validation Kütüphaneleri -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+
+<!-- TÜRKÇE DİL PAKETİ (CDN) -->
+<!-- Bu satır sayesinde "This field is required" yerine "Bu alan gereklidir" yazacak -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/localization/messages_tr.min.js"></script>
+
+<!-- ÖZEL AYARLAR (Opsiyonel) -->
+<!-- Bootstrap input hatalarını daha güzel göstermek için eklenebilir -->
+<script>
+    $.validator.setDefaults({
+        highlight: function (element) {
+            $(element).addClass('is-invalid');
+        },
+        unhighlight: function (element) {
+            $(element).removeClass('is-invalid');
+        }
+    });
+</script>

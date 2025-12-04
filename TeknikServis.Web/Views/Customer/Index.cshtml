@@ -1,0 +1,162 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.Customer>
+
+@{
+    ViewData["Title"] = "Müşteriler";
+    int currentPage = ViewBag.CurrentPage ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
+    string search = ViewBag.Search as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-users me-2 text-primary"></i>Müşteriler</h3>
+        <p class="text-muted small mb-0">Şubenize kayıtlı müşteriler</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary shadow-sm">
+        <i class="fa-solid fa-user-plus me-2"></i>Yeni Müşteri
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 bg-light">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                <input type="text" name="s" value="@search" class="form-control border-start-0" placeholder="Ad, Soyad, Telefon veya Firma Ara..." />
+                <button class="btn btn-primary px-4" type="submit">Ara</button>
+                @if (!string.IsNullOrEmpty(search))
+                {
+                    <a asp-action="Index" class="btn btn-outline-secondary" title="Temizle"><i class="fa-solid fa-xmark"></i></a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4">Ad Soyad / Firma</th>
+                        <th>İletişim</th>
+                        <th>Konum</th>
+                        <th>Müşteri Tipi</th>
+                        <th class="text-end pe-4">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">@item.FirstName @item.LastName</div>
+                                        @if (!string.IsNullOrEmpty(item.CompanyName))
+                                        {
+                                            <div class="small text-muted"><i class="fa-solid fa-building me-1"></i>@item.CompanyName</div>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold text-dark"><i class="fa-solid fa-phone me-2 text-secondary small"></i>@item.Phone</span>
+                                    @if (!string.IsNullOrEmpty(item.Email))
+                                    {
+                                        <small class="text-muted"><i class="fa-solid fa-envelope me-2 text-secondary small"></i>@item.Email</small>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.City))
+                                {
+                                    <span class="badge bg-light text-dark border">@item.City / @item.District</span>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.CustomerType == "Problemli")
+                                {
+                                    <span class="badge bg-danger">Problemli</span>
+                                }
+                                else if (item.CustomerType == "Bayi")
+                                {
+                                    <span class="badge bg-info text-dark">Bayi</span>
+                                }
+                                else if (item.CustomerType == "Esnaf")
+                                {
+                                    <span class="badge bg-warning text-dark">Esnaf</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Normal</span>
+                                }
+                            </td>
+                            <td class="text-end pe-4">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-eye"></i></a>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-warning text-dark me-1"><i class="fa-solid fa-pen"></i></a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('Silmek istediğinize emin misiniz?')"><i class="fa-solid fa-trash"></i></a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fa-solid fa-users-slash fs-1 mb-3 opacity-25"></i>
+                                <p>Kayıtlı müşteri bulunamadı.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <div class="card-footer bg-white py-3 border-top">
+            <nav aria-label="Sayfalama">
+                <ul class="pagination justify-content-center mb-0 shadow-sm">
+
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <a class="page-link border-0" asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-s="@search">
+                            <i class="fa-solid fa-chevron-left small"></i> Önceki
+                        </a>
+                    </li>
+
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        if (i == 1 || i == totalPages || (i >= currentPage - 2 && i <= currentPage + 2))
+                        {
+                            <li class="page-item @(i == currentPage ? "active" : "")">
+                                <a class="page-link border-0 @(i == currentPage ? "fw-bold" : "")" asp-action="Index" asp-route-page="@i" asp-route-s="@search">@i</a>
+                            </li>
+                        }
+                        else if (i == currentPage - 3 || i == currentPage + 3)
+                        {
+                            <li class="page-item disabled"><span class="page-link border-0">...</span></li>
+                        }
+                    }
+
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <a class="page-link border-0" asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-s="@search">
+                            Sonraki <i class="fa-solid fa-chevron-right small"></i>
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+        </div>
+    }
+</div>

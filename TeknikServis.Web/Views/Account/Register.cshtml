@@ -1,0 +1,43 @@
+﻿@model TeknikServis.Web.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Kayıt Ol";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-4">
+                <h3 class="text-center mb-4 text-success fw-bold">Personel Kaydı</h3>
+                <form asp-action="Register" method="post">
+                    <div asp-validation-summary="All" class="text-danger mb-3 small"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Ad Soyad</label>
+                        <input asp-for="FullName" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">E-Posta</label>
+                        <input asp-for="Email" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Şifre</label>
+                        <input asp-for="Password" class="form-control" />
+                        <small class="text-muted">En az 3 karakter (Test modundayız)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Şifre Tekrar</label>
+                        <input asp-for="ConfirmPassword" class="form-control" />
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Kaydı Tamamla</button>
+                        <a asp-action="Login" class="btn btn-link text-decoration-none">Zaten hesabın var mı? Giriş yap</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,184 @@
+﻿@model TeknikServis.Core.Entities.ServiceTicket
+@{
+    ViewData["Title"] = "İşlem Yap";
+}
+
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>Cihaz İşlemi: @Model.FisNo</h5>
+                </div>
+                <div class="card-body p-4">
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <small class="text-uppercase fw-bold text-secondary d-block mb-2">
+                                    <i class="fa-solid fa-mobile-screen me-1"></i>Cihaz & Arıza
+                                </small>
+                                <div class="fw-bold text-dark">@(Model.DeviceBrand?.Name) @Model.DeviceModel</div>
+                                <div class="small text-muted mt-1 text-truncate-3">@Model.ProblemDescription</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-warning bg-opacity-10 h-100 border-warning">
+                                <small class="text-uppercase fw-bold text-dark d-block mb-2">
+                                    <i class="fa-solid fa-user me-1"></i>Müşteri
+                                </small>
+                                <div class="fw-bold text-dark">@Model.Customer?.FirstName @Model.Customer?.LastName</div>
+                                <div class="small text-dark mt-1">
+                                    <i class="fa-solid fa-phone me-1"></i>
+                                    <a href="tel:@Model.Customer?.Phone" class="text-decoration-none text-dark fw-bold">@Model.Customer?.Phone</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Geçmiş İşlemler / Notlar</label>
+                        @if (!string.IsNullOrEmpty(Model.TechnicianNotes))
+                        {
+                            <div class="bg-light p-3 rounded border shadow-sm" style="max-height: 200px; overflow-y: auto;">
+                                <div style="white-space: pre-line; font-family: monospace; font-size: 0.9rem; color: #333;">@Model.TechnicianNotes</div>
+                            </div>
+                        }
+                        else
+                        {
+
+                            <div class="alert alert-light border text-center small">Henüz not girilmedi.</div>
+                        }
+                    </div>
+
+                    <div class="card shadow-sm mb-4 border-warning">
+                        <div class="card-header bg-warning bg-opacity-25 fw-bold text-dark">
+                            <i class="fa-solid fa-boxes-stacked me-2"></i>Yedek Parça Kullan
+                        </div>
+                        <div class="card-body bg-light">
+                            <div class="row g-2 align-items-end mb-3">
+                                <div class="col-md-6">
+                                    <label class="small fw-bold">Parça Ara</label>
+                                    <input type="text" id="partSearch" class="form-control" placeholder="Parça adı yazın..." />
+                                    <input type="hidden" id="selectedPartId" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small fw-bold">Adet</label>
+                                    <input type="number" id="partQty" class="form-control" value="1" min="1" />
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" onclick="addPart()" class="btn btn-warning w-100 fw-bold text-dark"><i class="fa-solid fa-plus me-1"></i>Ekle</button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive bg-white border rounded">
+                                <table class="table table-sm table-hover mb-0 small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="ps-3">Parça</th>
+                                            <th class="text-center">Adet</th>
+                                            <th class="text-end">Tutar</th>
+                                            <th class="text-end pe-3">İşlem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Model.UsedParts != null && Model.UsedParts.Any())
+                                        {
+                                            foreach (var part in Model.UsedParts)
+                                            {
+                                                <tr>
+                                                    <td class="ps-3">@part.SparePart?.ProductName</td>
+                                                    <td class="text-center">@part.Quantity</td>
+                                                    <td class="text-end">@part.TotalPrice.ToString("C2")</td>
+                                                    <td class="text-end pe-3">
+                                                        <button type="button" onclick="removePart('@part.Id')" class="btn btn-xs btn-outline-danger border-0"><i class="fa-solid fa-trash"></i></button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr><td colspan="4" class="text-center text-muted py-2">Parça eklenmedi.</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <form asp-action="ProcessTicket" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Yeni İşlem Notu Ekle</label>
+                            <textarea name="description" class="form-control border-primary" rows="3" placeholder="Yapılan işlem..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Toplam Ücret (TL)</label>
+                                <input type="number" name="price" class="form-control" value="@(Model.TotalPrice?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))" step="0.01" min="0" />
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label fw-bold">Yeni Durum</label>
+                                <select name="status" class="form-select">
+                                    <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
+                                    <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
+                                    <option value="Tamamlandı" selected="@(Model.Status == "Tamamlandı")">Tamamlandı</option>
+                                    <option value="İptal" selected="@(Model.Status == "İptal")">İptal</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="TechnicianPanel" class="btn btn-secondary px-4">Vazgeç</a>
+                            <button type="submit" class="btn btn-success px-5 fw-bold shadow">Kaydet</button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $("#partSearch").autocomplete({
+                source: function(request, response) {
+                    $.ajax({ url: "/ServiceTicket/SearchSpareParts", dataType: "json", data: { term: request.term }, success: function(data) { response(data); } });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    $("#partSearch").val(ui.item.label);
+                    $("#selectedPartId").val(ui.item.id);
+                    return false;
+                }
+            });
+        });
+
+        function addPart() {
+            var partId = $("#selectedPartId").val();
+            var qty = $("#partQty").val();
+            if (!partId) { alert("Lütfen parça seçin."); return; }
+            $.post("/ServiceTicket/AddPartToTicket", { ticketId: "@Model.Id", partId: partId, quantity: qty }, function(res) {
+                if (res.success) location.reload(); else alert(res.message);
+            });
+        }
+
+        function removePart(id) {
+            if (confirm("Parçayı silmek istiyor musunuz?")) {
+                $.post("/ServiceTicket/RemovePartFromTicket", { usedPartId: id }, function(res) {
+                    if (res.success) location.reload(); else alert("Hata oluştu.");
+                });
+            }
+        }
+    </script>
+}
