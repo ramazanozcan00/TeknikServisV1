@@ -1,79 +1,78 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using TeknikServis.Web.Services.TeknikServis.Web.Services;
+using System.Xml.Linq;
+using TeknikServis.Core.Entities;
+using TeknikServis.Core.Interfaces;
+using TeknikServis.Web.Services;
 
-namespace TeknikServis.Web.Services
+namespace TeknikServis.Service.Services
 {
     public class IletiMerkeziSmsService : ISmsService
     {
-        private readonly IConfiguration _configuration;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public IletiMerkeziSmsService(IConfiguration configuration)
+        public IletiMerkeziSmsService(IUnitOfWork unitOfWork, IHttpClientFactory httpClientFactory)
         {
-            _configuration = configuration;
+            _unitOfWork = unitOfWork;
+            _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<bool> SendSmsAsync(string telefon, string mesaj)
+        public async Task<SmsResult> SendSmsAsync(string telefon, string mesaj)
         {
-            if (string.IsNullOrEmpty(telefon)) return false;
-
             try
             {
-                var username = _configuration["SmsSettings:Username"];
-                var password = _configuration["SmsSettings:Password"];
-                var senderTitle = _configuration["SmsSettings:SenderTitle"];
+                // 1. Aktif Ayarı Veritabanından Çek
+                var settings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
+                var config = settings.FirstOrDefault(); // Genelde tek kayıt olur
 
-                // Telefon numarasını temizle (boşlukları sil, başındaki 0'ı kaldır, +90'ı kaldır)
-                telefon = telefon.Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
-                if (telefon.StartsWith("+90")) telefon = telefon.Substring(3);
-                if (telefon.StartsWith("0")) telefon = telefon.Substring(1);
-
-                // XML Formatı
-                string xmlData = $@"
-                <request>
-                    <authentication>
-                        <username>{username}</username>
-                        <password>{password}</password>
-                    </authentication>
-                    <order>
-                        <sender>{senderTitle}</sender>
-                        <sendDateTime></sendDateTime>
-                        <message>
-                            <text><![CDATA[{mesaj}]]></text>
-                            <receipents>
-                                <number>{telefon}</number>
-                            </receipents>
-                        </message>
-                    </order>
-                </request>";
-
-                using (var client = new HttpClient())
+                if (config == null || !config.IsActive)
                 {
-                    // Ileti Merkezi API Endpoint
-                    var content = new StringContent(xmlData, Encoding.UTF8, "text/xml");
-                    var response = await client.PostAsync("https://api.iletimerkezi.com/v1/send-sms", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var responseString = await response.Content.ReadAsStringAsync();
-                        // <status><code>200</code>... başarılıdır.
-                        return responseString.Contains("<code>200</code>");
-                    }
+                    return SmsResult.Failure("SMS Ayarları yapılandırılmamış veya aktif değil.");
                 }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
 
-        Task<SmsResult> ISmsService.SendSmsAsync(string telefon, string mesaj)
-        {
-            throw new NotImplementedException();
+                // 2. XML Oluştur (Dinamik Verilerle)
+                // Not: İleti Merkezi XML formatı örnektir, sağlayıcınıza göre değişebilir.
+                string xmlData = $@"
+                    <request>
+                        <authentication>
+                            <username>{config.ApiUsername}</username>
+                            <password>{config.ApiPassword}</password>
+                        </authentication>
+                        <order>
+                            <sender>{config.SmsTitle}</sender>
+                            <sendDateTime></sendDateTime>
+                            <message>
+                                <text><![CDATA[{mesaj}]]></text>
+                                <receipents>
+                                    <number>{telefon}</number>
+                                </receipents>
+                            </message>
+                        </order>
+                    </request>";
+
+                // 3. İsteği Gönder
+                var client = _httpClientFactory.CreateClient();
+                var content = new StringContent(xmlData, Encoding.UTF8, "text/xml");
+                var response = await client.PostAsync(config.ApiUrl, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    // Basit kontrol: status code 200 ise başarılı varsayıyoruz. 
+                    // Detaylı XML parse yapılabilir.
+                    return SmsResult.Success();
+                }
+
+                return SmsResult.Failure($"API Hatası: {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                return SmsResult.Failure($"Hata: {ex.Message}");
+            }
         }
     }
 }

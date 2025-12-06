@@ -117,7 +117,57 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
         }
 
 
+        // Mevcut Controller içine ekleyin:
 
+        // SMS AYARLARI (GET)
+        [HttpGet]
+        public async Task<IActionResult> Sms()
+        {
+            var settings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
+            var currentSetting = settings.FirstOrDefault();
+
+            if (currentSetting == null)
+            {
+                currentSetting = new SmsSetting(); // Boş model gönder
+            }
+
+            return View(currentSetting);
+        }
+
+        // SMS AYARLARI (POST)
+        [HttpPost]
+        public async Task<IActionResult> Sms(SmsSetting model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var settings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
+            var existing = settings.FirstOrDefault();
+
+            if (existing == null)
+            {
+                // Yeni Kayıt
+                model.Id = Guid.NewGuid();
+                model.CreatedDate = DateTime.Now;
+                await _unitOfWork.Repository<SmsSetting>().AddAsync(model);
+            }
+            else
+            {
+                // Güncelleme
+                existing.SmsTitle = model.SmsTitle;
+                existing.ApiUsername = model.ApiUsername;
+                existing.ApiPassword = model.ApiPassword;
+                existing.ApiUrl = model.ApiUrl;
+                existing.IsActive = model.IsActive;
+                existing.UpdatedDate = DateTime.Now;
+
+                _unitOfWork.Repository<SmsSetting>().Update(existing);
+            }
+
+            await _unitOfWork.CommitAsync();
+            TempData["Success"] = "SMS ayarları başarıyla güncellendi.";
+
+            return RedirectToAction("Sms");
+        }
 
 
     }

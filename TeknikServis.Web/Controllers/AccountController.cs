@@ -17,17 +17,20 @@ namespace TeknikServis.Web.Controllers
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly IEmailService _emailService;
+        private readonly ISmsService _smsService;
         private readonly IUnitOfWork _unitOfWork;
 
         public AccountController(
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
             IEmailService emailService,
+            ISmsService smsService,
             IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailService = emailService;
+            _smsService = smsService;
             _unitOfWork = unitOfWork;
         }
 
@@ -51,13 +54,11 @@ namespace TeknikServis.Web.Controllers
                 return View(model);
             }
 
-            // --- YENİ EKLENEN: PASİF KULLANICI KONTROLÜ ---
             if (user.IsDeleted)
             {
                 ModelState.AddModelError("", "Hesabınız pasife alınmıştır. Sisteme giriş yapamazsınız.");
                 return View(model);
             }
-            // -----------------------------------------------
 
             var passwordCheck = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!passwordCheck)
@@ -66,35 +67,97 @@ namespace TeknikServis.Web.Controllers
                 return View(model);
             }
 
-            // 2FA KONTROLÜ
+            // --- 2FA KONTROLÜ ---
             if (user.TwoFactorEnabled)
             {
-                var code = await _userManager.GenerateTwoFactorTokenAsync(user, "EmailCode");
-                string mailIcerik = $"<h3>Giriş Doğrulama</h3><p>Merhaba {user.FullName},</p><p>Giriş kodunuz: <strong>{code}</strong></p>";
-                await _emailService.SendEmailAsync(user.Email, "Doğrulama Kodu", mailIcerik);
+                string provider = "EmailCode";
+                string code = "";
+                bool isSent = false;
 
-                return RedirectToAction("VerifyCode", new { email = user.Email, rememberMe = model.RememberMe });
+                // 1. SMS (Öncelikli)
+                if (user.IsSmsAuthEnabled && !string.IsNullOrEmpty(user.PhoneNumber))
+                {
+                    provider = "Phone";
+                    try
+                    {
+                        code = await _userManager.GenerateTwoFactorTokenAsync(user, provider);
+                    }
+                    catch
+                    {
+                        // Phone provider yoksa EmailCode token'ını SMS ile gönder
+                        provider = "EmailCode";
+                        code = await _userManager.GenerateTwoFactorTokenAsync(user, provider);
+                    }
+
+                    // --- İSTEK ÜZERİNE GÜNCELLENEN MESAJ İÇERİĞİ ---
+                    var smsMsg = $"Merhaba {user.FullName}, Dogrulama Kodunuz : {code}";
+                    await _smsService.SendSmsAsync(user.PhoneNumber, smsMsg);
+                    isSent = true;
+                }
+                // 2. E-Posta
+                else if (user.IsEmailAuthEnabled)
+                {
+                    provider = "EmailCode";
+                    code = await _userManager.GenerateTwoFactorTokenAsync(user, provider);
+
+                    string mailIcerik = $"<h3>Giriş Doğrulama</h3><p>Merhaba {user.FullName},</p><p>Giriş kodunuz: <strong>{code}</strong></p>";
+                    await _emailService.SendEmailAsync(user.Email, "Doğrulama Kodu", mailIcerik);
+                    isSent = true;
+                }
+
+                if (isSent)
+                {
+                    return RedirectToAction("VerifyCode", new
+                    {
+                        email = user.Email,
+                        rememberMe = model.RememberMe,
+                        provider = provider
+                    });
+                }
             }
 
             await _signInManager.SignInAsync(user, model.RememberMe);
 
-            // Yönlendirme
             if (await _userManager.IsInRoleAsync(user, "Admin")) return RedirectToAction("Index", "Personnel", new { area = "Admin" });
             else if (await _userManager.IsInRoleAsync(user, "Technician")) return RedirectToAction("TechnicianPanel", "ServiceTicket");
 
             return RedirectToAction("Index", "Home");
         }
 
-        // --- VERIFY CODE (GET) ---
+        // --- VERIFY CODE (GET) - GÜNCELLENDİ (ASYNC) ---
         [HttpGet]
-        public IActionResult VerifyCode(string email, bool rememberMe)
+        public async Task<IActionResult> VerifyCode(string email, bool rememberMe, string provider = "EmailCode")
         {
             if (string.IsNullOrEmpty(email)) return RedirectToAction("Login");
+
+            // Maskeleme İşlemi için Kullanıcıyı Bul
+            string maskedInfo = email; // Varsayılan E-Posta
+
+            if (provider == "Phone")
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user != null && !string.IsNullOrEmpty(user.PhoneNumber))
+                {
+                    var phone = user.PhoneNumber.Trim();
+                    // Son 2 haneyi al, gerisini yıldızla
+                    if (phone.Length > 2)
+                    {
+                        maskedInfo = new string('*', phone.Length - 2) + phone.Substring(phone.Length - 2);
+                    }
+                    else
+                    {
+                        maskedInfo = phone; // Çok kısa ise olduğu gibi göster
+                    }
+                }
+            }
+
+            ViewBag.MaskedInfo = maskedInfo; // View'e gönderiyoruz
 
             var model = new VerifyCodeViewModel
             {
                 Email = email,
-                RememberMe = rememberMe
+                RememberMe = rememberMe,
+                Provider = provider
             };
             return View(model);
         }
@@ -108,7 +171,7 @@ namespace TeknikServis.Web.Controllers
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null) return RedirectToAction("Login");
 
-            var isCodeValid = await _userManager.VerifyTwoFactorTokenAsync(user, "EmailCode", model.Code);
+            var isCodeValid = await _userManager.VerifyTwoFactorTokenAsync(user, model.Provider, model.Code);
 
             if (isCodeValid)
             {
@@ -126,14 +189,12 @@ namespace TeknikServis.Web.Controllers
             return View(model);
         }
 
-        // --- ŞUBE DEĞİŞTİRME (SWITCH BRANCH) ---
         [HttpPost]
         public async Task<IActionResult> ChangeBranch(Guid branchId)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return RedirectToAction("Login");
 
-            // Yetki Kontrolü (Ana Şube mi veya Ek Şube mi?)
             bool hasAccess = (branchId == user.BranchId);
             if (!hasAccess)
             {
@@ -148,7 +209,6 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            // Yeni Claim (BranchId) Ayarla
             var principal = await _signInManager.CreateUserPrincipalAsync(user);
             var identity = principal.Identity as ClaimsIdentity;
 
@@ -172,7 +232,6 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // --- REGISTER (Kayıt) ---
         [HttpGet]
         public IActionResult Register() => View();
 
@@ -187,24 +246,15 @@ namespace TeknikServis.Web.Controllers
                 Email = model.Email,
                 FullName = model.FullName,
                 CreatedDate = DateTime.Now,
-                BranchId = Guid.Parse("D4346E52-9F3E-4D68-842F-186792266632"), // Varsayılan
+                BranchId = Guid.Parse("D4346E52-9F3E-4D68-842F-186792266632"),
                 TwoFactorEnabled = false
             };
-
-            string roleToAssign = "Deneme";
-            if (roleToAssign == "Deneme")
-            {
-                user.PrintBalance = 3;
-                user.MailBalance = 3;
-                user.CustomerBalance = 3;
-                user.TicketBalance = 3;
-            }
 
             var result = await _userManager.CreateAsync(user, model.Password);
 
             if (result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, roleToAssign);
+                await _userManager.AddToRoleAsync(user, "Deneme");
                 return RedirectToAction("Login");
             }
 
@@ -212,7 +262,6 @@ namespace TeknikServis.Web.Controllers
             return View(model);
         }
 
-        // --- LOGOUT ---
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();

@@ -21,7 +21,8 @@ namespace TeknikServis.Data.Context
         public DbSet<SparePart> SpareParts { get; set; }
         public DbSet<ServiceTicketPart> ServiceTicketParts { get; set; }
         public DbSet<UserBranch> UserBranches { get; set; }
-
+      
+        public DbSet<SmsSetting> SmsSettings { get; set; }
 
         public DbSet<ReceiptSetting> ReceiptSettings { get; set; }
         public DbSet<EmailSetting> EmailSettings { get; set; }

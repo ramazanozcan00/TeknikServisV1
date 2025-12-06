@@ -8,11 +8,16 @@ namespace TeknikServis.Web.Models
     {
         public string Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Ad Soyad zorunludur")]
         public string FullName { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "E-Posta zorunludur")]
+        [EmailAddress]
         public string Email { get; set; }
+
+        [Display(Name = "Telefon Numarası")]
+        [Phone]
+        public string PhoneNumber { get; set; }
 
         public Guid BranchId { get; set; }
         public string UserRole { get; set; }
@@ -28,9 +33,13 @@ namespace TeknikServis.Web.Models
         public int CustomerBalance { get; set; }
         public int TicketBalance { get; set; }
 
-        public bool TwoFactorEnabled { get; set; }
+        // --- GÜVENLİK ---
+        [Display(Name = "E-Posta Doğrulama")]
+        public bool IsEmailAuthEnabled { get; set; }
 
-        // BU ALAN MUTLAKA OLMALI:
+        [Display(Name = "SMS Doğrulama")]
+        public bool IsSmsAuthEnabled { get; set; }
+
         public bool IsSidebarVisible { get; set; }
 
         public List<Guid> SelectedBranchIds { get; set; } = new List<Guid>();
@@ -43,7 +52,6 @@ namespace TeknikServis.Web.Models
         public bool ShowEDevlet { get; set; }
         public bool ShowAudit { get; set; }
         public bool ShowSupport { get; set; }
-      
         public bool ShowStock { get; set; }
     }
 }

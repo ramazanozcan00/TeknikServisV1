@@ -87,31 +87,38 @@ namespace TeknikServis.Service.Services
             await _unitOfWork.CommitAsync();
         }
 
-        // --- KAYIT GÜNCELLEME ---
         public async Task UpdateTicketAsync(ServiceTicket ticket)
         {
-            var existing = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticket.Id);
-            if (existing != null)
+            var existingTicket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticket.Id);
+
+            if (existingTicket != null)
             {
-                existing.DeviceTypeId = ticket.DeviceTypeId;
-                existing.DeviceBrandId = ticket.DeviceBrandId;
-                existing.DeviceModel = ticket.DeviceModel;
-                existing.SerialNumber = ticket.SerialNumber;
-                existing.ProblemDescription = ticket.ProblemDescription;
+                // Mevcut alanlar
+                existingTicket.ProblemDescription = ticket.ProblemDescription;
+                existingTicket.SerialNumber = ticket.SerialNumber;
+                existingTicket.IsWarranty = ticket.IsWarranty;
+                existingTicket.DeviceModel = ticket.DeviceModel;
 
                 if (!string.IsNullOrEmpty(ticket.PhotoPath))
-                {
-                    existing.PhotoPath = ticket.PhotoPath;
-                }
+                    existingTicket.PhotoPath = ticket.PhotoPath;
 
-                existing.UpdatedDate = DateTime.Now;
+                // --- EKSİK OLAN KISIMLAR (BUNLARI EKLEYİN) ---
 
-                _unitOfWork.Repository<ServiceTicket>().Update(existing);
+                // 1. Teknisyen Ataması
+                existingTicket.TechnicianId = ticket.TechnicianId;
+
+                // 2. Cihaz Bilgileri Güncellemesi
+                existingTicket.DeviceBrandId = ticket.DeviceBrandId;
+                existingTicket.DeviceTypeId = ticket.DeviceTypeId;
+                // ----------------------------------------------
+
+                existingTicket.UpdatedDate = DateTime.Now;
+
+                _unitOfWork.Repository<ServiceTicket>().Update(existingTicket);
                 await _unitOfWork.CommitAsync();
             }
         }
 
-       
         // --- DETAY GETİRME (GÜNCELLENDİ) ---
         public async Task<ServiceTicket> GetTicketByIdAsync(Guid id)
         {

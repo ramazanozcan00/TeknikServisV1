@@ -233,23 +233,124 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             catch (Exception ex) { TempData["Error"] = "Hata: " + ex.Message; return RedirectToAction("Index", new { dbName = dbName }); }
         }
 
+        // --- VERİTABANI SIFIRLAMA (RESET) - GÜÇLENDİRİLMİŞ ---
         [HttpPost]
-        public async Task<IActionResult> DeleteDatabase(string dbName)
+        public async Task<IActionResult> ResetDatabase(string dbName, string confirmPassword)
         {
-            if (string.IsNullOrEmpty(dbName)) return RedirectToAction("Index");
-            string mainDbName = _context.Database.GetDbConnection().Database;
-            if (dbName.Equals(mainDbName, StringComparison.OrdinalIgnoreCase)) { TempData["Error"] = "Ana veritabanı silinemez!"; return RedirectToAction("Index", new { dbName = dbName }); }
+            if (string.IsNullOrEmpty(dbName) || string.IsNullOrEmpty(confirmPassword))
+            {
+                TempData["Error"] = "Veritabanı adı veya şifre eksik.";
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
+
+            // Ana veritabanı kontrolü
+            string currentConnectionString = _context.Database.GetConnectionString();
+            var builder = new SqlConnectionStringBuilder(currentConnectionString);
+            string mainDbName = builder.InitialCatalog;
+
+            if (dbName.Equals(mainDbName, StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Ana veritabanı (Main_DB) sıfırlanamaz!";
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
+
+            // Şifre Doğrulama
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null || !await _userManager.CheckPasswordAsync(user, confirmPassword))
+            {
+                TempData["Error"] = "Şifre hatalı! İşlem iptal edildi.";
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
 
             try
             {
-                // İlişkili verileri sil (Şube, Personel, Müşteri, Servis)
+                // 1. Havuzları Temizle
+                SqlConnection.ClearAllPools();
+
+                // 2. Master'a Bağlan ve Zorla Sil
+                var masterBuilder = new SqlConnectionStringBuilder(currentConnectionString);
+                masterBuilder.InitialCatalog = "master";
+
+                using (var connection = new SqlConnection(masterBuilder.ConnectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // GÜÇLÜ SİLME KOMUTU: Aktif sessionları bul ve KILL et, sonra DROP yap.
+                    string killAndDropSql = $@"
+                        DECLARE @DatabaseName nvarchar(50) = @dbName;
+                        DECLARE @SQL nvarchar(max);
+
+                        -- 1. Aktif bağlantıları öldür
+                        SELECT @SQL = COALESCE(@SQL,'') + 'KILL ' + CONVERT(varchar, SPID) + ';'
+                        FROM master..SysProcesses
+                        WHERE DBId = DB_ID(@DatabaseName) AND SPID <> @@SPID;
+
+                        EXEC(@SQL);
+
+                        -- 2. Veritabanını sil
+                        IF EXISTS (SELECT name FROM sys.databases WHERE name = @DatabaseName)
+                        BEGIN
+                            ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                            DROP DATABASE [{dbName}];
+                        END";
+
+                    using (var cmd = new SqlCommand(killAndDropSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@dbName", dbName);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                // 3. Yeniden Oluştur (Migration Dahil)
+                // Kısa bir bekleme ekleyelim ki SQL Server kendine gelsin
+                await Task.Delay(1000);
+                await _tenantService.CreateDatabaseForBranch(dbName);
+
+                TempData["Success"] = $"'{dbName}' başarıyla sıfırlandı (Fabrika Ayarlarına Döndü).";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Sıfırlama Hatası: " + ex.Message;
+            }
+
+            return RedirectToAction("Index", new { dbName = dbName });
+        }
+
+        // --- VERİTABANI SİLME (DELETE) - GÜÇLENDİRİLMİŞ ---
+        [HttpPost]
+        public async Task<IActionResult> DeleteDatabase(string dbName, string confirmPassword)
+        {
+            if (string.IsNullOrEmpty(dbName) || string.IsNullOrEmpty(confirmPassword)) return RedirectToAction("Index");
+
+            string mainDbName = _context.Database.GetDbConnection().Database;
+            if (dbName.Equals(mainDbName, StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Ana veritabanı silinemez!";
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null || !await _userManager.CheckPasswordAsync(user, confirmPassword))
+            {
+                TempData["Error"] = "Şifre hatalı!";
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
+
+            try
+            {
+                SqlConnection.ClearAllPools();
+
+                // 1. İlişkili Kayıtları Temizle (Branch, User vs.)
                 var branches = await _unitOfWork.Repository<Branch>().GetAllAsync();
                 var targetBranch = branches.FirstOrDefault(b => b.DatabaseName != null && b.DatabaseName.Equals(dbName, StringComparison.OrdinalIgnoreCase));
+
                 if (targetBranch != null)
                 {
+                    // Personel Sil
                     var users = await _userManager.Users.Where(u => u.BranchId == targetBranch.Id).ToListAsync();
-                    foreach (var user in users) await _userManager.DeleteAsync(user);
+                    foreach (var u in users) await _userManager.DeleteAsync(u);
 
+                    // Müşteri & Servis Sil (Main DB'de kırıntı kaldıysa)
                     var customers = await _unitOfWork.Repository<Customer>().FindAsync(c => c.BranchId == targetBranch.Id);
                     foreach (var c in customers)
                     {
@@ -257,24 +358,51 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                         foreach (var t in tickets) _unitOfWork.Repository<ServiceTicket>().Remove(t);
                         _unitOfWork.Repository<Customer>().Remove(c);
                     }
+
                     _unitOfWork.Repository<Branch>().Remove(targetBranch);
                     await _unitOfWork.CommitAsync();
                 }
 
-                // Drop DB
-                string connectionString = _context.Database.GetConnectionString();
-                var masterBuilder = new SqlConnectionStringBuilder(connectionString);
+                // 2. Veritabanını Zorla Sil (KILL + DROP)
+                var masterBuilder = new SqlConnectionStringBuilder(_context.Database.GetConnectionString());
                 masterBuilder.InitialCatalog = "master";
+
                 using (var connection = new SqlConnection(masterBuilder.ConnectionString))
                 {
                     await connection.OpenAsync();
-                    string sql = $@"ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{dbName}];";
-                    using (var cmd = new SqlCommand(sql, connection)) await cmd.ExecuteNonQueryAsync();
+
+                    string killAndDropSql = $@"
+                        DECLARE @DatabaseName nvarchar(50) = @dbName;
+                        DECLARE @SQL nvarchar(max);
+
+                        SELECT @SQL = COALESCE(@SQL,'') + 'KILL ' + CONVERT(varchar, SPID) + ';'
+                        FROM master..SysProcesses
+                        WHERE DBId = DB_ID(@DatabaseName) AND SPID <> @@SPID;
+
+                        EXEC(@SQL);
+
+                        IF EXISTS (SELECT name FROM sys.databases WHERE name = @DatabaseName)
+                        BEGIN
+                            ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                            DROP DATABASE [{dbName}];
+                        END";
+
+                    using (var cmd = new SqlCommand(killAndDropSql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@dbName", dbName);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
-                TempData["Success"] = $"'{dbName}' silindi.";
+
+                TempData["Success"] = $"'{dbName}' tamamen silindi.";
                 return RedirectToAction("Index");
             }
-            catch (Exception ex) { TempData["Error"] = "Silme Hatası: " + ex.Message; return RedirectToAction("Index", new { dbName = dbName }); }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Silme Hatası: " + ex.Message;
+                return RedirectToAction("Index", new { dbName = dbName });
+            }
         }
+
     }
 }

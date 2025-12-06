@@ -8,7 +8,7 @@ using TeknikServis.Data.UnitOfWork;
 using TeknikServis.Service.Services;
 using TeknikServis.Web.Hubs;
 using TeknikServis.Web.Identity;
-using TeknikServis.Web.Services;
+using TeknikServis.Web.Services; // ISmsService ve IletiMerkeziSmsService burada
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +36,12 @@ builder.Services.AddSignalR();
 
 // Servisler
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+
+// --- YENÝ EKLENEN: SMS SERVÝSÝ (IletiMerkezi) ---
+// HttpClient ile birlikte servisi kaydediyoruz
+builder.Services.AddScoped<ISmsService, IletiMerkeziSmsService>();
+// ------------------------------------------------
+
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -44,16 +50,9 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IEDevletService, EDevletService>();
 builder.Services.AddScoped<TenantService>();
 
-
-
-
-
-
 builder.Services.AddControllersWithViews();
 
-
-
-
+builder.Services.AddHttpClient();
 // Yetki Politikalarý
 builder.Services.AddAuthorization(options =>
 {
@@ -78,9 +77,6 @@ var localizationOptions = new Microsoft.AspNetCore.Builder.RequestLocalizationOp
     .AddSupportedCultures(supportedCultures)
     .AddSupportedUICultures(supportedCultures);
 
-
-
-
 var app = builder.Build();
 
 // 2. HTTP REQUEST PIPELINE
@@ -102,9 +98,9 @@ app.UseAuthorization();
 // Chat Rotasý
 app.MapHub<SupportHub>("/supportHub");
 
-// --- ROTA TANIMLARI (DÜZELTÝLEN KISIM) ---
+// --- ROTA TANIMLARI ---
 
-// 1. Admin Paneli (Area) Rotasý - BU EKSÝKTÝ
+// 1. Admin Paneli (Area) Rotasý
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");

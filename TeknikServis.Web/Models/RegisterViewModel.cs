@@ -11,9 +11,13 @@ namespace TeknikServis.Web.Models
         public string FullName { get; set; }
 
         [Required(ErrorMessage = "E-Posta zorunludur")]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi giriniz")]
         [Display(Name = "E-Posta")]
         public string Email { get; set; }
+
+        [Display(Name = "Telefon Numarası")]
+        [Phone(ErrorMessage = "Geçerli bir telefon numarası giriniz")]
+        public string PhoneNumber { get; set; }
 
         [Required(ErrorMessage = "Şifre zorunludur")]
         [DataType(DataType.Password)]
@@ -25,9 +29,11 @@ namespace TeknikServis.Web.Models
         [Display(Name = "Şifre Tekrar")]
         public string ConfirmPassword { get; set; }
 
+        [Required(ErrorMessage = "Lütfen bir şube seçiniz")]
         [Display(Name = "Şube")]
         public Guid BranchId { get; set; }
 
+        [Required(ErrorMessage = "Lütfen bir rol seçiniz")]
         [Display(Name = "Rol")]
         public string UserRole { get; set; }
 
@@ -37,51 +43,34 @@ namespace TeknikServis.Web.Models
         public bool CanDelete { get; set; }
 
         // --- BAKİYE HAKLARI ---
-        [Display(Name = "Fiş Yazdırma Hakkı")]
         public int PrintBalance { get; set; } = 3;
-
-        [Display(Name = "Mail Gönderme Hakkı")]
         public int MailBalance { get; set; } = 3;
-
-        [Display(Name = "Müşteri Kayıt Hakkı")]
         public int CustomerBalance { get; set; } = 3;
-
-        [Display(Name = "Servis Kayıt Hakkı")]
         public int TicketBalance { get; set; } = 3;
 
-        // --- GÜVENLİK VE GÖRÜNÜM ---
-        [Display(Name = "Girişte Doğrulama Kodu İstensin (2FA)")]
-        public bool TwoFactorEnabled { get; set; } = false;
+        // --- GÜVENLİK AYARLARI ---
+        [Display(Name = "E-Posta ile Doğrulama")]
+        public bool IsEmailAuthEnabled { get; set; } = false;
+
+        [Display(Name = "SMS ile Doğrulama")]
+        public bool IsSmsAuthEnabled { get; set; } = false;
 
         [Display(Name = "Sol Menü Görünsün mü?")]
-        public bool IsSidebarVisible { get; set; } = true; // <-- HATA VEREN ALAN BU
+        public bool IsSidebarVisible { get; set; } = true;
 
-        // --- EK ŞUBELER ---
         public List<Guid> SelectedBranchIds { get; set; } = new List<Guid>();
 
-        // --- MENÜ ERİŞİM YETKİLERİ ---
-        [Display(Name = "Ana Sayfa")]
+        // --- MENÜLER ---
         public bool ShowHome { get; set; } = true;
-
-        [Display(Name = "Müşteriler")]
         public bool ShowCustomer { get; set; } = true;
-
-        [Display(Name = "Servis Kayıtları")]
         public bool ShowService { get; set; } = true;
-
-        [Display(Name = "Barkod Tara")]
         public bool ShowBarcode { get; set; } = true;
-
-        [Display(Name = "E-Devlet")]
         public bool ShowEDevlet { get; set; } = true;
-
-        [Display(Name = "Geçmiş İşlemler")]
         public bool ShowAudit { get; set; } = false;
-
-        [Display(Name = "Destek")]
         public bool ShowSupport { get; set; } = true;
-      
-        [Display(Name = "Yedek Parça / Stok")]
         public bool ShowStock { get; set; } = true;
+
+
+     
     }
 }

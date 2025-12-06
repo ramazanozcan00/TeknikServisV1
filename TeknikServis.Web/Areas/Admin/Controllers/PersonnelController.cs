@@ -7,7 +7,7 @@ using System.Security.Claims;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
 using TeknikServis.Web.Models;
-using TeknikServis.Web.Services; // TenantService için
+using TeknikServis.Web.Services;
 using System.Text.Json;
 using System.Linq;
 
@@ -34,55 +34,51 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             _tenantService = tenantService;
         }
 
-        // LİSTELEME (HEPSİNİ GETİR)
+        // LİSTELEME
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            // IsDeleted filtresini kaldırdık, hepsini çekiyoruz.
             var users = await _userManager.Users
                 .Include(u => u.Branch)
-                .OrderBy(u => u.IsDeleted) // Aktifler üstte görünsün
+                .OrderBy(u => u.IsDeleted)
                 .ToListAsync();
 
             return View(users);
         }
 
-        // --- YENİ: DURUM DEĞİŞTİRME (AKTİF/PASİF) ---
+        // DURUM DEĞİŞTİRME
         public async Task<IActionResult> ToggleStatus(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound();
 
-            // Durumu tersine çevir (Aktifse Pasif, Pasifse Aktif yap)
             user.IsDeleted = !user.IsDeleted;
             user.UpdatedDate = DateTime.Now;
 
-            // Eğer Pasife alınıyorsa, üzerindeki işleri boşa çıkaralım (Temizlik)
             if (user.IsDeleted)
             {
                 var assignedTickets = await _unitOfWork.Repository<ServiceTicket>().FindAsync(t => t.TechnicianId == user.Id);
                 foreach (var ticket in assignedTickets)
                 {
-                    ticket.TechnicianId = null; // İş havuza düşer
+                    ticket.TechnicianId = null;
                     _unitOfWork.Repository<ServiceTicket>().Update(ticket);
                 }
                 await _unitOfWork.CommitAsync();
             }
 
             await _userManager.UpdateAsync(user);
-
-            string durum = user.IsDeleted ? "Pasife alındı" : "Aktifleştirildi";
-            TempData["Success"] = $"Personel {durum}.";
-
+            TempData["Success"] = user.IsDeleted ? "Personel pasife alındı." : "Personel aktifleştirildi.";
             return RedirectToAction("Index");
         }
 
-        // EKLEME (GET)
+        // --- DÜZELTİLEN METOT: EKLEME (GET) ---
         [HttpGet]
         public async Task<IActionResult> Create()
         {
             await LoadDropdownsAsync();
-            return View();
+
+            // BURASI ÖNEMLİ: Yeni bir model gönderiyoruz ki varsayılan (3) değerleri formda gözüksün.
+            return View(new RegisterViewModel());
         }
 
         // EKLEME (POST)
@@ -95,81 +91,105 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 return View(model);
             }
 
-            var user = new AppUser
+            try
             {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                EmailConfirmed = true,
-                BranchId = model.BranchId,
-
-                // Haklar
-                PrintBalance = model.PrintBalance,
-                MailBalance = model.MailBalance,
-                CustomerBalance = model.CustomerBalance,
-                TicketBalance = model.TicketBalance,
-
-                // Ayarlar
-                TwoFactorEnabled = model.TwoFactorEnabled,
-                IsSidebarVisible = model.IsSidebarVisible,
-
-                // Yeni Kayıt
-                IsDeleted = false,
-                CreatedDate = DateTime.Now
-            };
-
-            var result = await _userManager.CreateAsync(user, model.Password);
-
-            if (result.Succeeded)
-            {
-                if (!await _roleManager.RoleExistsAsync(model.UserRole))
+                var user = new AppUser
                 {
-                    await _roleManager.CreateAsync(new IdentityRole<Guid>(model.UserRole));
-                }
-                await _userManager.AddToRoleAsync(user, model.UserRole);
+                    UserName = model.Email,
+                    Email = model.Email,
+                    PhoneNumber = model.PhoneNumber,
+                    FullName = model.FullName,
+                    EmailConfirmed = true,
+                    BranchId = model.BranchId,
 
-                var claims = new List<Claim>();
-                // İşlemler
-                if (model.CanCreate) claims.Add(new Claim("Permission", "Create"));
-                if (model.CanEdit) claims.Add(new Claim("Permission", "Edit"));
-                if (model.CanDelete) claims.Add(new Claim("Permission", "Delete"));
+                    // Haklar (Modelden gelen değerleri alıyoruz)
+                    PrintBalance = model.PrintBalance,
+                    MailBalance = model.MailBalance,
+                    CustomerBalance = model.CustomerBalance,
+                    TicketBalance = model.TicketBalance,
 
-                // Menüler
-                if (model.ShowHome) claims.Add(new Claim("MenuAccess", "Home"));
-                if (model.ShowCustomer) claims.Add(new Claim("MenuAccess", "Customer"));
-                if (model.ShowService) claims.Add(new Claim("MenuAccess", "Service"));
-                if (model.ShowBarcode) claims.Add(new Claim("MenuAccess", "Barcode"));
-                if (model.ShowEDevlet) claims.Add(new Claim("MenuAccess", "EDevlet"));
-                if (model.ShowAudit) claims.Add(new Claim("MenuAccess", "Audit"));
-                if (model.ShowSupport) claims.Add(new Claim("MenuAccess", "Support"));
-                if (model.ShowStock) claims.Add(new Claim("MenuAccess", "Stock"));
+                    // Güvenlik Ayarları
+                    IsEmailAuthEnabled = model.IsEmailAuthEnabled,
+                    IsSmsAuthEnabled = model.IsSmsAuthEnabled,
+                    TwoFactorEnabled = model.IsEmailAuthEnabled || model.IsSmsAuthEnabled,
 
-                if (claims.Any()) await _userManager.AddClaimsAsync(user, claims);
+                    // Görünüm
+                    IsSidebarVisible = model.IsSidebarVisible,
 
-                // Ek Şubeler
-                if (model.SelectedBranchIds != null && model.SelectedBranchIds.Any())
+                    IsDeleted = false,
+                    CreatedDate = DateTime.Now
+                };
+
+                var result = await _userManager.CreateAsync(user, model.Password);
+
+                if (result.Succeeded)
                 {
-                    foreach (var branchId in model.SelectedBranchIds)
+                    // Rol Atama
+                    if (!string.IsNullOrEmpty(model.UserRole))
                     {
-                        if (branchId != model.BranchId)
+                        if (!await _roleManager.RoleExistsAsync(model.UserRole))
                         {
-                            await _unitOfWork.Repository<UserBranch>().AddAsync(new UserBranch
-                            {
-                                Id = Guid.NewGuid(),
-                                CreatedDate = DateTime.Now,
-                                UserId = user.Id,
-                                BranchId = branchId
-                            });
+                            await _roleManager.CreateAsync(new IdentityRole<Guid>(model.UserRole));
                         }
+                        await _userManager.AddToRoleAsync(user, model.UserRole);
                     }
-                    await _unitOfWork.CommitAsync();
+
+                    // Yetkiler
+                    var claims = new List<Claim>();
+                    if (model.CanCreate) claims.Add(new Claim("Permission", "Create"));
+                    if (model.CanEdit) claims.Add(new Claim("Permission", "Edit"));
+                    if (model.CanDelete) claims.Add(new Claim("Permission", "Delete"));
+
+                    if (model.ShowHome) claims.Add(new Claim("MenuAccess", "Home"));
+                    if (model.ShowCustomer) claims.Add(new Claim("MenuAccess", "Customer"));
+                    if (model.ShowService) claims.Add(new Claim("MenuAccess", "Service"));
+                    if (model.ShowBarcode) claims.Add(new Claim("MenuAccess", "Barcode"));
+                    if (model.ShowEDevlet) claims.Add(new Claim("MenuAccess", "EDevlet"));
+                    if (model.ShowAudit) claims.Add(new Claim("MenuAccess", "Audit"));
+                    if (model.ShowSupport) claims.Add(new Claim("MenuAccess", "Support"));
+                    if (model.ShowStock) claims.Add(new Claim("MenuAccess", "Stock"));
+
+                    if (claims.Any()) await _userManager.AddClaimsAsync(user, claims);
+
+                    // Ek Şubeler
+                    if (model.SelectedBranchIds != null && model.SelectedBranchIds.Any())
+                    {
+                        foreach (var branchId in model.SelectedBranchIds)
+                        {
+                            if (branchId != model.BranchId)
+                            {
+                                await _unitOfWork.Repository<UserBranch>().AddAsync(new UserBranch
+                                {
+                                    Id = Guid.NewGuid(),
+                                    CreatedDate = DateTime.Now,
+                                    UserId = user.Id,
+                                    BranchId = branchId
+                                });
+                            }
+                        }
+                        await _unitOfWork.CommitAsync();
+                    }
+
+                    TempData["Success"] = "Personel başarıyla oluşturuldu.";
+                    return RedirectToAction("Index");
                 }
 
-                TempData["Success"] = "Personel başarıyla oluşturuldu.";
-                return RedirectToAction("Index");
+                // Identity Hatalarını Göster
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Beklenmedik hata (Örn: Veritabanı kolonu eksikse burada yakalanır)
+                ModelState.AddModelError("", "Kayıt Başarısız: " + ex.Message);
+                if (ex.InnerException != null)
+                {
+                    ModelState.AddModelError("", "Detay: " + ex.InnerException.Message);
+                }
             }
 
-            foreach (var error in result.Errors) ModelState.AddModelError("", error.Description);
             await LoadDropdownsAsync();
             return View(model);
         }
@@ -184,7 +204,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 .Include(u => u.AuthorizedBranches)
                 .FirstOrDefaultAsync(u => u.Id.ToString() == id);
 
-            // Silinmişse veya yoksa 404 ver
             if (user == null || user.IsDeleted) return NotFound();
 
             var userRoles = await _userManager.GetRolesAsync(user);
@@ -195,13 +214,14 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 Id = user.Id.ToString(),
                 FullName = user.FullName,
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
                 BranchId = user.BranchId,
                 UserRole = userRoles.FirstOrDefault(),
-                // Yetkiler
+
                 CanCreate = userClaims.Any(c => c.Type == "Permission" && c.Value == "Create"),
                 CanEdit = userClaims.Any(c => c.Type == "Permission" && c.Value == "Edit"),
                 CanDelete = userClaims.Any(c => c.Type == "Permission" && c.Value == "Delete"),
-                // Menüler
+
                 ShowHome = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Home"),
                 ShowCustomer = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Customer"),
                 ShowService = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Service"),
@@ -210,12 +230,14 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 ShowAudit = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Audit"),
                 ShowSupport = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Support"),
                 ShowStock = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Stock"),
-                // Ayarlar
+
                 PrintBalance = user.PrintBalance,
                 MailBalance = user.MailBalance,
                 CustomerBalance = user.CustomerBalance,
                 TicketBalance = user.TicketBalance,
-                TwoFactorEnabled = user.TwoFactorEnabled,
+
+                IsEmailAuthEnabled = user.IsEmailAuthEnabled,
+                IsSmsAuthEnabled = user.IsSmsAuthEnabled,
                 IsSidebarVisible = user.IsSidebarVisible,
 
                 SelectedBranchIds = user.AuthorizedBranches.Select(b => b.BranchId).ToList()
@@ -236,6 +258,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
             user.FullName = model.FullName;
             user.Email = model.Email;
+            user.PhoneNumber = model.PhoneNumber;
             user.UserName = model.Email;
             user.BranchId = model.BranchId;
 
@@ -243,10 +266,13 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             user.MailBalance = model.MailBalance;
             user.CustomerBalance = model.CustomerBalance;
             user.TicketBalance = model.TicketBalance;
-            user.TwoFactorEnabled = model.TwoFactorEnabled;
-            user.IsSidebarVisible = model.IsSidebarVisible;
 
-            user.UpdatedDate = DateTime.Now; // Güncelleme Tarihi
+            user.IsEmailAuthEnabled = model.IsEmailAuthEnabled;
+            user.IsSmsAuthEnabled = model.IsSmsAuthEnabled;
+            user.TwoFactorEnabled = model.IsEmailAuthEnabled || model.IsSmsAuthEnabled;
+
+            user.IsSidebarVisible = model.IsSidebarVisible;
+            user.UpdatedDate = DateTime.Now;
 
             if (!string.IsNullOrEmpty(model.Password))
             {
@@ -283,6 +309,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 if (model.ShowEDevlet) newClaims.Add(new Claim("MenuAccess", "EDevlet"));
                 if (model.ShowAudit) newClaims.Add(new Claim("MenuAccess", "Audit"));
                 if (model.ShowSupport) newClaims.Add(new Claim("MenuAccess", "Support"));
+                if (model.ShowStock) newClaims.Add(new Claim("MenuAccess", "Stock"));
 
                 if (newClaims.Any()) await _userManager.AddClaimsAsync(user, newClaims);
 
@@ -317,13 +344,12 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             return View(model);
         }
 
-        // SİLME (SOFT DELETE) - GÜNCELLENDİ
+        // SİLME
         public async Task<IActionResult> Delete(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user != null)
             {
-                // 1. Üzerindeki işleri boşa çıkar (NULL yap)
                 var assignedTickets = await _unitOfWork.Repository<ServiceTicket>().FindAsync(t => t.TechnicianId == user.Id);
                 foreach (var ticket in assignedTickets)
                 {
@@ -332,33 +358,23 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 }
                 await _unitOfWork.CommitAsync();
 
-                // 2. SOFT DELETE (IsDeleted = true)
                 user.IsDeleted = true;
                 user.UpdatedDate = DateTime.Now;
 
-                // DeleteAsync yerine UpdateAsync kullanıyoruz
-                var result = await _userManager.UpdateAsync(user);
-
-                if (result.Succeeded)
-                    TempData["Success"] = "Personel (Soft) silindi, işler havuza aktarıldı.";
-                else
-                    TempData["Error"] = "Silme hatası.";
+                await _userManager.UpdateAsync(user);
+                TempData["Success"] = "Personel silindi.";
             }
             else
             {
                 TempData["Error"] = "Kullanıcı bulunamadı.";
             }
-
             return RedirectToAction("Index");
         }
 
-        // YARDIMCI METOT
         private async Task LoadDropdownsAsync()
         {
             var branches = await _unitOfWork.Repository<Branch>().GetAllAsync();
-
-            // SQL'den Tüm Veritabanlarını Çek (TenantService ile)
-            var databases = _tenantService.GetDatabaseList(); // Doğru liste
+            var databases = _tenantService.GetDatabaseList();
 
             if (!databases.Contains("Main_DB")) databases.Insert(0, "Main_DB");
             ViewBag.DatabaseList = new SelectList(databases);

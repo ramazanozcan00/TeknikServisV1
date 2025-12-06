@@ -1,18 +1,20 @@
-﻿// Dosya: TeknikServis.Web/Models/VerifyCodeViewModel.cs
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace TeknikServis.Web.Models
 {
     public class VerifyCodeViewModel
     {
         [Required]
+        [EmailAddress]
         public string Email { get; set; }
 
-        [Required(ErrorMessage = "Doğrulama kodu gereklidir.")]
+        [Required(ErrorMessage = "Doğrulama kodu zorunludur.")]
         [Display(Name = "Doğrulama Kodu")]
         public string Code { get; set; }
 
-        // Giriş yaparken "Beni Hatırla" işaretlendiyse bunu taşımalıyız
         public bool RememberMe { get; set; }
+
+        // Yeni Eklenen Alan: Hangi provider ile gönderildi? (EmailCode veya Phone)
+        public string Provider { get; set; } = "EmailCode";
     }
 }
