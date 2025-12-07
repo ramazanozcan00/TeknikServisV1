@@ -82,7 +82,17 @@
                                         <i class="fa-solid fa-user text-secondary"></i>
                                     </div>
                                     <div>
-                                        <div class="fw-bold">@item.Customer?.FirstName @item.Customer?.LastName</div>
+                                        <div class="fw-bold d-flex align-items-center gap-2">
+                                            @item.Customer?.FirstName @item.Customer?.LastName
+
+                                            @* Müşteri silindiyse uyarı ver *@
+                                            @if (item.Customer != null && item.Customer.IsDeleted)
+                                            {
+                                                <span class="badge bg-danger bg-opacity-75" style="font-size: 0.65rem;">
+                                                    <i class="fa-solid fa-user-slash me-1"></i>SİLİNDİ
+                                                </span>
+                                            }
+                                        </div>
                                         <div class="small text-muted">@item.Customer?.Phone</div>
                                     </div>
                                 </div>
@@ -130,13 +140,22 @@
 
                             <td class="text-end pe-4">
                                 <div class="btn-group" role="group">
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning text-dark" title="Düzenle">
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning text-dark hover-scale" title="Düzenle">
                                         <i class="fa-solid fa-pen"></i>
                                     </a>
 
-                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="Detaylar">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info hover-scale" title="Detaylar">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
+
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline delete-form">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger hover-scale" title="Sil">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -205,3 +224,33 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // Tüm silme formlarını yakala
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault(); // Formun hemen gitmesini engelle
+
+                const formElement = this;
+
+                Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: "Bu servis kaydı silinecek! Bu işlem geri alınamaz.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Evet, Sil!',
+                    cancelButtonText: 'Vazgeç'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        formElement.submit(); // Kullanıcı 'Evet' derse formu gönder
+                    }
+                });
+            });
+        });
+    </script>
+}

@@ -40,13 +40,23 @@
                             </div>
                             <div class="flex-grow-1">
                                 <small class="text-uppercase fw-bold text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">Müşteri Bilgisi</small>
-                                <div class="fs-5 fw-bold text-dark">
-                                    @Model.Customer?.FirstName @Model.Customer?.LastName
-                                    <a asp-controller="Customer" asp-action="Details" asp-route-id="@Model.CustomerId" target="_blank" class="ms-2 text-decoration-none text-primary fs-6" title="Müşteri Profiline Git">
+
+                                <div class="fs-5 fw-bold text-dark d-flex align-items-center flex-wrap gap-2">
+                                    <span>@Model.Customer?.FirstName @Model.Customer?.LastName</span>
+
+                                    @if (!string.IsNullOrEmpty(Model.Customer?.CompanyName))
+                                    {
+                                        <span class="badge bg-secondary bg-opacity-75 fs-6 fw-normal">
+                                            <i class="fa-solid fa-building me-1"></i>@Model.Customer.CompanyName
+                                        </span>
+                                    }
+
+                                    <a asp-controller="Customer" asp-action="Details" asp-route-id="@Model.CustomerId" target="_blank" class="text-decoration-none text-primary fs-6" title="Müşteri Profiline Git">
                                         <i class="fa-solid fa-square-arrow-up-right"></i>
                                     </a>
                                 </div>
-                                <div class="text-muted">
+
+                                <div class="text-muted mt-1">
                                     <i class="fa-solid fa-mobile-screen-button me-1 text-success"></i> @Model.Customer?.Phone
                                 </div>
                             </div>

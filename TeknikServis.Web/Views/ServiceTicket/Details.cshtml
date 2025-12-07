@@ -292,6 +292,22 @@
 
             <div class="card shadow-sm border-0 mb-3 rounded-3">
                 <div class="card-body text-center p-4">
+
+                    @* --- MÜŞTERİ SİLİNDİ UYARISI --- *@
+                    @if (Model.Customer != null && Model.Customer.IsDeleted)
+                    {
+                        <div class="alert alert-danger shadow-sm border-danger mb-4 text-start">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fa-solid fa-user-xmark me-2 fs-5"></i>
+                                <h6 class="fw-bold mb-0">Müşteri Silindi!</h6>
+                            </div>
+                            <p class="mb-0 small lh-sm">
+                                Müşteri sistemden silinmiştir. Bu müşteriye yeni kayıt açılamaz.
+                            </p>
+                        </div>
+                    }
+                    @* -------------------------------- *@
+
                     <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle d-inline-block mb-3">
                         <i class="fa-solid fa-user-circle fa-3x"></i>
                     </div>
@@ -299,11 +315,24 @@
                     <p class="text-muted small mb-3">
                         <i class="fa-solid fa-phone me-1"></i> <a href="tel:@Model.Customer?.Phone" class="text-decoration-none text-muted">@Model.Customer?.Phone</a>
                     </p>
+
+                    @* --- PROFİL BUTONU (GÜNCELLENDİ) --- *@
                     <div class="d-grid">
-                        <a asp-controller="Customer" asp-action="Details" asp-route-id="@Model.CustomerId" class="btn btn-outline-primary btn-sm rounded-pill">
-                            <i class="fa-solid fa-address-card me-1"></i>Profili Görüntüle
-                        </a>
+                        @if (Model.Customer != null && !Model.Customer.IsDeleted)
+                        {
+                            <a asp-controller="Customer" asp-action="Details" asp-route-id="@Model.CustomerId" class="btn btn-outline-primary btn-sm rounded-pill">
+                                <i class="fa-solid fa-address-card me-1"></i>Profili Görüntüle
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-secondary btn-sm rounded-pill" disabled>
+                                <i class="fa-solid fa-user-slash me-1"></i>Profil Erişime Kapalı
+                            </button>
+                        }
                     </div>
+                    @* ---------------------------------- *@
+
                 </div>
             </div>
 

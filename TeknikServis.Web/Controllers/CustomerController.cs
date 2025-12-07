@@ -31,26 +31,27 @@ namespace TeknikServis.Web.Controllers
             _unitOfWork = unitOfWork;
         }
 
-        // --- YARDIMCI METOT: Firmaları Çeker ---
+        // --- YARDIMCI METOT: Firma İsimlerini Çeker ---
+        // --- YARDIMCI METOT: CompanySetting Tablosundan Firmaları Çeker ---
         private async Task LoadCompanyListAsync()
         {
             Guid currentBranchId = User.GetBranchId();
 
-            // CompanySetting tablosundaki firmaları çek
+            // 1. CompanySetting tablosundaki kayıtlı firmaları bul
             var companies = await _unitOfWork.Repository<CompanySetting>()
                 .FindAsync(x => x.BranchId == currentBranchId);
 
-            // Sadece isimleri alıp sırala
+            // 2. Sadece isimleri al, boş olanları ve tekrarları temizle
             var companyNames = companies
                 .Select(c => c.CompanyName)
                 .Where(n => !string.IsNullOrEmpty(n))
+                .Distinct()
                 .OrderBy(n => n)
                 .ToList();
 
-            // View'a gönder
-            ViewBag.CompanyList = companyNames;
+            // 3. ÖNEMLİ: Select2'nin çalışması için listeyi 'SelectList' formatına çevir
+            ViewBag.CompanyList = new SelectList(companyNames);
         }
-
         // ARAMA VE LİSTELEME
         [HttpGet]
         public async Task<IActionResult> Index(string s, int page = 1)
@@ -144,12 +145,15 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("Index");
         }
 
-        // ... Diğer metodlar (Details, Delete) aynen kalabilir ...
+        [HttpPost]
         public async Task<IActionResult> Delete(Guid id)
         {
             var customer = await _customerService.GetByIdAsync(id);
-            await _customerService.DeleteCustomerAsync(id);
-            TempData["Success"] = "Müşteri silindi.";
+            if (customer != null)
+            {
+                await _customerService.DeleteCustomerAsync(id);
+                TempData["Success"] = "Müşteri silindi.";
+            }
             return RedirectToAction("Index");
         }
 
@@ -160,5 +164,8 @@ namespace TeknikServis.Web.Controllers
             if (customer == null) return NotFound();
             return View(customer);
         }
+
+
+      
     }
 }

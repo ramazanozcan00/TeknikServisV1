@@ -105,7 +105,11 @@
                             <td class="text-end pe-4">
                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-eye"></i></a>
                                 <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-warning text-dark me-1"><i class="fa-solid fa-pen"></i></a>
-                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('Silmek istediğinize emin misiniz?')"><i class="fa-solid fa-trash"></i></a>
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline delete-form">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Sil">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }
@@ -160,3 +164,34 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        $(document).ready(function () {
+            // Silme formunu yakala
+            $('.delete-form').on('submit', function (e) {
+                e.preventDefault(); // Formun hemen gitmesini engelle
+
+                var form = this; // Form elementini sakla
+
+                Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: "Bu müşteri kaydı silinecek! Bu işlem geri alınamaz.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Evet, Sil!',
+                    cancelButtonText: 'Vazgeç'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit(); // Kullanıcı 'Evet' derse formu gönder
+                    }
+                    // 'Vazgeç' derse hiçbir şey yapma (iptal edilmiş olur)
+                });
+            });
+        });
+    </script>
+}

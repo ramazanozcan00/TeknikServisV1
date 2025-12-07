@@ -254,8 +254,18 @@ namespace TeknikServis.Web.Controllers
             Guid currentBranchId = User.GetBranchId();
 
             var customers = await _customerService.GetCustomersByBranchAsync(currentBranchId);
-            var customerList = customers.Select(c => new { Id = c.Id, DisplayText = $"{c.FirstName} {c.LastName} ({c.Phone})" });
+
+            // Müşteri listesini oluştururken Firma İsmi kontrolü (Burası doğru)
+            var customerList = customers.Select(c => new {
+                Id = c.Id,
+                DisplayText = string.IsNullOrEmpty(c.CompanyName)
+                      ? $"{c.FirstName} {c.LastName} ({c.Phone})"
+                      : $"{c.FirstName} {c.LastName} - {c.CompanyName} ({c.Phone})"
+            });
+
+            // --- EKSİK OLAN KISIM BURASI (BUNU EKLEYİN) ---
             ViewBag.CustomerList = new SelectList(customerList, "Id", "DisplayText");
+            // ----------------------------------------------
 
             var types = await _unitOfWork.Repository<DeviceType>().GetAllAsync();
             var brands = await _unitOfWork.Repository<DeviceBrand>().GetAllAsync();
@@ -563,6 +573,19 @@ namespace TeknikServis.Web.Controllers
                 return Json(new { success = false, message = "Yetkiniz yok." });
 
             return Json(new { success = true, id = ticket.Id });
+        }
+
+        // ServiceTicketController.cs içine ekleyin:
+
+        [HttpPost] // ÖNEMLİ: Bu metot sadece POST isteklerini kabul eder
+        [Authorize(Roles = "Admin")] // Sadece Admin yetkisi olanlar silebilir
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            await _ticketService.DeleteTicketAsync(id);
+
+            // İşlem başarılı mesajı
+            TempData["Success"] = "Servis kaydı silindi.";
+            return RedirectToAction("Index");
         }
     }
 }

@@ -22,8 +22,9 @@ namespace TeknikServis.Service.Services
             if (string.IsNullOrEmpty(fisNo)) return null;
             fisNo = fisNo.Trim();
 
+            // GÜNCELLEME: Silinmiş kayıtları getirme (!x.IsDeleted)
             var tickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => x.FisNo == fisNo,
+                .FindAsync(x => x.FisNo == fisNo && !x.IsDeleted,
                            inc => inc.Customer,
                            inc => inc.Customer.Branch,
                            inc => inc.DeviceBrand,
@@ -35,8 +36,9 @@ namespace TeknikServis.Service.Services
         // --- LİSTELEME VE ARAMA ---
         public async Task<IEnumerable<ServiceTicket>> GetAllTicketsByBranchAsync(Guid branchId, string search = null, string status = null)
         {
+            // GÜNCELLEME: !x.IsDeleted filtresi eklendi.
             var tickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => x.Customer.BranchId == branchId,
+                .FindAsync(x => x.Customer.BranchId == branchId && !x.IsDeleted,
                            inc => inc.Customer,
                            inc => inc.DeviceBrand,
                            inc => inc.DeviceType);
@@ -62,7 +64,7 @@ namespace TeknikServis.Service.Services
             return tickets.OrderByDescending(x => x.CreatedDate);
         }
 
-        // --- YENİ KAYIT OLUŞTURMA ---
+        // --- YENİ KAYIT OLUŞTURMA (BURASI KRİTİK) ---
         public async Task CreateTicketAsync(ServiceTicket ticket)
         {
             var customer = await _unitOfWork.Repository<Customer>()
@@ -80,20 +82,42 @@ namespace TeknikServis.Service.Services
                 prefix = string.Join("", initials).ToUpper();
             }
 
-            ticket.FisNo = $"{prefix}-{new Random().Next(100000, 999999)}";
+            // --- FİŞ NO ÇAKIŞMA KONTROLÜ ---
+            // Rastgele üretilen numaranın veritabanında (silinmiş olsa bile) olup olmadığını kontrol ediyoruz.
+            string newFisNo;
+            bool isUnique = false;
+
+            do
+            {
+                newFisNo = $"{prefix}-{new Random().Next(100000, 999999)}";
+
+                // Burada IsDeleted kontrolü YAPMIYORUZ. 
+                // Çünkü silinmiş bir kaydın fiş numarasını tekrar kullanmak istemeyiz.
+                var checkTicket = await _unitOfWork.Repository<ServiceTicket>()
+                    .FindAsync(x => x.FisNo == newFisNo);
+
+                if (!checkTicket.Any())
+                {
+                    isUnique = true;
+                }
+
+            } while (!isUnique);
+
+            ticket.FisNo = newFisNo;
             ticket.Status = "Bekliyor";
+            ticket.IsDeleted = false; // Yeni kayıt silinmemiş olarak başlar
 
             await _unitOfWork.Repository<ServiceTicket>().AddAsync(ticket);
             await _unitOfWork.CommitAsync();
         }
 
+        // --- GÜNCELLEME ---
         public async Task UpdateTicketAsync(ServiceTicket ticket)
         {
             var existingTicket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticket.Id);
 
             if (existingTicket != null)
             {
-                // Mevcut alanlar
                 existingTicket.ProblemDescription = ticket.ProblemDescription;
                 existingTicket.SerialNumber = ticket.SerialNumber;
                 existingTicket.IsWarranty = ticket.IsWarranty;
@@ -102,15 +126,15 @@ namespace TeknikServis.Service.Services
                 if (!string.IsNullOrEmpty(ticket.PhotoPath))
                     existingTicket.PhotoPath = ticket.PhotoPath;
 
-                // --- EKSİK OLAN KISIMLAR (BUNLARI EKLEYİN) ---
-
-                // 1. Teknisyen Ataması
                 existingTicket.TechnicianId = ticket.TechnicianId;
-
-                // 2. Cihaz Bilgileri Güncellemesi
                 existingTicket.DeviceBrandId = ticket.DeviceBrandId;
                 existingTicket.DeviceTypeId = ticket.DeviceTypeId;
-                // ----------------------------------------------
+                existingTicket.InvoiceDate = ticket.InvoiceDate;
+                existingTicket.Accessories = ticket.Accessories;
+                existingTicket.PhysicalDamage = ticket.PhysicalDamage;
+
+                if (!string.IsNullOrEmpty(ticket.PdfPath))
+                    existingTicket.PdfPath = ticket.PdfPath;
 
                 existingTicket.UpdatedDate = DateTime.Now;
 
@@ -119,24 +143,22 @@ namespace TeknikServis.Service.Services
             }
         }
 
-        // --- DETAY GETİRME (GÜNCELLENDİ) ---
+        // --- ID İLE GETİRME ---
         public async Task<ServiceTicket> GetTicketByIdAsync(Guid id)
         {
-            // 1. Ana Kaydı ve İlişkileri Çek
+            // GÜNCELLEME: !x.IsDeleted filtresi (Detay sayfasına manuel linkle gidilirse boş gelsin)
             var ticket = await _unitOfWork.Repository<ServiceTicket>()
-                .GetByIdWithIncludesAsync(x => x.Id == id,
+                .GetByIdWithIncludesAsync(x => x.Id == id && !x.IsDeleted,
                                           x => x.Customer,
                                           x => x.DeviceBrand,
                                           x => x.DeviceType,
                                           x => x.Technician,
-                                          x => x.UsedParts); // <-- Parça listesini çekiyoruz
+                                          x => x.UsedParts);
 
-            // 2. Parça İsimlerini Manuel Doldur (GenericRepo kısıtlaması varsa)
             if (ticket != null && ticket.UsedParts != null)
             {
                 foreach (var usedPart in ticket.UsedParts)
                 {
-                    // Her parçanın ismini Stok tablosundan alıyoruz
                     usedPart.SparePart = await _unitOfWork.Repository<SparePart>().GetByIdAsync(usedPart.SparePartId);
                 }
             }
@@ -163,27 +185,40 @@ namespace TeknikServis.Service.Services
             }
         }
 
-        // Interface gereği overload
+        // --- SİLME (SOFT DELETE) ---
+        // Bu metodu Interface'e eklediğinizi varsayıyorum
+        public async Task DeleteTicketAsync(Guid id)
+        {
+            var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
+            if (ticket != null)
+            {
+                // HARD DELETE YERİNE SOFT DELETE YAPIYORUZ
+                ticket.IsDeleted = true;
+                ticket.UpdatedDate = DateTime.Now;
+
+                // İsterseniz durumunu da güncelleyebilirsiniz
+                ticket.Status = "İptal";
+
+                _unitOfWork.Repository<ServiceTicket>().Update(ticket);
+                await _unitOfWork.CommitAsync();
+            }
+        }
+
         public async Task<IEnumerable<ServiceTicket>> GetAllTicketsByBranchAsync(Guid branchId)
         {
             return await GetAllTicketsByBranchAsync(branchId, null, null);
         }
 
-        // --- LİSTELEME VE ARAMA (SAYFALAMALI) ---
+        // --- SAYFALAMALI LİSTELEME ---
         public async Task<(IEnumerable<ServiceTicket> tickets, int totalCount)> GetAllTicketsByBranchAsync(Guid branchId, int page, int pageSize, string search = null, string status = null)
         {
-            // 1. Tüm Veriyi Hazırla (Henüz çekme)
-            // Not: GenericRepository IQueryable dönüyorsa en performanslısı olur. 
-            // Eğer IEnumerable dönüyorsa mecburen bellekte yapacağız.
-            // Varsayım: Repository FindAsync metodu veriyi çekip getiriyor (IEnumerable).
-
+            // GÜNCELLEME: !x.IsDeleted filtresi
             var allTickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => x.Customer.BranchId == branchId,
+                .FindAsync(x => x.Customer.BranchId == branchId && !x.IsDeleted,
                            inc => inc.Customer,
                            inc => inc.DeviceBrand,
                            inc => inc.DeviceType);
 
-            // 2. Filtreleme
             if (!string.IsNullOrEmpty(search))
             {
                 search = search.Trim();
@@ -201,10 +236,8 @@ namespace TeknikServis.Service.Services
                 allTickets = allTickets.Where(x => x.Status == status).ToList();
             }
 
-            // 3. Toplam Sayı
             int totalCount = allTickets.Count();
 
-            // 4. Sıralama ve Sayfalama
             var pagedTickets = allTickets
                 .OrderByDescending(x => x.CreatedDate)
                 .Skip((page - 1) * pageSize)
