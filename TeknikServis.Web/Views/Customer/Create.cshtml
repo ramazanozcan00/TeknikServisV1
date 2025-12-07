@@ -29,7 +29,18 @@
                             <label class="form-label">Firma İsmi</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="fa-solid fa-building"></i></span>
-                                <input asp-for="CompanyName" class="form-control" placeholder="Varsa firma adı..." />
+
+                                <input asp-for="CompanyName" class="form-control" list="companyOptions" placeholder="Firma seçin veya yazın..." autocomplete="off" />
+
+                                <datalist id="companyOptions">
+                                    @if (ViewBag.CompanyList != null)
+                                    {
+                                        foreach (var companyName in (List<string>)ViewBag.CompanyList)
+                                        {
+                                            <option value="@companyName"></option>
+                                        }
+                                    }
+                                </datalist>
                             </div>
                         </div>
                     </div>

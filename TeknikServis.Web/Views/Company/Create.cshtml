@@ -1,0 +1,47 @@
+﻿@model TeknikServis.Core.Entities.CompanySetting
+@{
+    ViewData["Title"] = "Yeni Firma Ekle";
+}
+
+<div class="container p-4">
+    <div class="card shadow-sm" style="max-width: 800px; margin: 0 auto;">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Yeni Firma Ekle</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="CompanyName" class="form-label fw-bold">Firma Adı <span class="text-danger">*</span></label>
+                        <input asp-for="CompanyName" class="form-control" placeholder="Örn: Trendyol, Hepsiburada..." required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Phone" class="form-label">Telefon</label>
+                        <input asp-for="Phone" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="row bg-light p-2 mb-3 border rounded">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="TaxOffice" class="form-label">Vergi Dairesi</label>
+                        <input asp-for="TaxOffice" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="TaxNumber" class="form-label">Vergi Numarası</label>
+                        <input asp-for="TaxNumber" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Address" class="form-label">Adres</label>
+                    <textarea asp-for="Address" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="text-end">
+                    <a asp-action="Index" class="btn btn-secondary">İptal</a>
+                    <button type="submit" class="btn btn-success px-4">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

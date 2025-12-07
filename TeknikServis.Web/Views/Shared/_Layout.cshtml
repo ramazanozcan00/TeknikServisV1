@@ -289,6 +289,11 @@
                     <a asp-controller="ServiceTicket" asp-action="TechnicianPanel" class="sidebar-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "TechnicianPanel" ? "active-link" : "")"><i class="fa-solid fa-screwdriver-wrench"></i><span>İşlerim / Paneli</span></a>
                 }
 
+                // --- FİRMA BİLGİLERİ (HERKES İÇİN) ---
+                <a asp-area="" asp-controller="Company" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Company" ? "active-link" : "")">
+                    <i class="fa-solid fa-briefcase"></i><span>Firma Bilgileri</span>
+                </a>
+
                 // --- ORTAK MENÜ ---
                 if (showSupport)
                 {

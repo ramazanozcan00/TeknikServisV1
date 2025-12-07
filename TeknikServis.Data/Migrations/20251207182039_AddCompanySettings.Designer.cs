@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TeknikServis.Data.Context;
 
@@ -11,9 +12,11 @@ using TeknikServis.Data.Context;
 namespace TeknikServis.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251207182039_AddCompanySettings")]
+    partial class AddCompanySettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -413,9 +416,6 @@ namespace TeknikServis.Data.Migrations
 
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CompanyName")
                         .HasColumnType("nvarchar(max)");

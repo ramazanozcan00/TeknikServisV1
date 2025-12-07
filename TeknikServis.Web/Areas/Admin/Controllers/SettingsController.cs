@@ -169,6 +169,22 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             return RedirectToAction("Sms");
         }
 
+        // ... Mevcut kodlar ...
 
+        // FİRMA BİLGİLERİ (GET)
+        [HttpGet]
+        public async Task<IActionResult> Company()
+        {
+            // İlk kaydı getir, yoksa boş bir tane oluştur
+            var settings = (await _unitOfWork.Repository<CompanySetting>().GetAllAsync()).FirstOrDefault();
+            if (settings == null)
+            {
+                settings = new CompanySetting();
+            }
+            return View(settings);
+        }
+
+        
+        // ... Mevcut kodlar ...
     }
 }
