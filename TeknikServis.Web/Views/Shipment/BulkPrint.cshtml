@@ -1,0 +1,164 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.ServiceTicket>
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>Sevkiyat Fişleri</title>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #eee;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Fiş Konteyner */
+        .ticket-page {
+            width: 100mm; /* Etiket yazıcı genişliği veya A4 yarısı */
+            min-height: 140mm;
+            background: #fff;
+            margin: 10mm auto;
+            padding: 5mm;
+            box-sizing: border-box;
+            border: 1px dashed #ccc;
+            position: relative;
+            page-break-after: always; /* Her fişten sonra yeni sayfa */
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+            .header h2 {
+                margin: 0;
+                font-size: 18px;
+                text-transform: uppercase;
+            }
+
+            .header span {
+                font-size: 12px;
+            }
+
+        .content {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        .label {
+            font-weight: bold;
+            width: 80px;
+        }
+
+        /* Barkod */
+        .barcode {
+            font-family: 'Libre Barcode 39', cursive;
+            font-size: 40px;
+            text-align: center;
+            margin: 20px 0; /* Boşluk artırıldı */
+            white-space: nowrap;
+        }
+
+        /* İmza Alanları */
+        .signatures {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            border-top: 1px dotted #999;
+            padding-top: 10px;
+        }
+
+        .sig-box {
+            width: 45%;
+            text-align: center;
+        }
+
+        .sig-line {
+            height: 30px;
+            border-bottom: 1px solid #000;
+            margin-top: 20px;
+        }
+
+        @@media print {
+            body
+
+        {
+            background: #fff;
+        }
+
+        .ticket-page {
+            border: none;
+            margin: 0;
+            width: 100%;
+            height: auto;
+        }
+
+        .no-print {
+            display: none;
+        }
+
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="text-align:center; padding: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 5px;">YAZDIR</button>
+    </div>
+
+    @foreach (var ticket in Model)
+    {
+        <div class="ticket-page">
+            <div class="header">
+                <h2>TEKNİK SERVİS</h2>
+                <span>Müşteri Teslim & Sevkiyat Fişi</span>
+            </div>
+
+            <div class="content">
+                <div class="row"><span class="label">Fiş No:</span> <span>@ticket.FisNo</span></div>
+                <div class="row"><span class="label">Tarih:</span> <span>@DateTime.Now.ToString("dd.MM.yyyy HH:mm")</span></div>
+                <hr style="margin: 5px 0; border: 0; border-top: 1px solid #eee;">
+
+                <div class="row"><span class="label">Müşteri:</span> <span>@ticket.Customer?.FirstName @ticket.Customer?.LastName</span></div>
+                <div class="row"><span class="label">Telefon:</span> <span>@ticket.Customer?.Phone</span></div>
+                <div class="row"><span class="label">Cihaz:</span> <span>@ticket.DeviceBrand?.Name @ticket.DeviceModel</span></div>
+                <div class="row"><span class="label">Seri No:</span> <span>@(ticket.SerialNumber ?? "-")</span></div>
+
+                <div class="barcode">*@ticket.FisNo*</div>
+
+                <div style="font-size: 10px; text-align: center; margin-bottom: 10px;">
+                    Cihazımı eksiksiz ve çalışır durumda teslim aldım.
+                </div>
+
+                <div class="signatures">
+                    <div class="sig-box">
+                        <strong>TESLİM EDEN</strong><br>
+                        (Servis Yetkilisi)
+                        <div class="sig-line"></div>
+                    </div>
+                    <div class="sig-box">
+                        <strong>TESLİM ALAN</strong><br>
+                        (Müşteri / Kargo)
+                        <div class="sig-line"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</body>
+</html>
