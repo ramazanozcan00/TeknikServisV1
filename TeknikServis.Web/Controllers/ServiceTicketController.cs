@@ -25,6 +25,7 @@ namespace TeknikServis.Web.Controllers
         private readonly UserManager<AppUser> _userManager;
         private readonly IUnitOfWork _unitOfWork;
 
+        // Constructor (Dependency Injection) - BURASI ORİJİNAL VE DOĞRU HALİDİR
         public ServiceTicketController(
             IServiceTicketService ticketService,
             ICustomerService customerService,
@@ -52,7 +53,6 @@ namespace TeknikServis.Web.Controllers
         }
 
         // --- 1. YEDEK PARÇA İŞLEMLERİ (AJAX) ---
-        // 1. YEDEK PARÇA ARAMA (ŞUBEYE ÖZEL)
         [HttpGet]
         public async Task<IActionResult> SearchSpareParts(string term)
         {
@@ -228,19 +228,17 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("TechnicianPanel");
         }
 
-        // --- 3. STANDART CRUD İŞLEMLERİ (Create, Edit, List, Print) ---
+        // --- 3. STANDART CRUD İŞLEMLERİ ---
 
-        // LİSTELEME (SAYFALAMALI)
+        // LİSTELEME
         [HttpGet]
         public async Task<IActionResult> Index(string s, string status, int page = 1)
         {
             Guid currentBranchId = User.GetBranchId();
-            int pageSize = 10; // Sayfa başına gösterilecek kayıt sayısı
+            int pageSize = 10;
 
-            // Servisten veriyi çek
             var result = await _ticketService.GetAllTicketsByBranchAsync(currentBranchId, page, pageSize, s, status);
 
-            // Verileri ViewBag'e taşı
             ViewBag.Search = s;
             ViewBag.Status = status;
             ViewBag.CurrentPage = page;
@@ -268,12 +266,12 @@ namespace TeknikServis.Web.Controllers
             return View();
         }
 
-        // KAYDETME (POST)
+        // CREATE (POST) - PDF PARAMETRESİ EKLENDİ
         [HttpPost]
         [Authorize(Policy = "CreatePolicy")]
-        public async Task<IActionResult> Create(ServiceTicket ticket, IFormFile photo)
+        public async Task<IActionResult> Create(ServiceTicket ticket, IFormFile photo, IFormFile pdfFile)
         {
-            // 1. HAK KONTROLÜ (TicketBalance)
+            // 1. HAK KONTROLÜ
             var user = await _userManager.GetUserAsync(User);
             if (await _userManager.IsInRoleAsync(user, "Deneme"))
             {
@@ -287,7 +285,7 @@ namespace TeknikServis.Web.Controllers
             }
 
             // 2. Fotoğraf Yükleme
-            if (photo != null)
+            if (photo != null && photo.Length > 0)
             {
                 string extension = Path.GetExtension(photo.FileName);
                 string uniqueFileName = Guid.NewGuid().ToString() + extension;
@@ -303,29 +301,44 @@ namespace TeknikServis.Web.Controllers
                 ticket.PhotoPath = "/uploads/" + uniqueFileName;
             }
 
+            // 3. PDF Yükleme (YENİ)
+            if (pdfFile != null && pdfFile.Length > 0)
+            {
+                string extension = Path.GetExtension(pdfFile.FileName);
+                if (extension.ToLower() == ".pdf")
+                {
+                    string uniqueFileName = Guid.NewGuid().ToString() + extension;
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
+
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await pdfFile.CopyToAsync(fileStream);
+                    }
+                    ticket.PdfPath = "/documents/" + uniqueFileName;
+                }
+            }
+
             ticket.Id = Guid.NewGuid();
             await _ticketService.CreateTicketAsync(ticket);
 
-            // --- E-POSTA BİLDİRİMİ (GÜNCELLENMİŞ TASARIM) ---
+            // --- E-POSTA BİLDİRİMİ ---
             try
             {
                 var customer = await _customerService.GetByIdAsync(ticket.CustomerId);
-
-                // Cihaz Marka İsmini Çekiyoruz (Mailde göstermek için)
                 var brand = await _unitOfWork.Repository<DeviceBrand>().GetByIdAsync(ticket.DeviceBrandId);
                 string brandName = brand != null ? brand.Name : "-";
 
                 if (customer != null && !string.IsNullOrEmpty(customer.Email))
                 {
                     string konu = $"Servis Kaydınız Alındı - Fiş No: {ticket.FisNo}";
-
                     string icerik = $@"
                     <div style='font-family: Segoe UI, Helvetica, Arial, sans-serif; padding: 20px; background-color: #f9f9f9; border: 1px solid #eee;'>
                         <div style='background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-                            
                             <h2 style='color: #2563eb; margin-top: 0;'>Sayın {customer.FirstName} {customer.LastName},</h2>
                             <p style='font-size: 16px; color: #555;'>Cihazınız teknik servisimize kabul edilmiştir. İşlemler en kısa sürede başlayacaktır.</p>
-                            
                             <table style='width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #e0e0e0;'>
                                 <tr style='background-color: #f1f5f9;'>
                                     <td style='padding: 12px; border-bottom: 1px solid #e0e0e0; width: 30%;'><strong>Fiş Numarası:</strong></td>
@@ -339,22 +352,9 @@ namespace TeknikServis.Web.Controllers
                                     <td style='padding: 12px; border-bottom: 1px solid #e0e0e0;'><strong>Arıza Tanımı:</strong></td>
                                     <td style='padding: 12px; border-bottom: 1px solid #e0e0e0;'>{ticket.ProblemDescription}</td>
                                 </tr>
-                                <tr>
-                                    <td style='padding: 12px; border-bottom: 1px solid #e0e0e0;'><strong>Kayıt Tarihi:</strong></td>
-                                    <td style='padding: 12px; border-bottom: 1px solid #e0e0e0;'>{DateTime.Now:dd.MM.yyyy HH:mm}</td>
-                                </tr>
-                                <tr style='background-color: #f1f5f9;'>
-                                    <td style='padding: 12px;'><strong>Durum:</strong></td>
-                                    <td style='padding: 12px; color: #eab308; font-weight: bold;'>Bekliyor</td>
-                                </tr>
                             </table>
-
-                            <p style='margin-top: 25px; font-size: 14px; color: #777; border-top: 1px solid #eee; padding-top: 15px;'>
-                                <strong style='color: #333;'>Bilgilendirme:</strong> Durum sorgulama ve teslim alma işlemleri için lütfen <strong>Fiş Numaranızı</strong> saklayınız.
-                            </p>
-                            
                             <div style='margin-top: 30px; text-align: center; color: #999; font-size: 12px;'>
-                                <p>Bu e-posta otomatik olarak gönderilmiştir. Lütfen cevaplamayınız.</p>
+                                <p>Bu e-posta otomatik olarak gönderilmiştir.</p>
                                 <strong>Teknik Servis Takip Sistemi</strong>
                             </div>
                         </div>
@@ -363,7 +363,7 @@ namespace TeknikServis.Web.Controllers
                     await _emailService.SendEmailAsync(customer.Email, konu, icerik);
                 }
             }
-            catch { /* Mail hatası akışı bozmasın */ }
+            catch { }
 
             // Loglama
             try
@@ -380,6 +380,7 @@ namespace TeknikServis.Web.Controllers
             TempData["Success"] = "Kayıt açıldı.";
             return RedirectToAction("Index");
         }
+
         [HttpGet]
         public async Task<IActionResult> Details(Guid id)
         {
@@ -404,30 +405,77 @@ namespace TeknikServis.Web.Controllers
             return View(ticket);
         }
 
+        // EDIT (POST) - TAMAMEN GÜNCELLENMİŞ HALİ
         [HttpPost]
         [Authorize(Policy = "EditPolicy")]
-        public async Task<IActionResult> Edit(ServiceTicket ticket, IFormFile photo)
+        public async Task<IActionResult> Edit(ServiceTicket ticket, IFormFile photo, IFormFile pdfFile)
         {
-            if (photo != null)
+            // 1. Mevcut kaydı çek
+            var existingTicket = await _ticketService.GetTicketByIdAsync(ticket.Id);
+
+            if (existingTicket == null) return NotFound();
+
+            // 2. Fotoğraf İşlemleri
+            if (photo != null && photo.Length > 0)
             {
                 string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-                using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create)) { await photo.CopyToAsync(fileStream); }
-                ticket.PhotoPath = "/uploads/" + uniqueFileName;
+                using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create))
+                {
+                    await photo.CopyToAsync(fileStream);
+                }
+                existingTicket.PhotoPath = "/uploads/" + uniqueFileName;
             }
 
-            // Güncelleme işlemi (TechnicianId, Notes vb. servis içinde halledilmeli veya burada atanmalı)
-            // Servis katmanındaki UpdateTicketAsync metodunun tüm alanları güncellediğinden emin olun.
-            await _ticketService.UpdateTicketAsync(ticket);
+            // 3. PDF İşlemleri
+            if (pdfFile != null && pdfFile.Length > 0)
+            {
+                string extension = Path.GetExtension(pdfFile.FileName);
+                if (extension.ToLower() == ".pdf")
+                {
+                    string uniqueFileName = Guid.NewGuid().ToString() + extension;
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-            // Eğer TechnicianId ve Notes View'dan geliyorsa ve Servis katmanı bunları güncellemiyorsa,
-            // Burada manuel güncelleme yapılması gerekebilir.
-            // Ancak ideal olan Servis katmanının bunu yapmasıdır.
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await pdfFile.CopyToAsync(fileStream);
+                    }
+                    existingTicket.PdfPath = "/documents/" + uniqueFileName;
+                }
+            }
 
-            TempData["Success"] = "Güncellendi.";
+            // 4. Standart Alanların Güncellenmesi
+            existingTicket.DeviceTypeId = ticket.DeviceTypeId;
+            existingTicket.DeviceBrandId = ticket.DeviceBrandId;
+            existingTicket.DeviceModel = ticket.DeviceModel;
+            existingTicket.SerialNumber = ticket.SerialNumber;
+            existingTicket.ProblemDescription = ticket.ProblemDescription;
+            existingTicket.IsWarranty = ticket.IsWarranty;
+
+            // Yeni Alanlar
+            existingTicket.InvoiceDate = ticket.InvoiceDate;
+            existingTicket.Accessories = ticket.Accessories;
+            existingTicket.PhysicalDamage = ticket.PhysicalDamage;
+
+            // --- DEĞİŞİKLİK BURADA ---
+            // Yönetici ise SADECE teknisyen atamasını güncellesin.
+            // Notlara buradan müdahale edilmesin (Satır silindi).
+            if (User.IsInRole("Admin"))
+            {
+                existingTicket.TechnicianId = ticket.TechnicianId;
+                // existingTicket.TechnicianNotes = ticket.TechnicianNotes; // BU SATIR İPTAL EDİLDİ
+            }
+
+            existingTicket.UpdatedDate = DateTime.Now;
+
+            // 5. Kaydet
+            await _ticketService.UpdateTicketAsync(existingTicket);
+
+            TempData["Success"] = "Kayıt başarıyla güncellendi.";
             return RedirectToAction("Details", new { id = ticket.Id });
         }
-
         [HttpPost]
         [Authorize(Policy = "EditPolicy")]
         public async Task<IActionResult> ChangeStatus(Guid id, string status, decimal? price)

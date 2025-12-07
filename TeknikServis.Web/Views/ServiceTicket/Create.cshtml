@@ -7,155 +7,275 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
-<div class="container mt-4">
+<div class="container-fluid py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow-lg border-0">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0 fw-bold"><i class="fa-solid fa-plus-circle me-2"></i>Cihaz Kabul Formu</h5>
+        <div class="col-xl-10 col-lg-12">
+
+            <form asp-action="Create" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+
+                <div class="card shadow-lg border-0 rounded-3">
+
+                    <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded p-2">
+                                <i class="fa-solid fa-file-circle-plus fa-lg"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold text-dark">Yeni Servis Kaydı</h5>
+                                <small class="text-muted">Lütfen cihaz ve müşteri bilgilerini eksiksiz giriniz.</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-light text-secondary border px-3 py-2">
+                            <i class="fa-regular fa-calendar me-2"></i>@DateTime.Now.ToString("dd.MM.yyyy")
+                        </span>
+                    </div>
+
+                    <div class="card-body p-4 bg-light bg-opacity-25">
+
+                        <div class="card shadow-sm border-0 border-start border-4 border-primary mb-4">
+                            <div class="card-body p-4">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fa-solid fa-user-check me-2"></i>Müşteri Bilgileri
+                                </h6>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold small text-secondary">Müşteri Seçimi <span class="text-danger">*</span></label>
+
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted border-end-0">
+                                                <i class="fa-solid fa-magnifying-glass"></i>
+                                            </span>
+
+                                            <select asp-for="CustomerId" class="form-select border-start-0" id="customerSelect" asp-items="ViewBag.CustomerList" required>
+                                                <option value="">-- Müşteri Ara... --</option>
+                                            </select>
+
+                                            <a asp-controller="Customer" asp-action="Create" class="btn btn-outline-primary px-4 fw-bold" title="Listede yoksa yeni oluştur">
+                                                <i class="fa-solid fa-plus me-1"></i>Yeni Müşteri
+                                            </a>
+                                        </div>
+                                        <span asp-validation-for="CustomerId" class="text-danger small mt-1 d-block"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm border-0 border-start border-4 border-info mb-4">
+                            <div class="card-body p-4">
+                                <h6 class="text-info fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fa-solid fa-laptop-medical me-2"></i>Cihaz Kimliği
+                                </h6>
+                                <div class="row g-3">
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold small text-secondary">Cihaz Türü <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-desktop text-muted"></i></span>
+                                            <select asp-for="DeviceTypeId" class="form-select" asp-items="ViewBag.DeviceTypes" required>
+                                                <option value="">-- Seçiniz --</option>
+                                            </select>
+                                            <a asp-area="Admin" asp-controller="Definition" asp-action="Index" class="btn btn-light border" target="_blank" title="Ekle">
+                                                <i class="fa-solid fa-plus text-secondary"></i>
+                                            </a>
+                                        </div>
+                                        <span asp-validation-for="DeviceTypeId" class="text-danger small"></span>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold small text-secondary">Marka <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-copyright text-muted"></i></span>
+                                            <select asp-for="DeviceBrandId" class="form-select" asp-items="ViewBag.DeviceBrands" required>
+                                                <option value="">-- Seçiniz --</option>
+                                            </select>
+                                            <a asp-area="Admin" asp-controller="Definition" asp-action="Index" class="btn btn-light border" target="_blank" title="Ekle">
+                                                <i class="fa-solid fa-plus text-secondary"></i>
+                                            </a>
+                                        </div>
+                                        <span asp-validation-for="DeviceBrandId" class="text-danger small"></span>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold small text-secondary">Model <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-mobile-screen text-muted"></i></span>
+                                            <input asp-for="DeviceModel" class="form-control" placeholder="Örn: iPhone 13 Pro" required />
+                                        </div>
+                                        <span asp-validation-for="DeviceModel" class="text-danger small"></span>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-secondary">Seri No / IMEI <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-barcode text-dark"></i></span>
+                                            <input asp-for="SerialNumber" class="form-control font-monospace" placeholder="Cihaz seri numarası" required />
+                                        </div>
+                                        <span asp-validation-for="SerialNumber" class="text-danger small"></span>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold small text-secondary">Fatura Tarihi</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-receipt text-success"></i></span>
+                                            <input asp-for="InvoiceDate" type="date" class="form-control" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold small text-secondary">Garanti</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-shield-halved text-warning"></i></span>
+                                            <select asp-for="IsWarranty" class="form-select">
+                                                <option value="false">Garantisiz</option>
+                                                <option value="true">Garantili</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="card shadow-sm border-0 border-start border-4 border-warning h-100">
+                                    <div class="card-body p-4">
+                                        <h6 class="text-warning fw-bold mb-3 border-bottom pb-2">
+                                            <i class="fa-solid fa-stethoscope me-2"></i>Fiziksel Kontrol
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-secondary">Teslim Alınan Aksesuarlar</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white"><i class="fa-solid fa-plug text-secondary"></i></span>
+                                                <input asp-for="Accessories" class="form-control" placeholder="Örn: Şarj aleti, kılıf..." />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="form-label fw-bold small text-secondary">Fiziksel Hasar</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white"><i class="fa-solid fa-heart-crack text-danger"></i></span>
+                                                <input asp-for="PhysicalDamage" class="form-control" placeholder="Çizik, kırık durumu..." />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+                                    <div class="card-body p-4">
+                                        <h6 class="text-danger fw-bold mb-3 border-bottom pb-2">
+                                            <i class="fa-solid fa-wrench me-2"></i>Arıza Bilgisi
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-secondary">Müşteri Şikayeti <span class="text-danger">*</span></label>
+                                            <textarea asp-for="ProblemDescription" class="form-control" rows="3" placeholder="Arıza detaylarını buraya yazınız..." required></textarea>
+                                            <span asp-validation-for="ProblemDescription" class="text-danger small"></span>
+                                        </div>
+
+                                        <div class="mt-auto">
+                                            <label class="form-label fw-bold small text-secondary">Teknisyen Ata</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white"><i class="fa-solid fa-user-gear text-dark"></i></span>
+                                                <select asp-for="TechnicianId" class="form-select" asp-items="ViewBag.Technicians">
+                                                    <option value="">-- Havuza Bırak (Otomatik) --</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm border-0 border-start border-4 border-secondary mb-4">
+                            <div class="card-body p-4">
+                                <h6 class="text-secondary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fa-solid fa-folder-open me-2"></i>Ek Dosyalar
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-secondary">Fotoğraflar</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-camera text-secondary"></i></span>
+                                            <input type="file" name="photos" id="photoInput" class="form-control" accept="image/*" multiple />
+                                        </div>
+                                        <div class="form-text small"><i class="fa-solid fa-info-circle"></i> Maksimum 4 adet fotoğraf seçiniz.</div>
+                                        <div id="photoWarning" class="text-danger small fw-bold d-none mt-1">En fazla 4 fotoğraf!</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-secondary">Döküman (PDF)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-file-pdf text-danger"></i></span>
+                                            <input type="file" name="pdfFile" class="form-control" accept=".pdf" />
+                                        </div>
+                                        <div class="form-text small">Fatura veya garanti belgesi.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="card-footer bg-white py-4 px-4 d-flex justify-content-end gap-3 border-top">
+                        <a asp-action="Index" class="btn btn-light border px-4 fw-bold text-muted shadow-sm hover-shadow">
+                            <i class="fa-solid fa-xmark me-2"></i>İptal
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5 fw-bold shadow hover-shadow scale-up">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>Kaydı Oluştur
+                        </button>
+                    </div>
                 </div>
-                <div class="card-body p-4">
 
-                    <form asp-action="Create" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Müşteri <span class="text-danger">*</span></label>
-                            <div class="d-flex gap-2">
-                                <div class="flex-grow-1">
-                                    <select asp-for="CustomerId" class="form-select" id="customerSelect" asp-items="ViewBag.CustomerList" required>
-                                        <option value="">-- Müşteri Seçiniz --</option>
-                                    </select>
-                                    <span asp-validation-for="CustomerId" class="text-danger small"></span>
-                                </div>
-                                <a asp-controller="Customer" asp-action="Create" class="btn btn-success text-nowrap d-flex align-items-center" title="Yeni Müşteri Ekle">
-                                    <i class="fa-solid fa-user-plus me-1"></i> Yeni Ekle
-                                </a>
-                            </div>
-                        </div>
-
-                        <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3">Cihaz Bilgileri</h6>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small">Cihaz Türü <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-laptop text-primary"></i></span>
-                                    <select asp-for="DeviceTypeId" class="form-select" asp-items="ViewBag.DeviceTypes" required>
-                                        <option value="">-- Seçiniz --</option>
-                                    </select>
-                                    <a asp-area="Admin" asp-controller="Definition" asp-action="Index" class="btn btn-outline-secondary" title="Ekle">
-                                        <i class="fa-solid fa-plus"></i>
-                                    </a>
-                                </div>
-                                <span asp-validation-for="DeviceTypeId" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small">Marka <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-tag text-primary"></i></span>
-                                    <select asp-for="DeviceBrandId" class="form-select" asp-items="ViewBag.DeviceBrands" required>
-                                        <option value="">-- Seçiniz --</option>
-                                    </select>
-                                    <a asp-area="Admin" asp-controller="Definition" asp-action="Index" class="btn btn-outline-secondary" title="Ekle">
-                                        <i class="fa-solid fa-plus"></i>
-                                    </a>
-                                </div>
-                                <span asp-validation-for="DeviceBrandId" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small">Model <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-mobile-screen text-primary"></i></span>
-                                    <input asp-for="DeviceModel" class="form-control" placeholder="Örn: iPhone 13" required />
-                                </div>
-                                <span asp-validation-for="DeviceModel" class="text-danger small"></span>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small">Seri No (IMEI) <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-barcode text-secondary"></i></span>
-                                    <input asp-for="SerialNumber" class="form-control font-monospace" placeholder="Cihazın seri numarası" required />
-                                </div>
-                                <span asp-validation-for="SerialNumber" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small">Garanti Durumu</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-shield-halved text-success"></i></span>
-                                    <select asp-for="IsWarranty" class="form-select">
-                                        <option value="false">Garantisiz</option>
-                                        <option value="true">Garantili</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2 mb-3">Servis Detayları</h6>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Arıza Açıklaması <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light"><i class="fa-solid fa-wrench text-warning"></i></span>
-                                <textarea asp-for="ProblemDescription" class="form-control" rows="3" placeholder="Müşterinin belirttiği sorunlar..." required></textarea>
-                            </div>
-                            <span asp-validation-for="ProblemDescription" class="text-danger small"></span>
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small">Cihaz Fotoğrafları (Maks. 4)</label>
-                                <input type="file" name="photos" id="photoInput" class="form-control" accept="image/*" multiple />
-                                <div class="form-text text-muted small">Ctrl tuşu ile birden fazla seçebilirsiniz.</div>
-                                <div id="photoWarning" class="text-danger small fw-bold d-none">En fazla 4 fotoğraf!</div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small">Teknisyen Ata</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fa-solid fa-user-gear text-info"></i></span>
-                                    <select asp-for="TechnicianId" class="form-select" asp-items="ViewBag.Technicians">
-                                        <option value="">-- Havuzda Beklesin --</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-end gap-2 border-top pt-3">
-                            <a asp-action="Index" class="btn btn-light border px-4">İptal</a>
-                            <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">
-                                <i class="fa-solid fa-save me-2"></i>Kaydı Oluştur
-                            </button>
-                        </div>
-
-                    </form>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
+
+<style>
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.3s ease;
+    }
+
+    .scale-up:hover {
+        transform: translateY(-2px);
+        transition: all 0.2s;
+    }
+    /* Select2 Düzeltmeleri - Input Group ile uyumlu olması için */
+    .select2-container .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #ced4da !important;
+        border-left: none !important;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        display: flex;
+        align-items: center;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection {
+        border-color: #ced4da !important;
+    }
+</style>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Select2 Ayarları
             $('#customerSelect').select2({
                 theme: "bootstrap-5",
-                width: '100%',
-                placeholder: "Müşteri adı veya telefon yazın...",
-                allowClear: true
+                width: '100%', // Genişliği kapsayıcıya uydur
+                placeholder: "Müşteri adı veya telefon ile arayın...",
+                allowClear: true,
+                language: "tr"
             });
 
+            // Fotoğraf Sayısı Kontrolü
             $('#photoInput').on('change', function() {
                 if (this.files.length > 4) {
                     $('#photoWarning').removeClass('d-none');
                     this.value = "";
-                    alert("En fazla 4 fotoğraf yükleyebilirsiniz.");
+                    if(typeof toastr !== 'undefined') toastr.warning("En fazla 4 fotoğraf yükleyebilirsiniz.");
+                    else alert("En fazla 4 fotoğraf yükleyebilirsiniz.");
                 } else {
                     $('#photoWarning').addClass('d-none');
                 }

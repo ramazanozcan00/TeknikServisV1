@@ -3,28 +3,29 @@
 
 @{
     ViewData["Title"] = "Servis Detayı";
+
     // --- YASAL SÜRE HESAPLAMALARI ---
     var yasalBitisTarihi = Model.CreatedDate.AddBusinessDays(21);
     var kalanIsGunu = yasalBitisTarihi.GetRemainingBusinessDays();
     var toplamSure = (yasalBitisTarihi - Model.CreatedDate).TotalDays;
     var gecenSure = (DateTime.Now - Model.CreatedDate).TotalDays;
+
     var yuzde = (toplamSure > 0) ? (int)((gecenSure / toplamSure) * 100) : 0;
     if (yuzde > 100) yuzde = 100;
     if (yuzde < 0) yuzde = 0;
 
     string barColor = yuzde > 90 ? "bg-danger" : (yuzde > 70 ? "bg-warning" : "bg-success");
-
     string kartRengi = "border-success";
     string baslikRengi = "bg-success";
     string ikon = "fa-calendar-check";
     string durumMesaji = "Yasal süre içindesiniz.";
 
-    if (Model.Status == "Tamamlandı")
+    if (Model.Status == "Tamamlandı" || Model.Status == "İptal")
     {
         kartRengi = "border-secondary";
         baslikRengi = "bg-secondary";
         ikon = "fa-flag-checkered";
-        durumMesaji = "İşlem tamamlandı.";
+        durumMesaji = "İşlem sonuçlandı.";
     }
     else if (DateTime.Now > yasalBitisTarihi)
     {
@@ -42,17 +43,17 @@
     }
 }
 
-<div class="container mt-4">
+<div class="container py-4">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div class="d-flex align-items-center gap-3">
             @if (User.IsInRole("Technician"))
             {
-                <a asp-action="TechnicianPanel" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-2"></i>Panele Dön</a>
+                <a asp-action="TechnicianPanel" class="btn btn-outline-secondary shadow-sm"><i class="fa-solid fa-arrow-left me-2"></i>Panele Dön</a>
             }
             else
             {
-                <a asp-action="Index" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-2"></i>Geri</a>
+                <a asp-action="Index" class="btn btn-outline-secondary shadow-sm"><i class="fa-solid fa-arrow-left me-2"></i>Geri</a>
             }
             <h4 class="mb-0 fw-bold text-secondary">
                 Fiş No: <span class="text-primary font-monospace">#@(Model.FisNo ?? "-")</span>
@@ -60,71 +61,162 @@
         </div>
 
         <div class="d-flex gap-2 align-items-center">
-            <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-dark">
-                <i class="fa-solid fa-print me-2"></i>Fiş Yazdır
+            <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-dark shadow-sm">
+                <i class="fa-solid fa-print me-2"></i>Yazdır
             </a>
-            <span class="badge @(Model.Status == "Tamamlandı" ? "bg-success" : "bg-info text-dark") p-2 fs-6">
+            <span class="badge @(Model.Status == "Tamamlandı" ? "bg-success" : (Model.Status == "İptal" ? "bg-danger" : "bg-info text-dark")) p-2 fs-6 shadow-sm">
                 @Model.Status
             </span>
         </div>
     </div>
 
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-lg-8">
 
-            <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary">
-                <div class="card-header bg-white fw-bold text-uppercase small py-3 d-flex justify-content-between">
-                    <span><i class="fa-solid fa-laptop me-2 text-primary"></i>Cihaz Bilgileri</span>
-                    <span class="text-muted font-monospace">SN: @Model.SerialNumber</span>
+            <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary rounded-3 overflow-hidden">
+                <div class="card-header bg-white fw-bold text-uppercase small py-3 d-flex justify-content-between align-items-center">
+                    <span class="text-primary"><i class="fa-solid fa-laptop me-2"></i>Cihaz Bilgileri</span>
+                    <span class="badge bg-light text-dark font-monospace border">SN: @Model.SerialNumber</span>
                 </div>
-                <div class="card-body">
-                    <h5 class="fw-bold text-dark">
-                        @(Model.DeviceBrand != null ? Model.DeviceBrand.Name : "-") - @Model.DeviceModel
-                    </h5>
-                    <div class="mt-2">
+                <div class="card-body bg-light bg-opacity-10">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="fw-bold text-dark mb-1">
+                                @(Model.DeviceBrand?.Name ?? "-") <span class="text-muted">@Model.DeviceModel</span>
+                            </h5>
+                            <div class="text-muted small">
+                                <i class="fa-solid fa-microchip me-1"></i>@(Model.DeviceType?.Name ?? "Belirtilmemiş")
+                            </div>
+                        </div>
+
                         @if (Model.IsWarranty)
                         {
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2">
-                                <i class="fa-solid fa-shield-check me-1"></i>GARANTİLİ CİHAZ
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
+                                <i class="fa-solid fa-shield-check me-1"></i>GARANTİLİ
                             </span>
                         }
                         else
                         {
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2">
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 rounded-pill">
                                 <i class="fa-solid fa-shield-xmark me-1"></i>GARANTİSİZ
                             </span>
                         }
-                        <span class="badge bg-light text-dark border px-3 py-2 ms-2">
-                            <i class="fa-solid fa-microchip me-1"></i>@(Model.DeviceType != null ? Model.DeviceType.Name : "Türü Belirtilmemiş")
-                        </span>
                     </div>
+
+                    <div class="row g-3 border-top pt-3 mt-2">
+                        <div class="col-md-4">
+                            <small class="text-muted fw-bold d-block mb-1">Fatura Tarihi</small>
+                            <span class="text-dark">
+                                <i class="fa-regular fa-calendar me-1 text-primary"></i>
+                                @(Model.InvoiceDate.HasValue? Model.InvoiceDate.Value.ToString("dd.MM.yyyy") : "-")
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted fw-bold d-block mb-1">Fiziksel Durum</small>
+                            <span class="text-dark">
+                                <i class="fa-solid fa-stethoscope me-1 text-danger"></i>
+                                @(string.IsNullOrEmpty(Model.PhysicalDamage) ? "Hasar kaydı yok." : Model.PhysicalDamage)
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted fw-bold d-block mb-1">Aksesuarlar</small>
+                            <span class="text-dark">
+                                <i class="fa-solid fa-headphones me-1 text-info"></i>
+                                @(string.IsNullOrEmpty(Model.Accessories) ? "Teslim alınmadı." : Model.Accessories)
+                            </span>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <div class="card shadow-sm mb-4 border-0">
-                <div class="card-header bg-light fw-bold text-uppercase small py-3 text-danger">
-                    <i class="fa-solid fa-triangle-exclamation me-2"></i>Arıza / Şikayet
+            <div class="card shadow-sm mb-4 border-0 rounded-3">
+                <div class="card-header bg-light fw-bold text-uppercase small py-3 text-danger border-bottom-0">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>Arıza / Müşteri Şikayeti
                 </div>
-                <div class="card-body">
+                <div class="card-body bg-white border-top">
                     <p class="lead fs-6 mb-0 text-dark">@Model.ProblemDescription</p>
                 </div>
             </div>
 
-            <div class="card shadow-sm mb-4 border-info">
-                <div class="card-header bg-info text-white fw-bold text-uppercase small py-3">
+            <div class="card shadow-sm mb-4 border-0 border-start border-4 border-secondary rounded-3">
+                <div class="card-header bg-white fw-bold text-uppercase small py-3 text-secondary">
+                    <i class="fa-solid fa-folder-open me-2"></i>Dosyalar ve Görseller
+                </div>
+                <div class="card-body bg-light">
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <div class="p-3 bg-white border rounded h-100 d-flex flex-column justify-content-center align-items-center text-center">
+                                @if (!string.IsNullOrEmpty(Model.PdfPath))
+                                {
+                                    <i class="fa-regular fa-file-pdf text-danger fa-3x mb-2"></i>
+                                    <h6 class="fw-bold mb-1">Servis Dökümanı</h6>
+                                    <a href="@Model.PdfPath" target="_blank" class="btn btn-sm btn-outline-danger mt-2 stretched-link">
+                                        <i class="fa-solid fa-eye me-1"></i>Görüntüle (PDF)
+                                    </a>
+                                }
+                                else
+                                {
+                                    <i class="fa-regular fa-file text-muted fa-3x mb-2 opacity-25"></i>
+                                    <span class="text-muted small">PDF yüklenmemiş.</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 bg-white border rounded h-100 d-flex flex-column justify-content-center align-items-center">
+                                @if (!string.IsNullOrEmpty(Model.PhotoPath))
+                                {
+                                    <div class="position-relative group-hover w-100 text-center">
+                                        <img src="@Model.PhotoPath" class="img-fluid rounded shadow-sm" style="max-height: 150px; object-fit: cover;" />
+                                        <a href="@Model.PhotoPath" target="_blank" class="btn btn-sm btn-primary mt-2 position-absolute top-50 start-50 translate-middle opacity-0 hover-opacity-100">
+                                            <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                        </a>
+                                    </div>
+                                    <span class="small text-muted mt-2">Cihaz Fotoğrafı</span>
+                                }
+                                else
+                                {
+                                    <i class="fa-regular fa-image text-muted fa-3x mb-2 opacity-25"></i>
+                                    <span class="text-muted small">Fotoğraf yok.</span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.TicketPhotos != null && Model.TicketPhotos.Any())
+                        {
+                            <div class="col-12">
+                                <h6 class="small fw-bold text-muted border-bottom pb-2 mb-2">Diğer Fotoğraflar</h6>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    @foreach (var photo in Model.TicketPhotos)
+                                    {
+                                        <a href="@photo.Path" target="_blank" class="d-block border rounded overflow-hidden shadow-sm hover-shadow transition-all">
+                                            <img src="@photo.Path" style="width: 80px; height: 80px; object-fit: cover;" />
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4 border-0 border-start border-4 border-info">
+                <div class="card-header bg-white text-info fw-bold text-uppercase small py-3">
                     <i class="fa-solid fa-screwdriver-wrench me-2"></i>Teknisyen İşlemleri / Notları
                 </div>
                 <div class="card-body bg-light" style="max-height: 400px; overflow-y: auto;">
                     @if (!string.IsNullOrEmpty(Model.TechnicianNotes))
                     {
                         var notes = Model.TechnicianNotes.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Reverse();
-
                         foreach (var note in notes)
                         {
                             <div class="card border-0 shadow-sm mb-2">
                                 <div class="card-body p-3 d-flex align-items-start">
                                     <i class="fa-solid fa-pen-to-square text-info mt-1 me-3"></i>
-                                    <div class="text-dark" style="font-size: 0.95rem; line-height: 1.5;">
+                                    <div class="text-dark small">
                                         @note
                                     </div>
                                 </div>
@@ -141,8 +233,8 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning bg-opacity-25 fw-bold text-dark text-uppercase small py-3">
+            <div class="card shadow-sm mb-4 border-0 border-start border-4 border-warning">
+                <div class="card-header bg-white text-warning fw-bold text-uppercase small py-3">
                     <i class="fa-solid fa-boxes-stacked me-2"></i>Kullanılan Yedek Parçalar
                 </div>
                 <div class="card-body p-0">
@@ -194,51 +286,18 @@
                 </div>
             </div>
 
-            @if (Model.TicketPhotos != null && Model.TicketPhotos.Any())
-            {
-                <div class="card shadow-sm mb-4 border-0">
-                    <div class="card-header bg-dark text-white fw-bold text-uppercase small py-3">
-                        <i class="fa-solid fa-images me-2"></i>Cihaz Fotoğrafları (@Model.TicketPhotos.Count)
-                    </div>
-                    <div class="card-body bg-light">
-                        <div class="row g-3">
-                            @foreach (var photo in Model.TicketPhotos)
-                            {
-                                <div class="col-6 col-md-3">
-                                    <a href="@photo.Path" target="_blank" class="d-block position-relative group-hover">
-                                        <img src="@photo.Path" class="img-fluid rounded shadow-sm border bg-white" style="height: 120px; width: 100%; object-fit: cover;" />
-                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 opacity-0 hover-opacity-100 rounded transition-all">
-                                            <i class="fa-solid fa-magnifying-glass text-white fs-4"></i>
-                                        </div>
-                                    </a>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                </div>
-            }
-            else if (!string.IsNullOrEmpty(Model.PhotoPath))
-            {
-                <div class="card shadow-sm mb-4 border-0">
-                    <div class="card-body text-center bg-light p-3 rounded">
-                        <a href="@Model.PhotoPath" target="_blank">
-                            <img src="@Model.PhotoPath" class="img-fluid rounded shadow-sm" style="max-height: 250px;" />
-                        </a>
-                    </div>
-                </div>
-            }
         </div>
 
-        <div class="col-md-4">
+        <div class="col-lg-4">
 
-            <div class="card shadow-sm border-0 mb-3">
+            <div class="card shadow-sm border-0 mb-3 rounded-3">
                 <div class="card-body text-center p-4">
                     <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle d-inline-block mb-3">
                         <i class="fa-solid fa-user-circle fa-3x"></i>
                     </div>
                     <h5 class="fw-bold text-dark mb-1">@Model.Customer?.FirstName @Model.Customer?.LastName</h5>
                     <p class="text-muted small mb-3">
-                        <i class="fa-solid fa-phone me-1"></i> @Model.Customer?.Phone
+                        <i class="fa-solid fa-phone me-1"></i> <a href="tel:@Model.Customer?.Phone" class="text-decoration-none text-muted">@Model.Customer?.Phone</a>
                     </p>
                     <div class="d-grid">
                         <a asp-controller="Customer" asp-action="Details" asp-route-id="@Model.CustomerId" class="btn btn-outline-primary btn-sm rounded-pill">
@@ -277,6 +336,7 @@
                     }
                 </div>
             </div>
+
             <div class="card shadow-sm @kartRengi mb-3">
                 <div class="card-header @baslikRengi text-white fw-bold d-flex align-items-center justify-content-between">
                     <span><i class="fa-solid @ikon me-2"></i>Yasal Süre</span>
@@ -292,7 +352,7 @@
                         <span class="fw-bold text-danger small">@yasalBitisTarihi.ToString("dd.MM.yyyy")</span>
                     </div>
 
-                    @if (Model.Status != "Tamamlandı")
+                    @if (Model.Status != "Tamamlandı" && Model.Status != "İptal")
                     {
                         <div class="text-center mb-2">
                             @if (DateTime.Now <= yasalBitisTarihi)
@@ -361,6 +421,10 @@
 <style>
     .hover-opacity-100:hover {
         opacity: 1 !important;
+    }
+
+    .hover-shadow:hover {
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
     }
 
     .transition-all {
