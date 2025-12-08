@@ -1,3 +1,5 @@
+using Hangfire; // Eklendi
+using Hangfire.SqlServer; // Eklendi
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TeknikServis.Core.Entities;
@@ -16,6 +18,23 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. SERVISLERÝN EKLENMESÝ
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+// --- HANGFIRE KONFÝGÜRASYONU BAÞLANGIÇ ---
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("Default"), new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.Zero,
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+
+builder.Services.AddHangfireServer();
+// --- HANGFIRE KONFÝGÜRASYONU BÝTÝÞ ---
 
 builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
 {
@@ -41,6 +60,10 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 // HttpClient ile birlikte servisi kaydediyoruz
 builder.Services.AddScoped<ISmsService, IletiMerkeziSmsService>();
 // ------------------------------------------------
+
+// --- YEDEKLEME SERVÝSÝ KAYDI ---
+builder.Services.AddScoped<IBackupService, BackupService>();
+// -------------------------------
 
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -97,6 +120,21 @@ app.UseAuthorization();
 
 // Chat Rotasý
 app.MapHub<SupportHub>("/supportHub");
+
+// --- HANGFIRE DASHBOARD VE ZAMANLAYICI AYARI ---
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() },
+    IgnoreAntiforgeryToken = true // Bazý durumlarda token hatasýný önler
+});
+
+RecurringJob.AddOrUpdate<IBackupService>(
+    "daily-database-backup",
+    service => service.RunDailyBackupAsync(),
+    Cron.Daily(3)
+);
+// -----------------------------------------------
 
 // --- ROTA TANIMLARI ---
 
