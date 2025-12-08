@@ -101,7 +101,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     FullName = model.FullName,
                     EmailConfirmed = true,
                     BranchId = model.BranchId,
-
+                    IsShipmentAuthEnabled = model.IsShipmentAuthEnabled,
                     // Haklar (Modelden gelen değerleri alıyoruz)
                     PrintBalance = model.PrintBalance,
                     MailBalance = model.MailBalance,
@@ -218,6 +218,8 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 BranchId = user.BranchId,
                 UserRole = userRoles.FirstOrDefault(),
 
+                IsShipmentAuthEnabled = user.IsShipmentAuthEnabled,
+
                 CanCreate = userClaims.Any(c => c.Type == "Permission" && c.Value == "Create"),
                 CanEdit = userClaims.Any(c => c.Type == "Permission" && c.Value == "Edit"),
                 CanDelete = userClaims.Any(c => c.Type == "Permission" && c.Value == "Delete"),
@@ -261,6 +263,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             user.PhoneNumber = model.PhoneNumber;
             user.UserName = model.Email;
             user.BranchId = model.BranchId;
+            user.IsShipmentAuthEnabled = model.IsShipmentAuthEnabled;
 
             user.PrintBalance = model.PrintBalance;
             user.MailBalance = model.MailBalance;

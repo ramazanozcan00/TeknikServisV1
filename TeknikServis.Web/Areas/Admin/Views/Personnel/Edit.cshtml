@@ -142,7 +142,7 @@
 
                         <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
                             <div class="card-body p-4">
-                                <h6 class="fw-bold text-dark mb-4"><i class="fa-solid fa-list-check me-2"></i>Menü Görünürlüğü</h6>
+                                <h6 class="fw-bold text-dark mb-4"><i class="fa-solid fa-bars-staggered me-2"></i>Menü Görünürlüğü</h6>
                                 <div class="row g-3">
                                     <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowHome"><label class="form-check-label" asp-for="ShowHome">Ana Sayfa</label></div></div>
                                     <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowCustomer"><label class="form-check-label" asp-for="ShowCustomer">Müşteriler</label></div></div>
@@ -152,6 +152,13 @@
                                     <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowEDevlet"><label class="form-check-label" asp-for="ShowEDevlet">E-Devlet</label></div></div>
                                     <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowAudit"><label class="form-check-label" asp-for="ShowAudit">Geçmiş</label></div></div>
                                     <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowSupport"><label class="form-check-label" asp-for="ShowSupport">Destek</label></div></div>
+
+                                    <div class="col-6 col-md-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" asp-for="IsShipmentAuthEnabled">
+                                            <label class="form-check-label" asp-for="IsShipmentAuthEnabled">Sevkiyat</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

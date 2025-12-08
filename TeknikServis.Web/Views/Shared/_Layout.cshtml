@@ -15,10 +15,14 @@
     bool showService = false;
     bool showBarcode = false;
     bool showStock = false;
-    bool showShipment = false; // Yeni: Sevkiyat Modülü
+    // bool showShipment = false; // BU SATIR ARTIK AŞAĞIDA MANUEL KONTROL EDİLİYOR
     bool showEDevlet = false;
     bool showAudit = false;
     bool showSupport = false;
+
+    // Lisans Durumu
+    bool isLicenseExpired = false;
+    DateTime? licenseEndDate = null;
 
 
     if (SignInManager.IsSignedIn(User))
@@ -32,7 +36,7 @@
 
             if (isAdmin)
             {
-                showHome = showCustomer = showService = showBarcode = showStock = showShipment = showEDevlet = showAudit = showSupport = true;
+                showHome = showCustomer = showService = showBarcode = showStock = showEDevlet = showAudit = showSupport = true;
             }
             else
             {
@@ -43,12 +47,59 @@
                 showService = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Service");
                 showBarcode = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Barcode");
                 showStock = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Stock");
-                showShipment = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Shipment"); // Yeni
+                // showShipment claim kontrolü aşağıda HTML içinde yapıldı
                 showEDevlet = claims.Any(c => c.Type == "MenuAccess" && c.Value == "EDevlet");
                 showAudit = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Audit");
                 showSupport = claims.Any(c => c.Type == "MenuAccess" && c.Value == "Support");
             }
+
+            // --- LİSANS KONTROLÜ (YENİ) ---
+            // 1. Kullanıcının şubesini bul ve lisans tarihini kontrol et
+
+            // Kullanıcının şube bilgisini ve tarihini çekmek için küçük bir sorgu
+            // Burada UnitOfWork'e erişiminiz yoksa Service Injection yapmalısınız.
+            // En kolayı View içinde servis çağırmaktır:
+            var uow = Context.RequestServices.GetService(typeof(TeknikServis.Core.Interfaces.IUnitOfWork)) as TeknikServis.Core.Interfaces.IUnitOfWork;
+            if (uow != null)
+            {
+                var currentBranch = await uow.Repository<TeknikServis.Core.Entities.Branch>().GetByIdAsync(user.BranchId);
+                if (currentBranch != null)
+                {
+                    licenseEndDate = currentBranch.LicenseEndDate;
+                    if (currentBranch.LicenseEndDate < DateTime.Now)
+                    {
+                        isLicenseExpired = true;
+                    }
+                }
+            }
+
+            // 2. EĞER LİSANS BİTTİYSE TÜM MENÜLERİ KAPAT
+            if (isLicenseExpired && !isAdmin) // Admin her zaman girebilsin (veya isterseniz admini de kapatın)
+            {
+                showHome = false;
+                showCustomer = false;
+                showService = false;
+                showBarcode = false;
+                showStock = false;
+                // showShipment = false; // HTML içinde kontrol ediliyor
+                showEDevlet = false;
+                showAudit = false;
+                showSupport = false;
+                isTechnician = false; // Teknisyen panelini de kapat
+            }
         }
+    }
+
+    // --- YÖNLENDİRME KONTROLÜ ---
+    // Eğer lisans bitmişse VE Admin değilse VE şu an zaten lisans girme sayfasında değilsek -> Yönlendir
+    string currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
+    string currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+
+    if (isLicenseExpired && !isAdmin && currentController != "License" && currentController != "Account")
+    {
+        // Kullanıcıyı zorla lisans sayfasına at
+        Context.Response.Redirect("/License/Expired");
+        // return;
     }
 }
 
@@ -198,7 +249,10 @@
             overflow-y: auto;
         }
 
-       
+        /* Mesaj Silme Butonu İçin Stil */
+        .group-hover:hover .delete-btn {
+            opacity: 1 !important;
+        }
     </style>
 </head>
 <body>
@@ -246,13 +300,16 @@
                         </a>
                     }
 
-                    // YENİ: Sevkiyat Modülü
-                    if (showShipment)
+                    // --- SEVKİYAT MODÜLÜ ---
+                    // "Admin" rolündeyse VEYA "IsShipmentAuthEnabled" yetkisi varsa göster
+                    // Lisans kontrolü için ek şart eklenebilir veya yukarıdaki false yapma yeterli olabilir
+                    @if ((User.IsInRole("Admin") || User.HasClaim(x => x.Type == "IsShipmentAuthEnabled" && x.Value == "True")) && (!isLicenseExpired || isAdmin))
                     {
                         <a asp-area="" asp-controller="Shipment" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shipment" ? "active-link" : "")">
-                            <i class="fa-solid fa-truck-fast"></i><span>Sevkiyat</span>
+                            <i class="fa-solid fa-truck"></i><span>Sevkiyat / Kargo</span>
                         </a>
                     }
+                    // ------------------------------------
 
                     if (showEDevlet)
                     {
@@ -272,10 +329,13 @@
                     <a asp-controller="ServiceTicket" asp-action="TechnicianPanel" class="sidebar-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "TechnicianPanel" ? "active-link" : "")"><i class="fa-solid fa-screwdriver-wrench"></i><span>İşlerim / Paneli</span></a>
                 }
 
-                // --- FİRMA BİLGİLERİ (HERKES İÇİN) ---
-                <a asp-area="" asp-controller="Company" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Company" ? "active-link" : "")">
-                    <i class="fa-solid fa-briefcase"></i><span>Firma Bilgileri</span>
-                </a>
+                // --- FİRMA BİLGİLERİ (HERKES İÇİN - Lisans bitse bile görünebilir veya gizlenebilir, burada gizleniyor) ---
+                if (!isLicenseExpired || isAdmin)
+                {
+                    <a asp-area="" asp-controller="Company" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Company" ? "active-link" : "")">
+                        <i class="fa-solid fa-briefcase"></i><span>Firma Bilgileri</span>
+                    </a>
+                }
 
                 // --- ORTAK MENÜ ---
                 if (showSupport)
@@ -296,6 +356,14 @@
     </div>
 
     <div class="main-content" id="main-content">
+        @if (isLicenseExpired)
+        {
+            <div class="alert alert-danger text-center m-0 rounded-0 fw-bold" role="alert">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                LİSANS SÜRESİ DOLMUŞTUR. Lütfen <a href="/License/Expired" class="alert-link">Lisans Yenileme</a> sayfasına gidiniz.
+            </div>
+        }
+
         <div class="topbar">
             <div class="d-flex align-items-center">
                 @if (isSidebarVisible)
@@ -334,6 +402,13 @@
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Sms"><i class="fa-solid fa-comment-sms"></i> SMS Ayarları</a></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Receipt"><i class="fa-solid fa-print me-2 text-dark"></i>Fiş Ayar</a></li>
 
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-success" asp-area="Admin" asp-controller="License" asp-action="Index">
+                                        <i class="fa-solid fa-key me-2"></i>Lisans Kontrol
+                                    </a>
+                                </li>
+
                             </ul>
                         </div>
                     }
@@ -363,7 +438,28 @@
         </div>
 
         <div class="p-4 flex-grow-1">@RenderBody()</div>
-        <footer class="bg-white border-top py-3 text-center text-muted small mt-auto">&copy; @DateTime.Now.Year - Teknik Servis Pro</footer>
+
+        <footer class="bg-white border-top py-3 text-muted small mt-auto">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-4 text-start ps-4">
+                        @if (licenseEndDate.HasValue)
+                        {
+                            <span class="@(isLicenseExpired ? "text-danger" : "text-success") fw-bold">
+                                <i class="fa-solid fa-clock me-1"></i>Bitiş: @licenseEndDate.Value.ToShortDateString()
+                            </span>
+                        }
+                    </div>
+
+                    <div class="col-4 text-center">
+                        &copy; @DateTime.Now.Year - Teknik Servis Pro
+                    </div>
+
+                    <div class="col-4"></div>
+                </div>
+            </div>
+        </footer>
+
     </div>
 
     @if (SignInManager.IsSignedIn(User))
@@ -398,59 +494,228 @@
         $(document).ready(function () {
              @if (TempData["Success"] != null)
             {
-                         <text>toastr.success('@Html.Raw(Json.Serialize(TempData["Success"]))');</text>
+                             <text>toastr.success('@Html.Raw(Json.Serialize(TempData["Success"]))');</text>
              }
              @if (TempData["Error"] != null)
             {
-                         <text>toastr.error('@Html.Raw(Json.Serialize(TempData["Error"]))');</text>
+                             <text>toastr.error('@Html.Raw(Json.Serialize(TempData["Error"]))');</text>
              }
              @if (SignInManager.IsSignedIn(User))
             {
-                         <text>
-                             $.get('/Support/CheckNewReplies', function(data) { if (data.count > 0) $('#support-badge').text(data.count).removeClass('d-none'); });
-                             $.get('/Notification/GetAnnouncements', function(data) { const list = $('#announcement-list'); list.empty(); if(data.length>0) { $('#announcement-badge').text(data.length).removeClass('d-none'); list.append('<div class="dropdown-header fw-bold">Duyurular</div>'); data.forEach(i => list.append(`<div class="notification-item border-bottom p-2 small"><div class="fw-bold text-primary">${i.title}</div><div class="text-muted text-truncate">${i.content}</div></div>`)); } else { list.append('<div class="text-center py-2 text-muted small">Duyuru yok.</div>'); } });
-                            
-                             @if (!isAdmin)
-                            {
-                                         <text>$.get('/Chat/CheckUnread', function(d){if(d.count>0)$('#chat-badge').removeClass('d-none');});</text>
-                             }
-                         </text>
+                             <text>
+                                 $.get('/Support/CheckNewReplies', function(data) { if (data.count > 0) $('#support-badge').text(data.count).removeClass('d-none'); });
+                                 $.get('/Notification/GetAnnouncements', function(data) { const list = $('#announcement-list'); list.empty(); if(data.length>0) { $('#announcement-badge').text(data.length).removeClass('d-none'); list.append('<div class="dropdown-header fw-bold">Duyurular</div>'); data.forEach(i => list.append(`<div class="notification-item border-bottom p-2 small"><div class="fw-bold text-primary">${i.title}</div><div class="text-muted text-truncate">${i.content}</div></div>`)); } else { list.append('<div class="text-center py-2 text-muted small">Duyuru yok.</div>'); } });
+
+                                 @if (!isAdmin)
+                                {
+                                                 <text>$.get('/Chat/CheckUnread', function(d){if(d.count>0)$('#chat-badge').removeClass('d-none');});</text>
+                                 }
+                              </text>
              }
         });
+
         @if (SignInManager.IsSignedIn(User))
         {
-                    <text>
-                        const conn = new signalR.HubConnectionBuilder().withUrl("/supportHub").build();
-                        const lnc = document.getElementById('chat-launcher'); const win = document.getElementById('chat-window'); const badge = document.getElementById('chat-badge');
-                        lnc.onclick=()=>{win.classList.remove('d-none');lnc.classList.add('d-none');badge.classList.add('d-none'); if(typeof loadAdmin==='function')loadAdmin(); if(typeof loadUser==='function')loadUser();};
-                        document.getElementById('chat-close').onclick=()=>{win.classList.add('d-none');lnc.classList.remove('d-none');};
-                        conn.start().catch(e=>console.error(e));
-                        function addMsg(cont,txt,pos,style,name=''){const d=document.createElement('div');d.className=`d-flex flex-column align-items-${pos==='end'?'end':'start'} mb-2`;let n=name?`<small class="text-muted mb-1" style="font-size:10px;">${name}</small>`:'';d.innerHTML=`${n}<div class="p-2 rounded shadow-sm ${style} chat-msg">${txt}</div>`;cont.appendChild(d);cont.scrollTop=cont.scrollHeight;}
+                <text>
+                    const conn = new signalR.HubConnectionBuilder().withUrl("/supportHub").build();
+                    const lnc = document.getElementById('chat-launcher');
+                    const win = document.getElementById('chat-window');
+                    const badge = document.getElementById('chat-badge');
+
+                    lnc.onclick=()=>{win.classList.remove('d-none');lnc.classList.add('d-none');badge.classList.add('d-none'); if(typeof loadAdmin==='function')loadAdmin(); if(typeof loadUser==='function')loadUser();};
+                    document.getElementById('chat-close').onclick=()=>{win.classList.add('d-none');lnc.classList.remove('d-none');};
+
+                    conn.start().catch(e=>console.error(e));
+
+                    // --- MESAJ EKLEME FONKSİYONU (Silme Butonu Logic Eklendi) ---
+                    function addMsg(cont, txt, pos, style, name='', msgId=null) {
+                        const d = document.createElement('div');
+                        d.className = `d-flex flex-column align-items-${pos === 'end' ? 'end' : 'start'} mb-2 position-relative group-hover`;
+
+                        let n = name ? `<small class="text-muted mb-1" style="font-size:10px;">${name}</small>` : '';
+
+                        // Silme Butonu (Sadece Admin Görebilir)
+                        let delBtn = '';
                         @if (isAdmin)
                         {
-                                    <text>
-                                        const uList=document.getElementById('admin-user-list'); const cView=document.getElementById('admin-chat-view'); const mCont=document.getElementById('admin-messages'); const cId=document.getElementById('chatting-with-id');
-                                        function loadAdmin(){$.get('/Chat/GetActiveChats', d=>{uList.innerHTML='';if(d.length===0){uList.innerHTML='<div class="text-center text-muted mt-5 small">Yok.</div>';return;} d.forEach(c=>addList(c.userId,c.userName,c.lastMessage,c.unreadCount>0));});}
-                                        conn.on("ReceiveMessage", (id,name,msg)=>{if(win.classList.contains('d-none'))badge.classList.remove('d-none'); toastr.info(name+' mesaj attı'); addList(id,name,msg,true); if(cId.value===id && !cView.classList.contains('d-none')) addMsg(mCont,msg,'start','bg-white border text-dark',name);});
-                                        function addList(id,name,msg,ur){let it=document.getElementById('r-'+id); let b=ur?'<span class="badge bg-danger rounded-pill">Yeni</span>':'<span class="d-none"></span>'; if(it){it.querySelector('small').innerText=msg;if(ur)it.querySelector('.badge').classList.remove('d-none');uList.prepend(it);}else{if(uList.innerText.includes('Yok'))uList.innerHTML=''; let d=document.createElement('div');d.id='r-'+id;d.className='p-2 border-bottom d-flex justify-content-between align-items-center bg-white mb-1 rounded';d.style.cursor='pointer';d.innerHTML=`<div><strong>${name}</strong><br><small class="text-muted text-truncate d-block" style="max-width:150px;">${msg}</small></div>${b}`;d.onclick=()=>openC(id,name);uList.prepend(d);}}
-                                        function openC(id,name){uList.classList.add('d-none');cView.classList.remove('d-none');cView.classList.add('d-flex');document.getElementById('chatting-with-name').innerText=name;cId.value=id;mCont.innerHTML='...';$.get('/Chat/GetHistory?userId='+id, m=>{mCont.innerHTML='';m.forEach(x=>addMsg(mCont,x.message,x.sender==='Admin'?'end':'start',x.sender==='Admin'?'bg-primary text-white':'bg-white border text-dark',x.sender==='Admin'?'Siz':x.senderName)); let r=document.getElementById('r-'+id);if(r)r.querySelector('.badge').classList.add('d-none');});}
-                                        document.getElementById('back-to-list').onclick=()=>{cView.classList.add('d-none');cView.classList.remove('d-flex');uList.classList.remove('d-none');cId.value='';loadAdmin();};
-                                        document.getElementById('admin-send-btn').onclick=sendA; document.getElementById('admin-message-input').onkeypress=e=>{if(e.key==='Enter')sendA();};
-                                        function sendA(){let i=document.getElementById('admin-message-input');let m=i.value;let id=cId.value;if(m&&id){conn.invoke("SendMessageToUser",id,m);addMsg(mCont,m,'end','bg-primary text-white','Siz');i.value='';}}
-                                    </text>
+                                <text>
+                                if(msgId) {
+                                    delBtn = `<i class="fa-solid fa-trash text-danger delete-btn position-absolute"
+                                                 style="top:50%; ${pos==='end'?'left:-25px':'right:-25px'}; transform:translateY(-50%); cursor:pointer; opacity:0.6;"
+                                                 onclick="deleteMsg('${msgId}', this)" title="Mesajı Sil"></i>`;
+                                }
+                                </text>
                         }
-                        else
-                        {
 
-                                    <text>
-                                        const uCont=document.getElementById('user-messages');
-                                        function loadUser(){$.get('/Chat/GetHistory?userId=me', m=>{uCont.innerHTML='';if(m.length===0)uCont.innerHTML='<div class="text-center mt-2 small">Merhaba!</div>'; m.forEach(x=>addMsg(uCont,x.message,x.sender==='User'?'end':'start',x.sender==='User'?'bg-primary text-white':'bg-white border text-dark'));});}
-                                        conn.on("ReceiveSupportMessage", (msg,name)=>{if(win.classList.contains('d-none'))badge.classList.remove('d-none'); addMsg(uCont,msg,'start','bg-white border text-dark',name);toastr.success('Cevap geldi');});
-                                        document.getElementById('user-send-btn').onclick=sendU; document.getElementById('user-message-input').onkeypress=e=>{if(e.key==='Enter')sendU();};
-                                        function sendU(){let i=document.getElementById('user-message-input');let m=i.value;if(m){conn.invoke("SendMessageToAdmins",m);addMsg(uCont,m,'end','bg-primary text-white');i.value='';}}
-                                    </text>
-                        }
-                    </text>
+                        d.innerHTML = `${n}<div class="d-flex align-items-center position-relative">${pos==='end'?delBtn:''} <div class="p-2 rounded shadow-sm ${style} chat-msg">${txt}</div> ${pos==='start'?delBtn:''}</div>`;
+
+                        cont.appendChild(d);
+                        cont.scrollTop = cont.scrollHeight;
+                    }
+
+                    // --- MESAJ SİLME FONKSİYONU ---
+                    function deleteMsg(id, el) {
+                        if(!confirm('Mesaj silinsin mi?')) return;
+                        $.post('/Chat/DeleteMessage', { id: id }, function(res) {
+                            if(res.success) {
+                                $(el).closest('.d-flex.flex-column').fadeOut(300, function(){ $(this).remove(); });
+                                toastr.success('Mesaj silindi.');
+                            } else {
+                                toastr.error('Silinemedi.');
+                            }
+                        });
+                    }
+
+                    // --- SOHBET SİLME FONKSİYONU ---
+                    function deleteChat(userId, e) {
+                        e.stopPropagation();
+                        if(!confirm('Tüm sohbet geçmişi silinecek. Emin misiniz?')) return;
+
+                        $.post('/Chat/DeleteChat', { userId: userId }, function(res) {
+                            if(res.success) {
+                                $('#r-' + userId).fadeOut(300, function(){ $(this).remove(); });
+                                // Eğer açık olan sohbetse kapat
+                                const cId = document.getElementById('chatting-with-id');
+                                if(cId && cId.value === userId) {
+                                    document.getElementById('back-to-list').click();
+                                }
+                                toastr.success('Sohbet silindi.');
+                            } else {
+                                toastr.error('Hata: ' + res.message);
+                            }
+                        });
+                    }
+
+                    @if (isAdmin)
+                    {
+                            <text>
+                                const uList=document.getElementById('admin-user-list');
+                                const cView=document.getElementById('admin-chat-view');
+                                const mCont=document.getElementById('admin-messages');
+                                const cId=document.getElementById('chatting-with-id');
+
+                                function loadAdmin(){
+                                    $.get('/Chat/GetActiveChats', d=>{
+                                        uList.innerHTML='';
+                                        if(d.length===0){uList.innerHTML='<div class="text-center text-muted mt-5 small">Yok.</div>';return;}
+                                        d.forEach(c=>addList(c.userId,c.userName,c.lastMessage,c.unreadCount>0));
+                                    });
+                                }
+
+                                conn.on("ReceiveMessage", (id,name,msg, msgId)=>{
+                                    if(win.classList.contains('d-none')) badge.classList.remove('d-none');
+                                    toastr.info(name+' mesaj attı');
+                                    addList(id,name,msg,true);
+                                    if(cId.value===id && !cView.classList.contains('d-none'))
+                                        addMsg(mCont,msg,'start','bg-white border text-dark',name, msgId);
+                                });
+
+                                function addList(id,name,msg,ur){
+                                    let it=document.getElementById('r-'+id);
+                                    let b=ur?'<span class="badge bg-danger rounded-pill me-2">Yeni</span>':'<span class="d-none me-2"></span>';
+
+                                    // Sohbet Silme Butonu
+                                    let chatDelBtn = `<button class="btn btn-sm btn-link text-danger p-0 border-0 ms-2" onclick="deleteChat('${id}', event)" title="Sohbeti Sil"><i class="fa-solid fa-trash"></i></button>`;
+
+                                    if(it){
+                                        it.querySelector('small').innerText=msg;
+                                        if(ur)it.querySelector('.badge').classList.remove('d-none');
+                                        uList.prepend(it);
+                                    } else {
+                                        if(uList.innerText.includes('Yok')) uList.innerHTML='';
+                                        let d=document.createElement('div');
+                                        d.id='r-'+id;
+                                        d.className='p-2 border-bottom d-flex justify-content-between align-items-center bg-white mb-1 rounded position-relative group-hover';
+                                        d.style.cursor='pointer';
+
+                                        d.innerHTML=`
+                                            <div class="flex-grow-1 overflow-hidden">
+                                                <strong>${name}</strong><br>
+                                                <small class="text-muted text-truncate d-block" style="max-width:150px;">${msg}</small>
+                                            </div>
+                                            <div class="d-flex align-items-center">
+                                                ${b}
+                                                ${chatDelBtn}
+                                            </div>`;
+
+                                        d.onclick=()=>openC(id,name);
+                                        uList.prepend(d);
+                                    }
+                                }
+
+                                function openC(id,name){
+                                    uList.classList.add('d-none');
+                                    cView.classList.remove('d-none');
+                                    cView.classList.add('d-flex');
+                                    document.getElementById('chatting-with-name').innerText=name;
+                                    cId.value=id;
+                                    mCont.innerHTML='...';
+
+                                    $.get('/Chat/GetHistory?userId='+id, m=>{
+                                        mCont.innerHTML='';
+                                        m.forEach(x=>addMsg(mCont,x.message,x.sender==='Admin'?'end':'start',x.sender==='Admin'?'bg-primary text-white':'bg-white border text-dark',x.sender==='Admin'?'Siz':x.senderName, x.id));
+                                        let r=document.getElementById('r-'+id);
+                                        if(r)r.querySelector('.badge').classList.add('d-none');
+                                    });
+                                }
+
+                                document.getElementById('back-to-list').onclick=()=>{
+                                    cView.classList.add('d-none');
+                                    cView.classList.remove('d-flex');
+                                    uList.classList.remove('d-none');
+                                    cId.value='';
+                                    loadAdmin();
+                                };
+
+                                document.getElementById('admin-send-btn').onclick=sendA;
+                                document.getElementById('admin-message-input').onkeypress=e=>{if(e.key==='Enter')sendA();};
+
+                                function sendA(){
+                                    let i=document.getElementById('admin-message-input');
+                                    let m=i.value;
+                                    let id=cId.value;
+                                    if(m&&id){
+                                        conn.invoke("SendMessageToUser",id,m);
+                                        addMsg(mCont,m,'end','bg-primary text-white','Siz');
+                                        i.value='';
+                                    }
+                                }
+                            </text>
+                    }
+                    else
+                    {
+                            <text>
+                                const uCont=document.getElementById('user-messages');
+
+                                function loadUser(){
+                                    $.get('/Chat/GetHistory?userId=me', m=>{
+                                        uCont.innerHTML='';
+                                        if(m.length===0) uCont.innerHTML='<div class="text-center mt-2 small">Merhaba!</div>';
+                                        m.forEach(x=>addMsg(uCont,x.message,x.sender==='User'?'end':'start',x.sender==='User'?'bg-primary text-white':'bg-white border text-dark', '', x.id));
+                                    });
+                                }
+
+                                conn.on("ReceiveSupportMessage", (msg,name, msgId)=>{
+                                    if(win.classList.contains('d-none')) badge.classList.remove('d-none');
+                                    addMsg(uCont,msg,'start','bg-white border text-dark',name, msgId);
+                                    toastr.success('Cevap geldi');
+                                });
+
+                                document.getElementById('user-send-btn').onclick=sendU;
+                                document.getElementById('user-message-input').onkeypress=e=>{if(e.key==='Enter')sendU();};
+
+                                function sendU(){
+                                    let i=document.getElementById('user-message-input');
+                                    let m=i.value;
+                                    if(m){
+                                        conn.invoke("SendMessageToAdmins",m);
+                                        addMsg(uCont,m,'end','bg-primary text-white');
+                                        i.value='';
+                                    }
+                                }
+                            </text>
+                    }
+                </text>
         }
     </script>
     @await RenderSectionAsync("Scripts", required: false)

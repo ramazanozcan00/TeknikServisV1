@@ -44,11 +44,21 @@ namespace TeknikServis.Web.Controllers
             _unitOfWork = unitOfWork;
         }
 
-        // --- YARDIMCI METOT: Teknisyenleri Dropdown'a Doldurur ---
+        // --- YARDIMCI METOT: Teknisyenleri Dropdown'a Doldurur (GÜNCELLENDİ) ---
         private async Task LoadTechniciansAsync()
         {
+            // 1. İşlem yapan kullanıcının aktif şube ID'sini alıyoruz
+            Guid currentBranchId = User.GetBranchId();
+
+            // 2. Tüm teknisyen rolündeki kullanıcıları çekiyoruz
             var technicians = await _userManager.GetUsersInRoleAsync("Technician");
-            var techList = technicians.Select(u => new { Id = u.Id, Name = u.FullName }).ToList();
+
+            // 3. Bu listeyi sadece mevcut şubeye ait olanlar kalacak şekilde filtreliyoruz
+            var techList = technicians
+                .Where(u => u.BranchId == currentBranchId) // Şube Filtresi Eklendi
+                .Select(u => new { Id = u.Id, Name = u.FullName })
+                .ToList();
+
             ViewBag.Technicians = new SelectList(techList, "Id", "Name");
         }
 
@@ -577,14 +587,47 @@ namespace TeknikServis.Web.Controllers
 
         // ServiceTicketController.cs içine ekleyin:
 
-        [HttpPost] // ÖNEMLİ: Bu metot sadece POST isteklerini kabul eder
-        [Authorize(Roles = "Admin")] // Sadece Admin yetkisi olanlar silebilir
+        [HttpPost]
+        [Authorize] // Genel yetki kontrolü (Rol kontrolünü içeride yapacağız)
         public async Task<IActionResult> Delete(Guid id)
         {
+            // 1. KULLANICI YETKİ KONTROLÜ
+            // Admin değilse VE "Silme" yetkisi (Claim) yoksa engelle
+            if (!User.IsInRole("Admin") && !User.HasClaim(x => x.Type == "Permission" && x.Value == "Delete"))
+            {
+                TempData["Error"] = "Silme yetkiniz bulunmamaktadır.";
+                return RedirectToAction("Index");
+            }
+
+            // 2. KAYIT VE ŞUBE KONTROLÜ
+            var ticket = await _ticketService.GetTicketByIdAsync(id);
+            if (ticket == null)
+            {
+                TempData["Error"] = "Kayıt bulunamadı.";
+                return RedirectToAction("Index");
+            }
+
+            // Admin değilse, sadece kendi şubesindeki kaydı silebilir
+            if (!User.IsInRole("Admin") && ticket.Customer.BranchId != User.GetBranchId())
+            {
+                TempData["Error"] = "Başka şubenin kaydını silemezsiniz.";
+                return RedirectToAction("Index");
+            }
+
+            // 3. SİLME İŞLEMİ
             await _ticketService.DeleteTicketAsync(id);
 
-            // İşlem başarılı mesajı
-            TempData["Success"] = "Servis kaydı silindi.";
+            // Loglama (Opsiyonel ama önerilir)
+            try
+            {
+                string userId = _userManager.GetUserId(User);
+                string userName = User.GetFullName();
+                Guid branchId = User.GetBranchId();
+                await _auditLogService.LogAsync(userId, userName, branchId, "Servis", "Silme", $"{ticket.FisNo} nolu kayıt silindi.", HttpContext.Connection.RemoteIpAddress?.ToString());
+            }
+            catch { }
+
+            TempData["Success"] = "Servis kaydı başarıyla silindi.";
             return RedirectToAction("Index");
         }
     }

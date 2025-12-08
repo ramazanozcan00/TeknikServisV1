@@ -62,7 +62,7 @@
                         <th>Müşteri</th>
                         <th>Cihaz Bilgisi</th>
                         <th>Seri No</th>
-                        <th>Arıza Tanımı</th>
+                        @* Arıza Tanımı sütunu kaldırıldı *@
                         <th>Durum</th>
                         <th>Ücret</th>
                         <th>Tarih</th>
@@ -84,6 +84,12 @@
                                     <div>
                                         <div class="fw-bold d-flex align-items-center gap-2">
                                             @item.Customer?.FirstName @item.Customer?.LastName
+
+                                            @* --- Firma İsmi Eklendi --- *@
+                                            @if (!string.IsNullOrEmpty(item.Customer?.CompanyName))
+                                            {
+                                                <span class="text-muted small fw-normal">(@item.Customer.CompanyName)</span>
+                                            }
 
                                             @* Müşteri silindiyse uyarı ver *@
                                             @if (item.Customer != null && item.Customer.IsDeleted)
@@ -111,7 +117,9 @@
                                 </div>
                             </td>
                             <td class="font-monospace">@item.SerialNumber</td>
-                            <td><span class="text-muted text-truncate d-inline-block" style="max-width: 200px;">@item.ProblemDescription</span></td>
+
+                            @* Arıza Tanımı hücresi kaldırıldı *@
+
                             <td>
                                 @if (item.Status == "Bekliyor")
                                 {
@@ -148,7 +156,7 @@
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
 
-                                    @if (User.IsInRole("Admin"))
+                                    @if (User.IsInRole("Admin") || User.HasClaim(x => x.Type == "Permission" && x.Value == "Delete"))
                                     {
                                         <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline delete-form">
                                             <button type="submit" class="btn btn-sm btn-outline-danger hover-scale" title="Sil">
@@ -164,7 +172,8 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                @* colspan 9'dan 8'e düşürüldü çünkü 1 kolon sildik *@
                                 <i class="fa-solid fa-folder-open fs-1 mb-3 d-block text-secondary opacity-50"></i>
                                 Henüz kayıt bulunamadı.
                             </td>

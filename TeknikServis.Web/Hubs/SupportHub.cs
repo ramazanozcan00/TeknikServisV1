@@ -25,11 +25,7 @@ namespace TeknikServis.Web.Hubs
         public async Task SendMessageToAdmins(string message)
         {
             var senderId = Context.UserIdentifier;
-
-            // Kullanıcıyı Şubesiyle Birlikte Bul
-            var user = await _userManager.Users
-                                .Include(u => u.Branch)
-                                .FirstOrDefaultAsync(u => u.Id.ToString() == senderId);
+            var user = await _userManager.Users.Include(u => u.Branch).FirstOrDefaultAsync(u => u.Id.ToString() == senderId);
 
             string displayName = "Kullanıcı";
             if (user != null)
@@ -38,12 +34,11 @@ namespace TeknikServis.Web.Hubs
                 displayName = $"{user.FullName}{branchInfo}";
             }
 
-            // Mesajı Kaydet
             var chatMsg = new ChatMessage
             {
                 Id = Guid.NewGuid(),
                 SenderId = senderId,
-                SenderName = displayName, // Örn: "Ahmet Yılmaz (Kadıköy Şube)"
+                SenderName = displayName,
                 ReceiverId = "Admin",
                 Message = message,
                 Timestamp = DateTime.Now,
@@ -53,8 +48,8 @@ namespace TeknikServis.Web.Hubs
             await _unitOfWork.Repository<ChatMessage>().AddAsync(chatMsg);
             await _unitOfWork.CommitAsync();
 
-            // Adminlere İlet
-            await Clients.Group("Admins").SendAsync("ReceiveMessage", senderId, displayName, message);
+            // GÜNCELLENDİ: chatMsg.Id parametresi eklendi
+            await Clients.Group("Admins").SendAsync("ReceiveMessage", senderId, displayName, message, chatMsg.Id);
         }
 
         // ADMİN -> KULLANICIYA CEVAP
@@ -78,8 +73,8 @@ namespace TeknikServis.Web.Hubs
             await _unitOfWork.Repository<ChatMessage>().AddAsync(chatMsg);
             await _unitOfWork.CommitAsync();
 
-            // Kullanıcıya İlet
-            await Clients.User(userId).SendAsync("ReceiveSupportMessage", message, senderName);
+            // GÜNCELLENDİ: chatMsg.Id parametresi eklendi
+            await Clients.User(userId).SendAsync("ReceiveSupportMessage", message, senderName, chatMsg.Id);
         }
 
         public override async Task OnConnectedAsync()

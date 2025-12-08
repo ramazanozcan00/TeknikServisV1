@@ -48,7 +48,15 @@
                                         </td>
                                         <td class="fw-bold text-primary">@item.FisNo</td>
                                         <td>
-                                            <div class="fw-bold">@item.Customer?.FirstName @item.Customer?.LastName</div>
+                                            <div class="fw-bold">
+                                                @item.Customer?.FirstName @item.Customer?.LastName
+
+                                                @* --- Firma İsmi Eklendi --- *@
+                                                @if (!string.IsNullOrEmpty(item.Customer?.CompanyName))
+                                                {
+                                                    <span class="text-muted small fw-normal">(@item.Customer.CompanyName)</span>
+                                                }
+                                            </div>
                                             <small class="text-muted">@item.Customer?.Phone</small>
                                         </td>
                                         <td>@item.DeviceBrand?.Name @item.DeviceModel</td>

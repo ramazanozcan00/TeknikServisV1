@@ -53,5 +53,7 @@ namespace TeknikServis.Web.Models
         public bool ShowAudit { get; set; }
         public bool ShowSupport { get; set; }
         public bool ShowStock { get; set; }
+
+        public bool IsShipmentAuthEnabled { get; set; }
     }
 }

@@ -20,6 +20,10 @@ namespace TeknikServis.Core.Entities
         public bool HasOwnDatabase { get; set; } = false; // Kendi veritabanı var mı?
 
 
+        // --- YENİ EKLENEN LİSANS ALANLARI ---
+        public string LicenseKey { get; set; } // Şifreli Anahtar
+        public DateTime LicenseEndDate { get; set; } = DateTime.Now.AddDays(7); // Varsayılan: 7 gün deneme
+
         // --- İLİŞKİLER (NAVIGATIONS) ---
         // Hata veren kısımlar buralar olabilir, bunların ekli olduğundan emin olun:
         public virtual ICollection<AppUser> Employees { get; set; }

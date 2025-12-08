@@ -1,0 +1,81 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.Branch>
+@{
+    ViewData["Title"] = "Lisans Yönetimi";
+}
+
+<div class="card shadow-sm p-4">
+    <h4 class="mb-4"><i class="fa-solid fa-key me-2"></i>Lisans Yönetimi</h4>
+
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="bg-light">
+                <tr>
+                    <th>Şube / DB</th>
+                    <th>Mevcut Bitiş</th>
+                    <th>Lisans Durumu</th>
+                    <th style="width: 30%;">Lisans Anahtarı</th>
+                    <th>Yeni Lisans Üret</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    bool isExpired = item.LicenseEndDate < DateTime.Now;
+                    <tr>
+                        <td>
+                            <strong>@item.BranchName</strong><br />
+                            <small class="text-muted">DB: @item.DatabaseName</small>
+                        </td>
+                        <td>@item.LicenseEndDate.ToShortDateString()</td>
+                        <td>
+                            @if (isExpired)
+                            {
+                                <span class="badge bg-danger">Süresi Dolmuş</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Aktif</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.LicenseKey))
+                            {
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control font-monospace text-muted" value="@item.LicenseKey" readonly onclick="this.select();" />
+                                    <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('@item.LicenseKey'); toastr.success('Anahtar kopyalandı');" title="Kopyala">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small fs-7 fst-italic">Henüz anahtar üretilmedi</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 align-items-center">
+                                <form asp-action="Generate" method="post" class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" name="branchId" value="@item.Id" />
+                                    <input type="date" name="expiryDate" class="form-control form-control-sm" style="width:130px;" required value="@DateTime.Now.AddYears(1).ToString("yyyy-MM-dd")" />
+                                    <button type="submit" class="btn btn-sm btn-primary text-nowrap">
+                                        <i class="fa-solid fa-gears me-1"></i>Üret
+                                    </button>
+                                </form>
+
+                                @if (!string.IsNullOrEmpty(item.LicenseKey))
+                                {
+                                    <form asp-action="Cancel" method="post" onsubmit="return confirm('DİKKAT: Bu şubenin lisansını iptal etmek üzeresiniz.\n\nKullanıcıların sisteme erişimi ANINDA kesilecektir.\nOnaylıyor musunuz?');">
+                                        <input type="hidden" name="branchId" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-danger text-nowrap" title="Lisansı İptal Et">
+                                            <i class="fa-solid fa-ban me-1"></i>İptal
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

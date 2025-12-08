@@ -7,6 +7,7 @@ using TeknikServis.Core.Interfaces;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System; // Guid için gerekli
 
 namespace TeknikServis.Web.Controllers
 {
@@ -22,11 +23,14 @@ namespace TeknikServis.Web.Controllers
             _userManager = userManager;
         }
 
-        // ADMIN İÇİN: Aktif Sohbetleri Getir (Şubeli İsim Dahil)
+        // ... GetActiveChats ve CheckUnread metodları aynen kalacak ...
+
+        // LİSTELEME: Admin için aktif sohbetleri getirir
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetActiveChats()
         {
+            // Mevcut kodunuz aynen kalabilir...
             var allMessages = await _unitOfWork.Repository<ChatMessage>().GetAllAsync();
 
             var groupedChats = allMessages
@@ -47,44 +51,34 @@ namespace TeknikServis.Web.Controllers
             foreach (var chat in groupedChats)
             {
                 string displayName = chat.LastMessageObj.SenderName;
-
-                // Eğer isimde şube bilgisi (parantez) yoksa veya "Kullanıcı" ise veritabanından taze çek
                 if (string.IsNullOrEmpty(displayName) || displayName == "Kullanıcı" || !displayName.Contains("("))
                 {
-                    var user = await _userManager.Users
-                                    .Include(u => u.Branch)
-                                    .FirstOrDefaultAsync(u => u.Id.ToString() == chat.UserId);
-
+                    var user = await _userManager.Users.Include(u => u.Branch).FirstOrDefaultAsync(u => u.Id.ToString() == chat.UserId);
                     if (user != null)
                     {
                         string branchInfo = user.Branch != null ? $" ({user.Branch.BranchName})" : "";
                         displayName = $"{user.FullName}{branchInfo}";
                     }
-                    else
-                    {
-                        displayName = "Bilinmeyen Kullanıcı";
-                    }
+                    else { displayName = "Bilinmeyen Kullanıcı"; }
                 }
 
                 resultList.Add(new
                 {
                     chat.UserId,
                     LastMessage = chat.LastMessageObj.Message,
-                    UserName = displayName, // "Ahmet Yılmaz (Kadıköy Şube)" formatında
+                    UserName = displayName,
                     chat.UnreadCount,
                     LastDate = chat.LastMessageObj.Timestamp
                 });
             }
-
             return Json(resultList);
         }
 
-        // KULLANICI İÇİN: Okunmamış Mesaj Sayısını Kontrol Et (Layout Badge İçin)
+        // KONTROL: Okunmamış mesaj sayısı
         [HttpGet]
         public async Task<IActionResult> CheckUnread()
         {
             var userId = _userManager.GetUserId(User);
-
             if (!User.IsInRole("Admin"))
             {
                 var allMessages = await _unitOfWork.Repository<ChatMessage>().GetAllAsync();
@@ -94,7 +88,7 @@ namespace TeknikServis.Web.Controllers
             return Json(new { count = 0 });
         }
 
-        // GEÇMİŞİ GETİR VE OKUNDU İŞARETLE
+        // --- GÜNCELLENEN METOT: GEÇMİŞİ GETİR (ID EKLENDİ) ---
         [HttpGet]
         public async Task<IActionResult> GetHistory(string userId)
         {
@@ -111,6 +105,7 @@ namespace TeknikServis.Web.Controllers
                 .OrderBy(m => m.Timestamp)
                 .Select(m => new
                 {
+                    id = m.Id, // <-- BURASI EKLENDİ: Mesajı silmek için ID lazım
                     sender = m.SenderId == targetId ? "User" : "Admin",
                     message = m.Message,
                     time = m.Timestamp.ToString("HH:mm"),
@@ -120,17 +115,10 @@ namespace TeknikServis.Web.Controllers
 
             // Okundu İşaretleme
             List<ChatMessage> unreadMessages = new List<ChatMessage>();
-
             if (isAdmin)
-            {
-                // Admin bakıyorsa: Kullanıcıdan gelenleri okundu yap
                 unreadMessages = allMessages.Where(m => m.SenderId == targetId && m.ReceiverId == "Admin" && !m.IsRead).ToList();
-            }
             else
-            {
-                // Kullanıcı bakıyorsa: Kendisine (Adminden) gelenleri okundu yap
                 unreadMessages = allMessages.Where(m => m.ReceiverId == currentUserId && !m.IsRead).ToList();
-            }
 
             if (unreadMessages.Any())
             {
@@ -144,5 +132,46 @@ namespace TeknikServis.Web.Controllers
 
             return Json(history);
         }
+
+        // --- YENİ EKLENEN METOT: MESAJ SİLME ---
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteMessage(Guid id)
+        {
+            var msg = await _unitOfWork.Repository<ChatMessage>().GetByIdAsync(id);
+            if (msg == null) return Json(new { success = false, message = "Mesaj bulunamadı." });
+
+            _unitOfWork.Repository<ChatMessage>().Remove(msg);
+            await _unitOfWork.CommitAsync();
+
+            return Json(new { success = true });
+        }
+
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteChat(string userId)
+        {
+            if (string.IsNullOrEmpty(userId)) return Json(new { success = false, message = "ID hatalı." });
+
+            // Kullanıcıya ait (gönderdiği veya aldığı) tüm mesajları bul
+            var messages = await _unitOfWork.Repository<ChatMessage>()
+                .FindAsync(m => m.SenderId == userId || m.ReceiverId == userId);
+
+            if (messages.Any())
+            {
+                foreach (var msg in messages)
+                {
+                    _unitOfWork.Repository<ChatMessage>().Remove(msg);
+                }
+                await _unitOfWork.CommitAsync();
+            }
+
+            return Json(new { success = true });
+        }
+
+
+
+
     }
 }

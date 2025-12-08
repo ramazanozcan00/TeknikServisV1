@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TeknikServis.Core.Entities;
@@ -24,46 +25,45 @@ namespace TeknikServis.Web.Controllers
             _userManager = userManager;
         }
 
-        // LİSTELEME: Sadece Tamamlanan ve Kargodaki İşleri Getirir
-        // ... Mevcut kodlar ...
-
-        // LİSTELEME: Sayfalamalı (Pagination)
+        // LİSTELEME: Sayfalamalı (Pagination) - Şube Kontrolü Mevcut
         [HttpGet]
         public async Task<IActionResult> Index(int page = 1)
         {
             Guid branchId = User.GetBranchId();
-            int pageSize = 10; // Sayfa başına gösterilecek kayıt sayısı
+            int pageSize = 10;
 
-            // 1. Tüm ilgili verileri çek
+            // Sadece kendi şubesine ait ve durumu 'Tamamlandı' veya 'Kargolandı' olanları getir
             var allTickets = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(x => x.Customer.BranchId == branchId &&
                                (x.Status == "Tamamlandı" || x.Status == "Kargolandı"),
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
 
-            // 2. Sıralama yap (En yeni en üstte)
             var orderedTickets = allTickets.OrderByDescending(x => x.UpdatedDate).ToList();
 
-            // 3. Toplam sayfa sayısını hesapla
             int totalCount = orderedTickets.Count();
             int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-            // 4. Sadece istenen sayfadaki kayıtları al (Skip/Take)
             var pagedTickets = orderedTickets.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
-            // 5. View'a sayfa bilgisini gönder
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
 
             return View(pagedTickets);
         }
 
-        // ... Diğer metodlar (UpdateStatus, BulkPrint vs.) aynen kalsın ...
-
-        // DURUM GÜNCELLEME: Kargoya Verildi veya Teslim Edildi
+        // DURUM GÜNCELLEME: Şube Kontrolü Eklendi
         [HttpPost]
         public async Task<IActionResult> UpdateStatus(Guid id, string status)
         {
-            var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
+            Guid branchId = User.GetBranchId();
+
+            // Sadece kendi şubesindeki kaydı bulup güncellemesine izin veriyoruz
+            // Include Customer yapıyoruz çünkü BranchId Customer üzerinde
+            var tickets = await _unitOfWork.Repository<ServiceTicket>()
+                .FindAsync(x => x.Id == id && x.Customer.BranchId == branchId, inc => inc.Customer);
+
+            var ticket = tickets.FirstOrDefault();
+
             if (ticket == null) return NotFound();
 
             string oldStatus = ticket.Status;
@@ -78,7 +78,7 @@ namespace TeknikServis.Web.Controllers
             {
                 string userId = _userManager.GetUserId(User);
                 string userName = User.GetFullName();
-                Guid branchId = User.GetBranchId();
+
                 await _auditLogService.LogAsync(userId, userName, branchId, "Sevkiyat", "Güncelleme",
                     $"{ticket.FisNo} nolu kayıt '{status}' durumuna güncellendi.", HttpContext.Connection.RemoteIpAddress?.ToString());
             }
@@ -88,12 +88,16 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("Index");
         }
 
-        // YAZDIRMA EKRANI: Sevkiyat Fişi
+        // YAZDIRMA EKRANI: Şube Kontrolü Eklendi
         [HttpGet]
         public async Task<IActionResult> PrintLabel(Guid id)
         {
+            Guid branchId = User.GetBranchId();
+
+            // ID'si tutsa bile şubesi tutmuyorsa gelmesin
             var ticket = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand);
+                .FindAsync(x => x.Id == id && x.Customer.BranchId == branchId,
+                           inc => inc.Customer, inc => inc.DeviceBrand);
 
             var record = ticket.FirstOrDefault();
             if (record == null) return NotFound();
@@ -101,10 +105,7 @@ namespace TeknikServis.Web.Controllers
             return View(record);
         }
 
-
-        // ... Mevcut kodlar ...
-
-        // YENİ: Toplu Yazdırma (Post ile ID listesi gelir)
+        // TOPLU YAZDIRMA: Şube Kontrolü Eklendi
         [HttpPost]
         public async Task<IActionResult> BulkPrint(List<Guid> selectedIds)
         {
@@ -114,17 +115,17 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("Index");
             }
 
-            // Seçilen kayıtları çek
+            Guid branchId = User.GetBranchId();
+
+            // Seçilen ID'ler arasında sadece bu şubeye ait olanları getir
             var tickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => selectedIds.Contains(x.Id),
+                .FindAsync(x => selectedIds.Contains(x.Id) && x.Customer.BranchId == branchId,
                            inc => inc.Customer, inc => inc.DeviceBrand);
 
             return View(tickets);
         }
 
-        // ... Mevcut kodlar ...
-
-        // YENİ: Toplu Teslimat Listesi (Tek sayfa liste)
+        // TOPLU TESLİMAT LİSTESİ: Şube Kontrolü Eklendi
         [HttpPost]
         public async Task<IActionResult> DeliveryList(List<Guid> selectedIds)
         {
@@ -134,13 +135,14 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("Index");
             }
 
+            Guid branchId = User.GetBranchId();
+
+            // Sadece bu şubeye ait olanları getir
             var tickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => selectedIds.Contains(x.Id),
+                .FindAsync(x => selectedIds.Contains(x.Id) && x.Customer.BranchId == branchId,
                            inc => inc.Customer, inc => inc.DeviceBrand);
 
             return View(tickets);
         }
-
-        // ... Mevcut kodlar ...
     }
 }

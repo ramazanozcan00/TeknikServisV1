@@ -27,6 +27,8 @@ namespace TeknikServis.Core.Entities
         public int CustomerBalance { get; set; } = 0; // Müşteri Kayıt Hakkı
         public int TicketBalance { get; set; } = 0; // Servis Kayıt Hakkı
 
+        public bool IsShipmentAuthEnabled { get; set; } = false;
+
         // --- GÜVENLİK DOĞRULAMA AYARLARI ---
         public bool IsSmsAuthEnabled { get; set; } = false;
         public bool IsEmailAuthEnabled { get; set; } = false;
