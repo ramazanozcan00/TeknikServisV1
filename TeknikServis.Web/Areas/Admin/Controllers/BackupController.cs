@@ -15,6 +15,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http; // Dosya işlemleri için gerekebilir
 
 namespace TeknikServis.Web.Areas.Admin.Controllers
 {
@@ -52,18 +53,15 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
             ViewBag.MainDbName = mainDbName;
 
-            // Eğer veritabanı seçilmediyse ana veritabanını seç
             if (string.IsNullOrEmpty(dbName)) dbName = mainDbName;
             ViewBag.SelectedDb = dbName;
             ViewBag.CurrentDbStatus = "Bilinmiyor";
 
-            // 1. Veritabanı Listesi
             var dbSelectList = new List<SelectListItem>();
             bool listFetched = false;
 
             try
             {
-                // Master'dan listeyi çekmeye çalış
                 var masterBuilder = new SqlConnectionStringBuilder(currentConnectionString);
                 masterBuilder.InitialCatalog = "master";
 
@@ -98,36 +96,28 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             }
             catch
             {
-                // Master erişimi yoksa veya hata varsa listeyi dolduramayız.
-                // Ama en azından ana veritabanını veya seçili olanı listeye ekleyelim.
             }
 
             if (!listFetched || dbSelectList.Count == 0)
             {
-                // Liste boşsa en azından şu anki veritabanını ekle
                 dbSelectList.Add(new SelectListItem { Text = dbName, Value = dbName, Selected = true });
             }
 
             ViewBag.DbList = dbSelectList;
 
-            // 2. Metrikler ve Bağlantı Testi
-            // Durum "ONLINE" ise veya "Bilinmiyor" ise bağlanmayı dene.
             if (ViewBag.CurrentDbStatus == "ONLINE" || ViewBag.CurrentDbStatus == "Bilinmiyor")
             {
                 try
                 {
                     var targetBuilder = new SqlConnectionStringBuilder(currentConnectionString);
                     targetBuilder.InitialCatalog = dbName;
-                    targetBuilder.ConnectTimeout = 5; // Hızlı timeout
+                    targetBuilder.ConnectTimeout = 5;
 
                     using (var connection = new SqlConnection(targetBuilder.ConnectionString))
                     {
                         await connection.OpenAsync();
-
-                        // Bağlantı başarılıysa durumu ONLINE yap
                         ViewBag.CurrentDbStatus = "ONLINE";
 
-                        // Boyutlar
                         using (var cmd = connection.CreateCommand())
                         {
                             cmd.CommandText = @"SELECT 
@@ -148,7 +138,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                             }
                         }
 
-                        // Diğer Bilgiler (Hata olsa bile devam et)
                         try
                         {
                             using (var cmd = connection.CreateCommand())
@@ -174,7 +163,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // Bağlantı başarısızsa OFFLINE kabul et
                     ViewBag.CurrentDbStatus = "OFFLINE";
                     ViewBag.Error = "Bağlantı Hatası: " + ex.Message;
                     ViewBag.DataSize = "-"; ViewBag.LogSize = "-"; ViewBag.TotalSize = "-";
@@ -189,8 +177,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             return View();
         }
 
-        // --- DİĞER METOTLAR (CREATE, BACKUP, DELETE) AYNEN KALIYOR ---
-
+        // --- YENİ VERİTABANI OLUŞTURMA ---
         [HttpPost]
         public async Task<IActionResult> CreateDatabase(string dbSuffix)
         {
@@ -206,34 +193,75 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             catch (Exception ex) { TempData["Error"] = "Hata: " + ex.Message; return RedirectToAction("Index"); }
         }
 
+        // --- YEDEK ALMA (GÜNCELLENDİ - Error 3 Çözümü İçin) ---
         [HttpPost]
         public async Task<IActionResult> TakeBackup(string dbName)
         {
             if (string.IsNullOrEmpty(dbName)) return RedirectToAction("Index");
-            string backupFolder = @"C:\TeknikServisYedekleri";
+
             try
             {
-                if (!Directory.Exists(backupFolder)) Directory.CreateDirectory(backupFolder);
+                string currentConnectionString = _context.Database.GetConnectionString();
+                string backupFilePath = "";
                 string fileName = $"{dbName}_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
-                string fullPath = Path.Combine(backupFolder, fileName);
-                string sqlCommand = $"BACKUP DATABASE [{dbName}] TO DISK = @path WITH FORMAT, INIT, COMPRESSION, COPY_ONLY";
-                var pathParam = new SqlParameter("@path", fullPath);
-                await _context.Database.ExecuteSqlRawAsync(sqlCommand, pathParam);
-                try
+
+                // SQL Server'ın varsayılan yedekleme yolunu buluyoruz (Error 3 almamak için)
+                string sqlBackupPath = null;
+                using (var conn = new SqlConnection(currentConnectionString))
                 {
-                    var netStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    return File(netStream, "application/octet-stream", fileName);
+                    await conn.OpenAsync();
+                    var cmd = new SqlCommand("SELECT CONVERT(nvarchar(500), SERVERPROPERTY('InstanceDefaultBackupPath'))", conn);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                    {
+                        sqlBackupPath = result.ToString();
+                    }
                 }
-                catch
+
+                // Eğer SQL bir yol vermezse C:\TeknikServisYedekleri'ni kullan
+                string folderPath = !string.IsNullOrEmpty(sqlBackupPath) ? sqlBackupPath : @"C:\TeknikServisYedekleri";
+
+                if (!folderPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                    folderPath += Path.DirectorySeparatorChar;
+
+                backupFilePath = folderPath + fileName;
+
+                // Web sunucusunda klasör oluşturmayı dene (Aynı makinedelerse işe yarar)
+                try { if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath); } catch { }
+
+                // Yedeği Al
+                string sqlCommand = $"BACKUP DATABASE [{dbName}] TO DISK = @path WITH FORMAT, INIT, COMPRESSION, COPY_ONLY";
+                var pathParam = new SqlParameter("@path", backupFilePath);
+                await _context.Database.ExecuteSqlRawAsync(sqlCommand, pathParam);
+
+                // Dosyayı İndir
+                if (System.IO.File.Exists(backupFilePath))
                 {
-                    TempData["Success"] = $"Yedek sunucuya alındı: {fullPath}";
-                    return RedirectToAction("Index", new { dbName = dbName });
+                    try
+                    {
+                        var netStream = new FileStream(backupFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        return File(netStream, "application/octet-stream", fileName);
+                    }
+                    catch
+                    {
+                        TempData["Success"] = $"Yedek sunucuya alındı ancak indirilemedi: {backupFilePath}";
+                    }
+                }
+                else
+                {
+                    // Dosya yoksa SQL Server farklı makinededir
+                    TempData["Success"] = $"Yedek SQL Sunucusuna alındı: {backupFilePath}";
                 }
             }
-            catch (Exception ex) { TempData["Error"] = "Hata: " + ex.Message; return RedirectToAction("Index", new { dbName = dbName }); }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Yedek Alma Hatası: " + ex.Message;
+            }
+
+            return RedirectToAction("Index", new { dbName = dbName });
         }
 
-        // --- VERİTABANI SIFIRLAMA (RESET) - GÜÇLENDİRİLMİŞ ---
+        // --- SIFIRLAMA (RESET) ---
         [HttpPost]
         public async Task<IActionResult> ResetDatabase(string dbName, string confirmPassword)
         {
@@ -243,7 +271,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 return RedirectToAction("Index", new { dbName = dbName });
             }
 
-            // Ana veritabanı kontrolü
             string currentConnectionString = _context.Database.GetConnectionString();
             var builder = new SqlConnectionStringBuilder(currentConnectionString);
             string mainDbName = builder.InitialCatalog;
@@ -254,7 +281,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 return RedirectToAction("Index", new { dbName = dbName });
             }
 
-            // Şifre Doğrulama
             var user = await _userManager.GetUserAsync(User);
             if (user == null || !await _userManager.CheckPasswordAsync(user, confirmPassword))
             {
@@ -264,10 +290,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
             try
             {
-                // 1. Havuzları Temizle
                 SqlConnection.ClearAllPools();
-
-                // 2. Master'a Bağlan ve Zorla Sil
                 var masterBuilder = new SqlConnectionStringBuilder(currentConnectionString);
                 masterBuilder.InitialCatalog = "master";
 
@@ -275,19 +298,14 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 {
                     await connection.OpenAsync();
 
-                    // GÜÇLÜ SİLME KOMUTU: Aktif sessionları bul ve KILL et, sonra DROP yap.
                     string killAndDropSql = $@"
                         DECLARE @DatabaseName nvarchar(50) = @dbName;
                         DECLARE @SQL nvarchar(max);
-
-                        -- 1. Aktif bağlantıları öldür
                         SELECT @SQL = COALESCE(@SQL,'') + 'KILL ' + CONVERT(varchar, SPID) + ';'
                         FROM master..SysProcesses
                         WHERE DBId = DB_ID(@DatabaseName) AND SPID <> @@SPID;
-
                         EXEC(@SQL);
 
-                        -- 2. Veritabanını sil
                         IF EXISTS (SELECT name FROM sys.databases WHERE name = @DatabaseName)
                         BEGIN
                             ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
@@ -301,12 +319,10 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     }
                 }
 
-                // 3. Yeniden Oluştur (Migration Dahil)
-                // Kısa bir bekleme ekleyelim ki SQL Server kendine gelsin
                 await Task.Delay(1000);
                 await _tenantService.CreateDatabaseForBranch(dbName);
 
-                TempData["Success"] = $"'{dbName}' başarıyla sıfırlandı (Fabrika Ayarlarına Döndü).";
+                TempData["Success"] = $"'{dbName}' başarıyla sıfırlandı.";
             }
             catch (Exception ex)
             {
@@ -316,7 +332,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             return RedirectToAction("Index", new { dbName = dbName });
         }
 
-        // --- VERİTABANI SİLME (DELETE) - GÜÇLENDİRİLMİŞ ---
+        // --- SİLME (DELETE) ---
         [HttpPost]
         public async Task<IActionResult> DeleteDatabase(string dbName, string confirmPassword)
         {
@@ -340,17 +356,14 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             {
                 SqlConnection.ClearAllPools();
 
-                // 1. İlişkili Kayıtları Temizle (Branch, User vs.)
                 var branches = await _unitOfWork.Repository<Branch>().GetAllAsync();
                 var targetBranch = branches.FirstOrDefault(b => b.DatabaseName != null && b.DatabaseName.Equals(dbName, StringComparison.OrdinalIgnoreCase));
 
                 if (targetBranch != null)
                 {
-                    // Personel Sil
                     var users = await _userManager.Users.Where(u => u.BranchId == targetBranch.Id).ToListAsync();
                     foreach (var u in users) await _userManager.DeleteAsync(u);
 
-                    // Müşteri & Servis Sil (Main DB'de kırıntı kaldıysa)
                     var customers = await _unitOfWork.Repository<Customer>().FindAsync(c => c.BranchId == targetBranch.Id);
                     foreach (var c in customers)
                     {
@@ -363,7 +376,6 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     await _unitOfWork.CommitAsync();
                 }
 
-                // 2. Veritabanını Zorla Sil (KILL + DROP)
                 var masterBuilder = new SqlConnectionStringBuilder(_context.Database.GetConnectionString());
                 masterBuilder.InitialCatalog = "master";
 
@@ -374,11 +386,9 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     string killAndDropSql = $@"
                         DECLARE @DatabaseName nvarchar(50) = @dbName;
                         DECLARE @SQL nvarchar(max);
-
                         SELECT @SQL = COALESCE(@SQL,'') + 'KILL ' + CONVERT(varchar, SPID) + ';'
                         FROM master..SysProcesses
                         WHERE DBId = DB_ID(@DatabaseName) AND SPID <> @@SPID;
-
                         EXEC(@SQL);
 
                         IF EXISTS (SELECT name FROM sys.databases WHERE name = @DatabaseName)
@@ -403,6 +413,5 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 return RedirectToAction("Index", new { dbName = dbName });
             }
         }
-
     }
 }
