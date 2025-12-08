@@ -6,17 +6,14 @@
 
 @{
     Layout = null;
-
     // 1. Veritabanından Fiş Ayarlarını Çek
     var settings = (await UnitOfWork.Repository<ReceiptSetting>().GetAllAsync()).FirstOrDefault();
-
     // 2. Varsayılan Değerler
     string logoUrl = settings?.LogoPath;
     string headerText = settings?.HeaderText ?? "Müşteri Hizmetleri ve Teknik Destek Merkezi";
 
     // Varsayılan Şartlar
-    string terms = settings?.ServiceTerms ??
-                   "1. Teslim edilen cihazın sorumluluğu müşteriye aittir.\n" +
+    string terms = settings?.ServiceTerms ?? "1. Teslim edilen cihazın sorumluluğu müşteriye aittir.\n" +
                    "2. Yasal servis süresi maksimum 20 iş günüdür.\n" +
                    "3. 90 gün içinde alınmayan cihazlardan sorumluluk kabul edilmez.\n" +
                    "4. Bu belge resmi evrak niteliğindedir.";
@@ -41,7 +38,7 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #000;
-            font-size: 13px;
+            font-size: 12px; /* Fontu biraz küçülttük ki sığsın */
             background-color: #f8f9fa;
         }
 
@@ -57,7 +54,7 @@
         .header-box {
             border-bottom: 2px solid #000;
             padding-bottom: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .section-title {
@@ -65,23 +62,25 @@
             padding: 5px 10px;
             font-weight: bold;
             border-left: 5px solid #000;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             text-transform: uppercase;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .info-table td {
-            padding: 4px 8px;
+            padding: 3px 6px;
             vertical-align: top;
+            border-bottom: 1px solid #f0f0f0;
         }
 
         .label-col {
             font-weight: bold;
             color: #555;
-            width: 130px;
+            width: 140px; /* Genişliği biraz artırdık */
             text-align: right;
             padding-right: 15px !important;
             border-right: 1px solid #ddd;
+            background-color: #fcfcfc;
         }
 
         .signature-box {
@@ -93,7 +92,7 @@
         }
 
         .device-photo {
-            max-height: 150px;
+            max-height: 120px;
             max-width: 100%;
             border: 1px solid #ddd;
             padding: 2px;
@@ -182,11 +181,9 @@
 
             <div class="text-end">
                 <h4 class="fw-bold mb-1">SERVİS FİŞİ</h4>
-
                 <div id="qrcode" class="d-flex justify-content-end mb-2 mt-1"></div>
-
                 <div class="fs-6 fw-bold font-monospace text-dark">#@(Model.FisNo ?? "YOK")</div>
-                <small class="d-block text-muted">Tarih: @Model.CreatedDate.ToString("dd.MM.yyyy HH:mm")</small>
+                <small class="d-block text-muted">Kayıt: @Model.CreatedDate.ToString("dd.MM.yyyy HH:mm")</small>
             </div>
         </div>
 
@@ -195,18 +192,65 @@
                 <div class="section-title">MÜŞTERİ BİLGİLERİ</div>
                 <table class="info-table w-100">
                     <tr><td class="label-col">Ad Soyad</td><td>@Model.Customer?.FirstName @Model.Customer?.LastName</td></tr>
+                    @if (!string.IsNullOrEmpty(Model.Customer?.CompanyName))
+                    {
+                        <tr><td class="label-col">Firma</td><td>@Model.Customer.CompanyName</td></tr>
+                    }
                     <tr><td class="label-col">Telefon</td><td>@Model.Customer?.Phone</td></tr>
                     <tr><td class="label-col">E-Posta</td><td>@(Model.Customer?.Email ?? "Belirtilmedi")</td></tr>
                 </table>
             </div>
 
             <div class="col-6">
-                <div class="section-title">CİHAZ & SERVİS</div>
+                <div class="section-title">CİHAZ KİMLİĞİ</div>
                 <table class="info-table w-100">
-                    <tr><td class="label-col">Cihaz</td><td>@(Model.DeviceBrand?.Name ?? "-") @Model.DeviceModel</td></tr>
+                    <tr>
+                        <td class="label-col">Cihaz</td>
+                        <td>
+                            <strong>@(Model.DeviceType?.Name ?? "")</strong> - @(Model.DeviceBrand?.Name ?? "") @Model.DeviceModel
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Seri No / IMEI</td>
+                        <td class="font-monospace">@(string.IsNullOrEmpty(Model.SerialNumber) ? "Belirtilmedi" : Model.SerialNumber)</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Garanti Durumu</td>
+                        <td>
+                            @if (Model.IsWarranty)
+                            {
+                                <span class="fw-bold">GARANTİLİ</span>
+                            }
+                            else
+                            {
+                                <span>GARANTİ DIŞI</span>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Fatura Tarihi</td>
+                        <td>@(Model.InvoiceDate.HasValue? Model.InvoiceDate.Value.ToString("dd.MM.yyyy") : "-")</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
 
-                    <tr><td class="label-col">Seri No</td><td class="font-monospace">@(string.IsNullOrEmpty(Model.SerialNumber) ? "Belirtilmedi" : Model.SerialNumber)</td></tr>
-                    <tr><td class="label-col">Mevcut Durum</td><td><strong class="text-uppercase">@Model.Status</strong></td></tr>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="section-title">FİZİKSEL DURUM & TESLİMAT BİLGİLERİ</div>
+                <table class="info-table w-100">
+                    <tr>
+                        <td class="label-col">Aksesuarlar</td>
+                        <td>@(string.IsNullOrEmpty(Model.Accessories) ? "YOK (Sadece Cihaz)" : Model.Accessories)</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Fiziksel Hasar</td>
+                        <td>@(string.IsNullOrEmpty(Model.PhysicalDamage) ? "Hasar Kaydı Yok" : Model.PhysicalDamage)</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Mevcut Durum</td>
+                        <td><strong class="text-uppercase border px-2 py-1 rounded bg-light">@Model.Status</strong></td>
+                    </tr>
                 </table>
             </div>
         </div>
@@ -216,7 +260,7 @@
         <div class="row">
             <div class="col-8">
                 <div class="section-title">ARIZA / ŞİKAYET DETAYI</div>
-                <div class="border p-3 rounded bg-light mb-3" style="min-height: 80px;">
+                <div class="border p-3 rounded bg-light mb-3 text-dark" style="min-height: 80px; font-size: 13px;">
                     @Model.ProblemDescription
                 </div>
             </div>
@@ -229,21 +273,21 @@
             </div>
         </div>
 
-        <div class="row mt-3">
+        <div class="row mt-2">
             <div class="col-12">
-                <div class="section-title">ÜCRET BİLGİSİ</div>
+                <div class="section-title">TAHMİNİ / KESİN ÜCRET</div>
                 <div class="d-flex justify-content-between align-items-center border p-3 bg-light">
-                    <span>Hizmet Bedeli & Parça Tutarı:</span>
-                    <span class="fs-4 fw-bold">
+                    <span>Hizmet Bedeli & Parça Tutarı (KDV Dahil):</span>
+                    <span class="fs-4 fw-bold text-dark">
                         @(Model.TotalPrice.HasValue? Model.TotalPrice.Value.ToString("C2") : "Belirlenmedi")
                     </span>
                 </div>
             </div>
         </div>
 
-        <div class="mt-auto pt-5">
+        <div class="mt-auto pt-4">
             <div class="row small text-muted mb-4">
-                <div class="col-12 text-justify" style="font-size: 11px; line-height: 1.4;">
+                <div class="col-12 text-justify" style="font-size: 10px; line-height: 1.3;">
                     <strong>Servis Şartları:</strong>
                     <div class="ps-3 mt-1">
                         @if (!string.IsNullOrEmpty(terms))
@@ -260,15 +304,15 @@
                 </div>
             </div>
 
-            <div class="row mt-5">
+            <div class="row mt-4">
                 <div class="col-6 text-center">
-                    <div class="mb-4">TESLİM ALAN (PERSONEL)</div>
+                    <div class="mb-4 fw-bold">TESLİM ALAN (PERSONEL)</div>
                     <div class="signature-box">İmza / Kaşe</div>
                 </div>
                 <div class="col-6 text-center">
-                    <div class="mb-4">TESLİM EDEN (MÜŞTERİ)</div>
+                    <div class="mb-4 fw-bold">TESLİM EDEN (MÜŞTERİ)</div>
                     <div class="signature-box">İmza</div>
-                    <div class="small mt-1 text-muted">Yukarıdaki cihazı ve şartları kabul ediyorum.</div>
+                    <div class="small mt-1 text-muted">Cihazı eksiksiz ve yukarıdaki şartlarla teslim ettim/aldım.</div>
                 </div>
             </div>
         </div>
@@ -279,14 +323,12 @@
         // SAYFA YÜKLENDİĞİNDE QR KODU OLUŞTUR
         $(document).ready(function() {
             var fisNo = "@(Model.FisNo ?? "000000")";
-
-            // Önce temizle (Garanti olsun)
             document.getElementById("qrcode").innerHTML = "";
 
             new QRCode(document.getElementById("qrcode"), {
                 text: fisNo,
-                width: 80,
-                height: 80,
+                width: 70,
+                height: 70,
                 colorDark : "#000000",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.H
@@ -309,7 +351,6 @@
             var element = document.getElementById('fatura-alani');
             var originalHtml = $(btn).html();
             $(btn).prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i>Gönderiliyor...');
-
             var opt = {
                 margin: 0,
                 image: { type: 'jpeg', quality: 0.98 },

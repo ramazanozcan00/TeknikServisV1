@@ -436,10 +436,19 @@ namespace TeknikServis.Web.Controllers
             if (existingTicket == null) return NotFound();
 
             // 2. Fotoğraf İşlemleri
+            // 2. Fotoğraf İşlemleri
             if (photo != null && photo.Length > 0)
             {
                 string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+
+                // --- EKLENEN KISIM: Klasör yoksa oluştur ---
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+                // -------------------------------------------
+
                 using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create))
                 {
                     await photo.CopyToAsync(fileStream);
@@ -448,6 +457,7 @@ namespace TeknikServis.Web.Controllers
             }
 
             // 3. PDF İşlemleri
+            // 3. PDF İşlemleri (GÜNCELLENDİ)
             if (pdfFile != null && pdfFile.Length > 0)
             {
                 string extension = Path.GetExtension(pdfFile.FileName);
@@ -455,7 +465,13 @@ namespace TeknikServis.Web.Controllers
                 {
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
-                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                    // --- KLASÖR KONTROLÜ (EKLENDİ) ---
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+                    // ---------------------------------
 
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create))
