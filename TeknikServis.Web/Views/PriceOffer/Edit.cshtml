@@ -1,0 +1,223 @@
+﻿@model TeknikServis.Web.Models.PriceOfferViewModel
+
+@{
+    ViewData["Title"] = "Teklifi Düzenle";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<div class="container-fluid py-4">
+    <form asp-action="Edit" id="offerForm">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="All" class="alert alert-danger mb-3" style="display:none;"></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-primary"><i class="fa-solid fa-pen-to-square me-2"></i>Teklifi Düzenle</h2>
+            <div>
+                <a asp-action="Index" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Vazgeç</a>
+                <button type="submit" class="btn btn-primary btn-lg"><i class="fa-solid fa-save"></i> Değişiklikleri Kaydet</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-3">Belge Bilgileri</h6>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Şube</label>
+                            <select asp-for="BranchId" class="form-select" disabled>
+                                @foreach (var item in Model.Branches)
+                                {
+                                    <option value="@item.Id">@item.BranchName</option>
+                                }
+                            </select>
+                            <input type="hidden" name="BranchId" value="@Model.BranchId" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Belge No</label>
+                            <input asp-for="DocumentNo" class="form-control bg-light" readonly />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tarih</label>
+                            <input asp-for="OfferDate" type="date" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4 border-0">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-3">Müşteri Seçimi</h6>
+                        <select asp-for="CustomerId" asp-items="Model.CustomerList" class="form-select select2" required>
+                            <option value="">Cari Seçiniz...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Notlar</h6>
+                        <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="m-0 text-primary"><i class="fa-solid fa-box-open me-2"></i>Ürün/Hizmet Kalemleri</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="p-3 bg-light border-bottom">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="small text-muted">Stoktan Ürün Seç</label>
+                                    <select id="productSelect" class="form-select select2-product">
+                                        <option value="" data-price="0">Manuel Giriş / Seçiniz</option>
+                                        @foreach (var prod in Model.Products)
+                                        {
+                                            <option value="@prod.Id" data-price="@prod.SalesPrice" data-name="@prod.ProductName">
+                                                @prod.ProductName (Stok: @prod.Quantity)
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small text-muted">Ürün Adı</label>
+                                    <input type="text" id="manualName" class="form-control" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="small text-muted">Miktar</label>
+                                    <input type="number" id="qty" class="form-control" value="1" min="1" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="small text-muted">Fiyat</label>
+                                    <input type="number" id="price" class="form-control" value="0" step="0.01" />
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" id="btnAddRow" class="btn btn-primary w-100"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="itemsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Ürün Adı</th>
+                                        <th width="100" class="text-center">Miktar</th>
+                                        <th width="150" class="text-end">Birim Fiyat</th>
+                                        <th width="150" class="text-end">Tutar</th>
+                                        <th width="50"></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="3" class="text-end">GENEL TOPLAM:</td>
+                                        <td class="text-end text-primary fs-5" id="grandTotal">0.00 ₺</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" asp-for="ItemsJson" id="itemsJson" />
+    </form>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({ theme: 'bootstrap-5' });
+            $('.select2-product').select2({ theme: 'bootstrap-5' });
+
+            // --- SAYFA YÜKLENDİĞİNDE MEVCUT VERİLERİ DOLDUR ---
+            var initialJson = '@Html.Raw(Model.ItemsJson)';
+            if(initialJson && initialJson !== 'null') {
+                var items = JSON.parse(initialJson);
+                items.forEach(function(item) {
+                    // Tabloya satır ekle
+                    addTableRow(item.ProductId, item.ProductName, item.Quantity, item.Price);
+                });
+                calculateGrandTotal();
+            }
+            // ---------------------------------------------------
+
+            $('#productSelect').on('select2:select', function (e) {
+                var selectedOption = $(this).find(':selected');
+                $('#price').val(selectedOption.attr('data-price') || 0);
+                $('#manualName').val(selectedOption.attr('data-name') || "");
+            });
+
+            $('#btnAddRow').click(function() {
+                var prodId = $('#productSelect').val() || "";
+                var prodName = $('#manualName').val();
+                var qty = parseFloat($('#qty').val()) || 1;
+                var price = parseFloat($('#price').val()) || 0;
+
+                if(prodName === "") { alert("Lütfen ürün adı giriniz."); return; }
+
+                addTableRow(prodId, prodName, qty, price);
+
+                // Formu temizle
+                $('#manualName').val('');
+                $('#qty').val(1);
+                $('#productSelect').val(null).trigger('change');
+                $('#price').val(0);
+                calculateGrandTotal();
+            });
+
+            $(document).on('click', '.btn-remove', function() {
+                $(this).closest('tr').remove();
+                calculateGrandTotal();
+            });
+
+            // Tabloya satır ekleme fonksiyonu (Hem başlangıçta hem butona basınca kullanılır)
+            function addTableRow(id, name, qty, price) {
+                var total = qty * price;
+                var row = `
+                    <tr data-id="${id}" data-qty="${qty}" data-price="${price}" data-name="${name}">
+                        <td>${name}</td>
+                        <td class="text-center">${qty}</td>
+                        <td class="text-end">${price.toFixed(2)} ₺</td>
+                        <td class="text-end row-total">${total.toFixed(2)} ₺</td>
+                        <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>`;
+                $('#itemsTable tbody').append(row);
+            }
+
+            function calculateGrandTotal() {
+                var total = 0;
+                $('.row-total').each(function() {
+                    var val = parseFloat($(this).text().replace(' ₺', ''));
+                    if(!isNaN(val)) total += val;
+                });
+                $('#grandTotal').text(total.toFixed(2) + " ₺");
+            }
+
+            $('#offerForm').submit(function() {
+                var items = [];
+                $('#itemsTable tbody tr').each(function() {
+                    var row = $(this);
+                    var pid = row.attr('data-id');
+                    if(pid === "" || pid === "undefined" || pid === "null") pid = null;
+
+                    items.push({
+                        ProductId: pid,
+                        ProductName: row.attr('data-name'),
+                        Quantity: parseFloat(row.attr('data-qty')),
+                        Price: parseFloat(row.attr('data-price')),
+                        Total: 0
+                    });
+                });
+                $('#itemsJson').val(JSON.stringify(items));
+            });
+        });
+    </script>
+}

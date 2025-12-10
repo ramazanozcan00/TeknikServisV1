@@ -1,0 +1,109 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.PriceOffer>
+
+@{
+    ViewData["Title"] = "Fiyat Teklifleri";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fa-solid fa-file-invoice me-2"></i>Fiyat Teklifleri</h2>
+            <p class="text-muted small mb-0">Oluşturulan tüm teklifleri buradan yönetebilirsiniz.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fa-solid fa-plus me-2"></i>Yeni Teklif Oluştur
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary">
+                        <tr>
+                            <th class="ps-4">Belge No</th>
+                            <th>Tarih</th>
+                            <th>Müşteri / Cari</th>
+                            <th>Şube</th>
+                            <th class="text-end">Tutar</th>
+                            <th class="text-center">Durum</th>
+                            <th class="text-end pe-4">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold text-primary">@item.DocumentNo</td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span>@item.OfferDate.ToString("dd.MM.yyyy")</span>
+                                            <small class="text-muted" style="font-size:11px;">Geçerlilik: @item.ValidUntil.ToString("dd.MM.yyyy")</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (item.Customer != null)
+                                        {
+                                            <span class="fw-medium">@item.Customer.FirstName @item.Customer.LastName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.Branch != null)
+                                        {
+                                            <span class="badge bg-light text-dark border">@item.Branch.BranchName</span>
+                                        }
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        @item.TotalAmount.ToString("C2")
+                                    </td>
+                                    <td class="text-center">
+                                        @{
+                                            string statusClass = "bg-secondary";
+                                            string statusText = "Taslak";
+
+                                            // Status enum'ını kontrol ediyoruz (Enum yapınıza göre güncelleyebilirsiniz)
+                                            if (item.Status.ToString() == "Sent" || item.Status.ToString() == "Gonderildi") { statusClass = "bg-info"; statusText = "Gönderildi"; }
+                                            else if (item.Status.ToString() == "Approved" || item.Status.ToString() == "Onaylandi") { statusClass = "bg-success"; statusText = "Onaylandı"; }
+                                            else if (item.Status.ToString() == "Rejected" || item.Status.ToString() == "Reddedildi") { statusClass = "bg-danger"; statusText = "Reddedildi"; }
+                                        }
+                                        <span class="badge rounded-pill @statusClass">@statusText</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group">
+                                            <a asp-action="Print" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary" title="Yazdır">
+                                                <i class="fa-solid fa-print"></i>
+                                            </a>
+
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Düzenle"><i class="fa-solid fa-pen"></i></a>
+
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bu teklifi silmek istediğinize emin misiniz?');" title="Sil"><i class="fa-solid fa-trash"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                    <p>Henüz kayıtlı bir fiyat teklifi bulunmuyor.</p>
+                                    <a asp-action="Create" class="btn btn-sm btn-outline-primary">İlk Teklifi Oluştur</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top-0 py-3">
+            <small class="text-muted">Toplam @(Model?.Count() ?? 0) kayıt listelendi.</small>
+        </div>
+    </div>
+</div>

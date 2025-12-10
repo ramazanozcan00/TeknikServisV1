@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic; // List<> için eklendi
 using System.IO;
 using System.Threading.Tasks;
 using TeknikServis.Data.Context;
@@ -23,16 +24,51 @@ namespace TeknikServis.Web.Services
 
         public async Task RunDailyBackupAsync()
         {
-            // 1. Ana veritabanı ismini bul
+            // Yedeklenecek veritabanı isimlerini tutacak liste
+            var databaseNames = new List<string>();
+
+            // 1. Mevcut bağlantı dizesini al
             var connStr = _context.Database.GetConnectionString();
-            var builder = new SqlConnectionStringBuilder(connStr);
-            string mainDbName = builder.InitialCatalog;
 
-            // Ana veritabanını yedekle
-            await BackupSingleDatabase(mainDbName);
+            // 2. Master veritabanına bağlanıp tüm veritabanlarını listele
+            // BackupController'daki mantığın aynısını buraya uyguluyoruz.
+            var masterBuilder = new SqlConnectionStringBuilder(connStr);
+            masterBuilder.InitialCatalog = "master"; // Master'a bağlanmamız lazım listeyi görmek için
 
-            // Eğer şube sisteminiz varsa ve her şubenin ayrı veritabanı varsa, 
-            // buraya diğer veritabanlarını döngüye alacak bir sorgu ekleyebilirsiniz.
+            try
+            {
+                using (var conn = new SqlConnection(masterBuilder.ConnectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // Sistem veritabanları hariç, ONLINE durumdaki tüm veritabanlarını getir
+                    string query = "SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb') AND state_desc = 'ONLINE'";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                databaseNames.Add(reader.GetString(0));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Veritabanı listesi alınırken hata oluştu: " + ex.Message);
+                // Hata durumunda en azından ana veritabanını yedeklemeyi dene
+                var builder = new SqlConnectionStringBuilder(connStr);
+                databaseNames.Add(builder.InitialCatalog);
+            }
+
+            // 3. Bulunan tüm veritabanlarını sırayla yedekle
+            foreach (var dbName in databaseNames)
+            {
+                await BackupSingleDatabase(dbName);
+            }
         }
 
         private async Task BackupSingleDatabase(string dbName)
@@ -42,7 +78,7 @@ namespace TeknikServis.Web.Services
                 string fileName = $"{dbName}_AutoBackup_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
                 string sqlBackupPath = null;
 
-                // BackupController'daki yol bulma mantığı
+                // SQL Server'ın varsayılan yedekleme yolunu bul
                 using (var conn = new SqlConnection(_context.Database.GetConnectionString()))
                 {
                     await conn.OpenAsync();
@@ -61,19 +97,23 @@ namespace TeknikServis.Web.Services
 
                 string backupFilePath = folderPath + fileName;
 
-                // Klasör yoksa oluşturmaya çalış (Yetki varsa)
+                // Klasör yoksa oluşturmaya çalış
                 try { if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath); } catch { }
 
                 // SQL Komutunu Çalıştır
+                // Not: Bağlantı dizesi ana veritabanı olsa bile, yetki varsa başka veritabanının yedeği alınabilir.
                 string sqlCommand = $"BACKUP DATABASE [{dbName}] TO DISK = @path WITH FORMAT, INIT, COMPRESSION, COPY_ONLY";
                 var pathParam = new SqlParameter("@path", backupFilePath);
 
                 // Timeout süresini artıralım çünkü backup uzun sürebilir
+                // ExecuteSqlRawAsync mevcut context (ana db) üzerinden çalışır ama komut hedef db'yi belirtir.
                 await _context.Database.ExecuteSqlRawAsync(sqlCommand, pathParam);
+
+                Console.WriteLine($"{dbName} yedeği başarıyla alındı: {backupFilePath}");
             }
             catch (Exception ex)
             {
-                // Hata durumunda loglama yapılabilir (Örn: ILogger kullanarak)
+                // Hata durumunda loglama
                 Console.WriteLine($"Yedekleme Hatası ({dbName}): " + ex.Message);
             }
         }

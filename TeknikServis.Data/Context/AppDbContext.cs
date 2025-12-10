@@ -23,6 +23,10 @@ namespace TeknikServis.Data.Context
         public DbSet<UserBranch> UserBranches { get; set; }
         public DbSet<CompanySetting> CompanySettings { get; set; }
         public DbSet<SmsSetting> SmsSettings { get; set; }
+        public DbSet<BranchInfo> BranchInfos { get; set; }
+        public DbSet<PriceOffer> PriceOffers { get; set; }
+        public DbSet<PriceOfferItem> PriceOfferItems { get; set; }
+
 
         public DbSet<ReceiptSetting> ReceiptSettings { get; set; }
         public DbSet<EmailSetting> EmailSettings { get; set; }
