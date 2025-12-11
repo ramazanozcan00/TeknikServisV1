@@ -40,19 +40,47 @@
                                     <td>
                                         <div class="d-flex flex-column">
                                             <span>@item.OfferDate.ToString("dd.MM.yyyy")</span>
-                                            <small class="text-muted" style="font-size:11px;">Geçerlilik: @item.ValidUntil.ToString("dd.MM.yyyy")</small>
+                                            @if (item.GetType().GetProperty("ValidUntil") != null)
+                                            {
+                                                <small class="text-muted" style="font-size:11px;">Bitiş: @(((DateTime)item.GetType().GetProperty("ValidUntil").GetValue(item, null)).ToString("dd.MM.yyyy"))</small>
+                                            }
                                         </div>
                                     </td>
+
                                     <td>
                                         @if (item.Customer != null)
                                         {
-                                            <span class="fw-medium">@item.Customer.FirstName @item.Customer.LastName</span>
+                                            @if (!string.IsNullOrEmpty(item.Customer.CompanyName))
+                                            {
+                                                // Kurumsal Müşteri: Firma Adı Kalın, Yetkili Adı Küçük
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold text-dark">
+                                                        <i class="fa-solid fa-building me-1 text-secondary" style="font-size:0.8em;"></i>
+                                                        @item.Customer.CompanyName
+                                                    </span>
+                                                    @if (!string.IsNullOrEmpty(item.Customer.FirstName) && item.Customer.FirstName != "Firma")
+                                                    {
+                                                        <small class="text-muted" style="font-size:11px;">
+                                                            Yetkili: @item.Customer.FirstName @item.Customer.LastName
+                                                        </small>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                // Bireysel Müşteri: Sadece Ad Soyad
+                                                <span class="fw-medium">
+                                                    <i class="fa-solid fa-user me-1 text-secondary" style="font-size:0.8em;"></i>
+                                                    @item.Customer.FirstName @item.Customer.LastName
+                                                </span>
+                                            }
                                         }
                                         else
                                         {
-                                            <span class="text-muted">-</span>
+                                            <span class="text-muted fst-italic">- Müşteri Silinmiş -</span>
                                         }
                                     </td>
+
                                     <td>
                                         @if (item.Branch != null)
                                         {
@@ -64,15 +92,27 @@
                                     </td>
                                     <td class="text-center">
                                         @{
-                                            string statusClass = "bg-secondary";
-                                            string statusText = "Taslak";
+                                            string sStatus = item.Status.ToString();
+                                            string badgeClass = "bg-secondary";
+                                            string statusLabel = "Taslak";
 
-                                            // Status enum'ını kontrol ediyoruz (Enum yapınıza göre güncelleyebilirsiniz)
-                                            if (item.Status.ToString() == "Sent" || item.Status.ToString() == "Gonderildi") { statusClass = "bg-info"; statusText = "Gönderildi"; }
-                                            else if (item.Status.ToString() == "Approved" || item.Status.ToString() == "Onaylandi") { statusClass = "bg-success"; statusText = "Onaylandı"; }
-                                            else if (item.Status.ToString() == "Rejected" || item.Status.ToString() == "Reddedildi") { statusClass = "bg-danger"; statusText = "Reddedildi"; }
+                                            if (sStatus == "Sent" || sStatus == "Gonderildi")
+                                            {
+                                                badgeClass = "bg-info text-dark";
+                                                statusLabel = "Gönderildi";
+                                            }
+                                            else if (sStatus == "Approved" || sStatus == "Onaylandi")
+                                            {
+                                                badgeClass = "bg-success";
+                                                statusLabel = "Onaylandı";
+                                            }
+                                            else if (sStatus == "Rejected" || sStatus == "Reddedildi")
+                                            {
+                                                badgeClass = "bg-danger";
+                                                statusLabel = "Reddedildi";
+                                            }
                                         }
-                                        <span class="badge rounded-pill @statusClass">@statusText</span>
+                                        <span class="badge rounded-pill @badgeClass">@statusLabel</span>
                                     </td>
                                     <td class="text-end pe-4">
                                         <div class="btn-group">
@@ -80,9 +120,13 @@
                                                 <i class="fa-solid fa-print"></i>
                                             </a>
 
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Düzenle"><i class="fa-solid fa-pen"></i></a>
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Düzenle">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
 
-                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bu teklifi silmek istediğinize emin misiniz?');" title="Sil"><i class="fa-solid fa-trash"></i></a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bu teklifi silmek istediğinize emin misiniz?');" title="Sil">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>

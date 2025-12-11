@@ -11,6 +11,8 @@
     <form asp-action="Create" id="offerForm">
         <div asp-validation-summary="All" class="alert alert-danger mb-3" style="display:none;"></div>
 
+        <input type="hidden" asp-for="CustomerId" id="CustomerId" />
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="text-primary"><i class="fa-solid fa-file-invoice me-2"></i>Yeni Fiyat Teklifi</h2>
             <div>
@@ -21,29 +23,23 @@
 
         <div class="row">
             <div class="col-md-4">
-
                 <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary">
                     <div class="card-body">
                         <h6 class="card-title text-muted mb-3">Belge Bilgileri</h6>
-
                         <div class="mb-3">
                             <label class="form-label fw-bold">Şube</label>
-
                             <select asp-for="BranchId" class="form-select" disabled>
                                 @foreach (var item in Model.Branches)
                                 {
                                     <option value="@item.Id">@item.BranchName</option>
                                 }
                             </select>
-
-                            <input type="hidden" name="BranchId" value="@Model.BranchId" />
+                            <input type="hidden" id="HiddenBranchId" name="BranchId" value="@Model.BranchId" />
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label fw-bold">Belge No</label>
                             <input asp-for="DocumentNo" class="form-control bg-light" readonly />
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label fw-bold">Tarih</label>
                             <input asp-for="OfferDate" type="date" class="form-control" />
@@ -53,36 +49,63 @@
 
                 <div class="card shadow-sm mb-4 border-0">
                     <div class="card-body">
-                        <h6 class="card-title text-muted mb-3">Cari / Müşteri Seçimi</h6>
-                        <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="fa-solid fa-user-tie"></i></span>
-                            <select asp-for="CustomerId" asp-items="Model.CustomerList" class="form-select select2" required>
-                                <option value="">Cari Seçiniz...</option>
-                            </select>
+                        <h6 class="card-title text-muted mb-3">Cari Seçimi</h6>
+
+                        <div class="mb-3">
+                            <label class="small text-muted fw-bold">Bireysel Müşteri</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-user"></i></span>
+                                <select id="selectIndividual" class="form-select select2-individual">
+                                    <option value="">Yükleniyor...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-0">
+                            <label class="small text-muted fw-bold">Kayıtlı Firma (Kurumsal)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-building"></i></span>
+                                <select id="selectCompany" class="form-select select2-company">
+                                    <option value="">Yükleniyor...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4 border-0">
+                    <div class="card-header bg-light">
+                        <h6 class="m-0 text-dark"><i class="fa-solid fa-building me-2"></i>Firma Bilgileri (Gönderen)</h6>
+                    </div>
+                    <div class="card-body small">
+                        <div class="mb-2">
+                            <strong class="d-block text-muted">Ünvan:</strong>
+                            <span id="lblCompanyTitle" class="fw-bold text-primary">Yükleniyor...</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong class="d-block text-muted">Telefon & Adres:</strong>
+                            <span id="lblCompanyInfo">-</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong class="d-block text-muted">Vergi Dairesi / No:</strong>
+                            <span id="lblCompanyTax">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card shadow-sm mb-4 border-0">
                     <div class="card-header bg-light">
-                        <h6 class="m-0 text-dark"><i class="fa-solid fa-address-card me-2"></i>Cari Detayları</h6>
+                        <h6 class="m-0 text-dark"><i class="fa-solid fa-address-card me-2"></i>Seçilen Cari Detayları</h6>
                     </div>
                     <div class="card-body small">
                         <div class="mb-2">
                             <strong class="d-block text-muted">Ünvan / Ad Soyad:</strong>
-                            <span id="lblCompanyTitle" class="fw-bold text-primary">-</span>
-                        </div>
-                        <div class="mb-2">
-                            <strong class="d-block text-muted">Telefon:</strong>
-                            <span id="lblCompanyPhone">-</span>
-                        </div>
-                        <div class="mb-2">
-                            <strong class="d-block text-muted">Vergi Dairesi / No:</strong>
-                            <span id="lblCompanyTax">-</span>
+                            <span id="lblCustTitle" class="fw-bold text-primary">-</span>
                         </div>
                         <div>
-                            <strong class="d-block text-muted">Adres:</strong>
-                            <span id="lblCompanyAddress" class="text-muted">-</span>
+                            <strong class="d-block text-muted">Telefon & Adres:</strong>
+                            <span id="lblCustInfo" class="text-muted">-</span>
                         </div>
                     </div>
                 </div>
@@ -106,15 +129,7 @@
                                 <div class="col-md-4">
                                     <label class="small text-muted">Stoktan Ürün Seç</label>
                                     <select id="productSelect" class="form-select select2-product">
-                                        <option value="" data-price="0">Manuel Giriş / Seçiniz</option>
-                                        @foreach (var prod in Model.Products)
-                                        {
-                                            <option value="@prod.Id"
-                                                    data-price="@prod.SalesPrice"
-                                                    data-name="@prod.ProductName">
-                                                @prod.ProductName (Stok: @prod.Quantity)
-                                            </option>
-                                        }
+                                        <option value="" data-price="0">Yükleniyor...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
@@ -160,7 +175,10 @@
                 </div>
             </div>
         </div>
-        <input type="hidden" asp-for="ItemsJson" id="itemsJson" />
+        <input type="hidden" asp-for="BranchId" />
+        <input type="hidden" asp-for="DocumentNo" />
+
+        <input type="hidden" asp-for="ItemsJson" id="ItemsJson" />
     </form>
 </div>
 
@@ -169,32 +187,111 @@
 
     <script>
         $(document).ready(function() {
-            // Select2 Başlat
-            $('.select2').select2({ theme: 'bootstrap-5', placeholder: 'Cari Seçiniz...', allowClear: true });
-            $('.select2-product').select2({ theme: 'bootstrap-5', placeholder: 'Ürün Ara...', allowClear: true });
+            // Select2 Ayarları
+            var indSelect = $('.select2-individual').select2({ theme: 'bootstrap-5', placeholder: 'Bireysel Müşteri Seç...', allowClear: true });
+            var comSelect = $('.select2-company').select2({ theme: 'bootstrap-5', placeholder: 'Kayıtlı Firma Seç...', allowClear: true });
+            var prodSelect = $('.select2-product').select2({ theme: 'bootstrap-5', placeholder: 'Ürün Ara...', allowClear: true });
 
-            // 1. MÜŞTERİ SEÇİLDİĞİNDE BİLGİLERİ GETİR
+            // --- 1. SAYFA YÜKLENDİĞİNDE VERİLERİ ÇEK ---
+            var currentBranchId = $('#HiddenBranchId').val();
+
+            if(currentBranchId) {
+                $.get('/PriceOffer/GetBranchData?branchId=' + currentBranchId, function(data) {
+
+                    // A. GÖNDEREN FİRMA BİLGİLERİ
+                    if(data.info) {
+                        $('#lblCompanyTitle').text(data.info.title);
+                        var contact = (data.info.phone || '-') + ' / ' + (data.info.address || '-');
+                        $('#lblCompanyInfo').text(contact);
+                        $('#lblCompanyTax').text(data.info.tax);
+                    }
+
+                    // B. BİREYSEL MÜŞTERİLERİ DOLDUR
+                    if(data.individuals) {
+                        indSelect.empty().append(new Option('Seçiniz...', '', true, true));
+                        $.each(data.individuals, function(i, item) {
+                            indSelect.append(new Option(item.text, item.id, false, false));
+                        });
+                        indSelect.val(null).trigger('change');
+                    }
+
+                    // C. KURUMSAL FİRMALARI DOLDUR
+                    if(data.companies) {
+                        comSelect.empty().append(new Option('Seçiniz...', '', true, true));
+                        $.each(data.companies, function(i, item) {
+                            comSelect.append(new Option(item.text, item.id, false, false));
+                        });
+                        comSelect.val(null).trigger('change');
+                    }
+
+                    // D. ÜRÜNLERİ DOLDUR
+                    if(data.parts) {
+                        prodSelect.empty().append(new Option('Manuel Giriş / Seçiniz', '', true, true));
+                        $.each(data.parts, function(i, item) {
+                            var text = item.productName + ' (Stok: ' + item.quantity + ')';
+                            var newOption = new Option(text, item.id, false, false);
+                            $(newOption).attr('data-price', item.salesPrice);
+                            $(newOption).attr('data-name', item.productName);
+                            prodSelect.append(newOption);
+                        });
+                        prodSelect.val(null).trigger('change');
+                    }
+
+                });
+            }
+
+            // --- 2. KARŞILIKLI KİLİTLEME MANTIĞI (MUTUAL EXCLUSION) ---
+
+            // Bireysel Seçilirse -> Firmayı Temizle
+            $('#selectIndividual').on('change', function() {
+                var val = $(this).val();
+                if(val) {
+                    // Firmayı temizle (Sonsuz döngüyü önlemek için kontrol etmeye gerek yok, null atamak güvenlidir)
+                    $('#selectCompany').val(null).trigger('change.select2');
+
+                    // Gizli Inputu Güncelle
+                    $('#CustomerId').val(val).trigger('change');
+                } else {
+                    // Eğer boşaltıldıysa ve diğer tarafta da seçim yoksa ID'yi sıfırla
+                    if(!$('#selectCompany').val()) $('#CustomerId').val('').trigger('change');
+                }
+            });
+
+            // Firma Seçilirse -> Bireyseli Temizle
+            $('#selectCompany').on('change', function() {
+                var val = $(this).val();
+                if(val) {
+                    // Bireyseli temizle
+                    $('#selectIndividual').val(null).trigger('change.select2');
+
+                    // Gizli Inputu Güncelle
+                    $('#CustomerId').val(val).trigger('change');
+                } else {
+                    // Eğer boşaltıldıysa ve diğer tarafta da seçim yoksa ID'yi sıfırla
+                    if(!$('#selectIndividual').val()) $('#CustomerId').val('').trigger('change');
+                }
+            });
+
+            // --- 3. GİZLİ INPUT DEĞİŞTİĞİNDE DETAYLARI GETİR ---
             $('#CustomerId').change(function() {
                 var custId = $(this).val();
 
-                $('#lblCompanyTitle').text('-');
-                $('#lblCompanyPhone').text('-');
-                $('#lblCompanyAddress').text('-');
-                $('#lblCompanyTax').text('-');
+                // Kutuları temizle
+                $('#lblCustTitle').text('-');
+                $('#lblCustInfo').text('-');
 
                 if(!custId) return;
 
                 $.get('/PriceOffer/GetCustomerData?customerId=' + custId, function(data) {
                     if(data) {
-                        $('#lblCompanyTitle').text(data.title);
-                        $('#lblCompanyPhone').text(data.phone);
-                        $('#lblCompanyAddress').text(data.address);
-                        $('#lblCompanyTax').text(data.tax);
+                        $('#lblCustTitle').text(data.title);
+                        var infoText = (data.phone || '-') + ' / ' + (data.address || '-');
+                        $('#lblCustInfo').text(infoText);
                     }
                 });
             });
 
-            // ÜRÜN SEÇİMİ VE TABLO İŞLEMLERİ
+            // --- 4. ÜRÜN SEÇİMİ VE TABLO İŞLEMLERİ (Standart) ---
             $('#productSelect').on('select2:select', function (e) {
                 var selectedOption = $(this).find(':selected');
                 var price = parseFloat(selectedOption.attr('data-price')) || 0;
@@ -242,12 +339,18 @@
             }
 
             $('#offerForm').submit(function() {
+                // CustomerId kontrolü
+                if(!$('#CustomerId').val()) {
+                    alert("Lütfen bir müşteri veya firma seçiniz.");
+                    return false;
+                }
+
                 var items = [];
                 $('#itemsTable tbody tr').each(function() {
                     var row = $(this);
                     var pid = row.attr('data-id');
-                    if(pid === "" || pid === "undefined") pid = null;
-                    items.push({ ProductId: pid, ProductName: row.attr('data-name'), Quantity: row.attr('data-qty'), Price: row.attr('data-price'), Total: 0 });
+                    if(pid === "" || pid === "undefined" || pid === "null") pid = null;
+                    items.push({ ProductId: pid, ProductName: row.attr('data-name'), Quantity: row.attr('data-qty'), Price: row.attr('data-price') });
                 });
                 $('#itemsJson').val(JSON.stringify(items));
             });
