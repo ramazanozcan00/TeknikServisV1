@@ -25,6 +25,7 @@ namespace TeknikServis.Web.Services
             {
                 string masterConnString = _configuration.GetConnectionString("Default");
                 var builder = new SqlConnectionStringBuilder(masterConnString);
+                // Listeyi master üzerinden çekiyoruz
                 builder.InitialCatalog = "master";
 
                 using (var connection = new SqlConnection(builder.ConnectionString))
@@ -94,6 +95,38 @@ namespace TeknikServis.Web.Services
             {
                 // Veritabanı oluştu ama tablolar basılamadıysa hatayı fırlat
                 throw new Exception($"Veritabanı '{newDbName}' oluşturuldu ancak tablolar kurulamadı. Hata: {ex.Message}");
+            }
+        }
+
+        // --- TÜM VERİTABANLARINI GÜNCELLE (MIGRATION) ---
+        // Bu metot uygulama başladığında çalışarak tüm DB'leri son versiyona çeker.
+        public async Task UpdateAllDatabasesAsync()
+        {
+            var databases = GetDatabaseList();
+            string masterConnString = _configuration.GetConnectionString("Default");
+
+            foreach (var dbName in databases)
+            {
+                try
+                {
+                    var builder = new SqlConnectionStringBuilder(masterConnString);
+                    builder.InitialCatalog = dbName;
+
+                    var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+                    optionsBuilder.UseSqlServer(builder.ConnectionString);
+
+                    using (var context = new AppDbContext(optionsBuilder.Options))
+                    {
+                        // Bekleyen migration varsa uygula (yeni tablo, kolon vs.)
+                        await context.Database.MigrateAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                    // Olası hatalarda (örn: yetki yok, db bozuk) döngü kırılmasın, diğerlerine geçsin.
+                    // Loglama yapılabilir.
+                    continue;
+                }
             }
         }
 

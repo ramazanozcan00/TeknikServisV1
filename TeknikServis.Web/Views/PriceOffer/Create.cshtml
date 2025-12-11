@@ -352,7 +352,8 @@
                     if(pid === "" || pid === "undefined" || pid === "null") pid = null;
                     items.push({ ProductId: pid, ProductName: row.attr('data-name'), Quantity: row.attr('data-qty'), Price: row.attr('data-price') });
                 });
-                $('#itemsJson').val(JSON.stringify(items));
+                // DÜZELTME BURADA: itemsJson -> ItemsJson (Input ID'si ile eşleşmeli)
+                $('#ItemsJson').val(JSON.stringify(items));
             });
         });
     </script>

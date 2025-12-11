@@ -10,12 +10,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using TeknikServis.Web.Services;
 using System.IO;
-using System.Collections.Generic; // List için
-using System.Linq; // LINQ için
+using System.Collections.Generic;
+using System.Linq;
+using System;
+using System.Threading.Tasks;
 
 namespace TeknikServis.Web.Controllers
 {
-    // [Authorize]
     public class PriceOfferController : Controller
     {
         private readonly AppDbContext _context;
@@ -39,22 +40,44 @@ namespace TeknikServis.Web.Controllers
         }
 
         // --- LİSTELEME ---
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int page = 1)
         {
-            var offers = await _context.PriceOffers
+            var user = await _userManager.GetUserAsync(User);
+            int pageSize = 10;
+
+            var query = _context.PriceOffers
                 .Include(x => x.Customer)
                 .Include(x => x.Branch)
+                .AsQueryable();
+
+            if (user != null && user.BranchId != null && user.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == user.BranchId);
+            }
+
+            int totalItems = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            page = Math.Max(1, Math.Min(page, totalPages > 0 ? totalPages : 1));
+
+            var offers = await query
                 .OrderByDescending(x => x.OfferDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalRecords = totalItems;
+
             return View(offers);
         }
 
-        // --- OLUŞTURMA SAYFASI (GET) ---
+        // --- OLUŞTURMA SAYFASI ---
         [HttpGet]
         public async Task<IActionResult> Create()
         {
             var user = await _userManager.GetUserAsync(User);
-            // BranchId nullable gelebilir, kontrol ediyoruz
             Guid userBranchId = user?.BranchId ?? Guid.Empty;
 
             if (userBranchId == Guid.Empty)
@@ -75,40 +98,31 @@ namespace TeknikServis.Web.Controllers
             return View(model);
         }
 
-        // --- OLUŞTURMA İŞLEMİ (POST) ---
+        // --- OLUŞTURMA İŞLEMİ ---
         [HttpPost]
         public async Task<IActionResult> Create(PriceOfferViewModel model)
         {
-            // Validasyon
             if (!ModelState.IsValid)
             {
                 await PrepareViewBagsAsync(model, model.BranchId);
                 return View(model);
             }
 
-            // Transaction başlat
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                // -------------------------------------------------------------
-                // A) MÜŞTERİ KONTROLÜ (Kurumsal -> Yeni Müşteri)
-                // -------------------------------------------------------------
                 Guid finalCustomerId = model.CustomerId;
-
-                // Seçilen ID Customers tablosunda var mı?
                 var customerExists = await _context.Customers.AnyAsync(x => x.Id == finalCustomerId);
 
                 if (!customerExists)
                 {
-                    // Yoksa CompanySettings tablosuna bak (Kurumsal seçilmiş)
                     if (finalCustomerId == Guid.Empty) throw new Exception("Müşteri ID'si boş olamaz.");
 
                     var companySource = await _context.CompanySettings.FindAsync(finalCustomerId);
 
                     if (companySource != null)
                     {
-                        // Bu vergi no ile daha önce kayıt olmuş mu?
                         var targetCustomer = !string.IsNullOrEmpty(companySource.TaxNumber)
                             ? await _context.Customers.FirstOrDefaultAsync(c => c.TaxNumber == companySource.TaxNumber && !c.IsDeleted)
                             : null;
@@ -119,7 +133,6 @@ namespace TeknikServis.Web.Controllers
                         }
                         else
                         {
-                            // Yeni Müşteri Oluştur
                             var newCustomer = new Customer
                             {
                                 Id = Guid.NewGuid(),
@@ -135,7 +148,7 @@ namespace TeknikServis.Web.Controllers
                                 IsDeleted = false
                             };
                             _context.Customers.Add(newCustomer);
-                            await _context.SaveChangesAsync(); // ID oluşması için SaveChanges şart
+                            await _context.SaveChangesAsync();
                             finalCustomerId = newCustomer.Id;
                         }
                     }
@@ -145,15 +158,12 @@ namespace TeknikServis.Web.Controllers
                     }
                 }
 
-                // -------------------------------------------------------------
-                // B) TEKLİF BAŞLIĞINI OLUŞTUR
-                // -------------------------------------------------------------
                 var offer = new PriceOffer
                 {
                     Id = Guid.NewGuid(),
                     DocumentNo = model.DocumentNo,
                     OfferDate = model.OfferDate,
-                    CustomerId = finalCustomerId, // Kesinleşmiş ID
+                    CustomerId = finalCustomerId,
                     BranchId = model.BranchId,
                     Notes = model.Notes,
                     CreatedDate = DateTime.Now,
@@ -161,9 +171,6 @@ namespace TeknikServis.Web.Controllers
                     Items = new List<PriceOfferItem>()
                 };
 
-                // -------------------------------------------------------------
-                // C) ÜRÜNLERİ EKLE (ItemsJson)
-                // -------------------------------------------------------------
                 if (!string.IsNullOrEmpty(model.ItemsJson))
                 {
                     var itemsDto = JsonConvert.DeserializeObject<List<PriceOfferItemDto>>(model.ItemsJson);
@@ -171,39 +178,18 @@ namespace TeknikServis.Web.Controllers
 
                     if (itemsDto != null && itemsDto.Any())
                     {
-                        // Ürün ID'lerini toplu çek (Guid? -> Guid dönüşümü yaparak)
-                        var productIds = itemsDto
-                                        .Where(i => i.ProductId != null && i.ProductId != Guid.Empty)
-                                        .Select(i => i.ProductId.GetValueOrDefault())
-                                        .ToList();
-
-                        var dbProducts = await _context.SpareParts
-                                               .Where(p => productIds.Contains(p.Id))
-                                               .ToDictionaryAsync(p => p.Id, p => p.SalesPrice);
-
                         foreach (var item in itemsDto)
                         {
-                            // Güvenli Guid Çevrimi
-                            Guid currentProductId = item.ProductId ?? Guid.Empty;
-
-                            // Eğer ID boşsa bu satırı atla
-                            if (currentProductId == Guid.Empty) continue;
+                            Guid? currentProductId = (item.ProductId == null || item.ProductId == Guid.Empty) ? null : item.ProductId;
 
                             decimal finalPrice = item.Price;
-
-                            // Veritabanı fiyat kontrolü
-                            if (dbProducts.TryGetValue(currentProductId, out decimal dbPrice))
-                            {
-                                finalPrice = dbPrice;
-                            }
-
                             var lineTotal = item.Quantity * finalPrice;
                             grandTotal += lineTotal;
 
                             var offerItem = new PriceOfferItem
                             {
                                 Id = Guid.NewGuid(),
-                                PriceOfferId = offer.Id, // İlişkiyi elle de kuruyoruz
+                                PriceOfferId = offer.Id,
                                 SparePartId = currentProductId,
                                 ProductName = item.ProductName,
                                 Quantity = item.Quantity,
@@ -211,27 +197,14 @@ namespace TeknikServis.Web.Controllers
                                 TotalPrice = lineTotal,
                                 CreatedDate = DateTime.Now
                             };
-
                             offer.Items.Add(offerItem);
                         }
                     }
-
-                    // GÜVENLİK KONTROLÜ: JSON dolu geldi ama hiç ürün eklenmediyse hata ver.
-                    if (itemsDto != null && itemsDto.Any() && !offer.Items.Any())
-                    {
-                        throw new Exception("Ürünler listesi alındı fakat işlenemedi (Ürün ID hatası).");
-                    }
-
                     offer.TotalAmount = grandTotal;
                 }
 
-                // -------------------------------------------------------------
-                // D) KAYDET
-                // -------------------------------------------------------------
                 _context.PriceOffers.Add(offer);
                 await _context.SaveChangesAsync();
-
-                // Her şey başarılıysa onayla
                 await transaction.CommitAsync();
 
                 TempData["Success"] = "Fiyat teklifi başarıyla oluşturuldu.";
@@ -239,21 +212,15 @@ namespace TeknikServis.Web.Controllers
             }
             catch (Exception ex)
             {
-                // Hata varsa işlemleri geri al
                 await transaction.RollbackAsync();
-
                 ModelState.AddModelError("", "Kayıt sırasında hata oluştu: " + ex.Message);
-                if (ex.InnerException != null) ModelState.AddModelError("", "Detay: " + ex.InnerException.Message);
             }
 
             await PrepareViewBagsAsync(model, model.BranchId);
             return View(model);
         }
 
-        // --- DİĞER METOTLAR (Edit, Delete, GetBranchData vb. aynı kalabilir) ---
-        // ... (Kodu kısaltmak için Edit, Delete vb. metodlarını tekrar yazmadım, onlar önceki düzeltilmiş haliyde kalabilir)
-
-        // --- DÜZENLEME SAYFASI (GET) ---
+        // --- DÜZENLEME SAYFASI ---
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id)
         {
@@ -273,7 +240,6 @@ namespace TeknikServis.Web.Controllers
                 CustomerId = offer.CustomerId,
                 BranchId = currentBranchId,
                 Notes = offer.Notes,
-                Branches = await _context.Branches.ToListAsync(),
                 ItemsJson = JsonConvert.SerializeObject(offer.Items.Select(x => new PriceOfferItemDto
                 {
                     ProductId = x.SparePartId,
@@ -284,77 +250,96 @@ namespace TeknikServis.Web.Controllers
                 }).ToList())
             };
 
-            await PrepareViewBagsAsync(model, currentBranchId);
+            await PrepareViewBagsAsync(model, currentBranchId, offer.CustomerId);
             return View(model);
         }
 
+        // --- DÜZENLEME İŞLEMİ (KESİN ÇÖZÜM) ---
         [HttpPost]
         public async Task<IActionResult> Edit(PriceOfferViewModel model)
         {
             if (ModelState.IsValid)
             {
+                using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    var offer = await _context.PriceOffers
-                        .Include(x => x.Items)
-                        .FirstOrDefaultAsync(x => x.Id == model.Id);
+                    // 1. Önce Ana Teklif Kaydını Çek (Include KULLANMADAN - Tracking karışmaması için)
+                    var offer = await _context.PriceOffers.FindAsync(model.Id);
 
                     if (offer == null) return NotFound();
 
+                    // 2. Ana Bilgileri Güncelle
                     offer.OfferDate = model.OfferDate;
                     offer.CustomerId = model.CustomerId;
                     offer.Notes = model.Notes;
                     offer.UpdatedDate = DateTime.Now;
 
-                    if (offer.Items != null && offer.Items.Any())
+                    // 3. Mevcut Kalemleri Veritabanından Ayrı Bir Sorguyla Bul ve Sil
+                    // Bu yöntem, 'offer.Items' koleksiyonu üzerindeki karmaşayı engeller.
+                    var existingItems = await _context.Set<PriceOfferItem>()
+                                                      .Where(x => x.PriceOfferId == model.Id)
+                                                      .ToListAsync();
+
+                    if (existingItems.Any())
                     {
-                        _context.RemoveRange(offer.Items);
+                        _context.Set<PriceOfferItem>().RemoveRange(existingItems);
+                        // Silme işlemini hemen yansıtmak bazen ID çakışmalarını önler
+                        await _context.SaveChangesAsync();
                     }
 
-                    offer.Items = new List<PriceOfferItem>();
+                    // 4. Yeni Kalemleri Oluştur ve Ekle
                     decimal grandTotal = 0;
-
                     if (!string.IsNullOrEmpty(model.ItemsJson))
                     {
                         var items = JsonConvert.DeserializeObject<List<PriceOfferItemDto>>(model.ItemsJson);
                         if (items != null)
                         {
+                            var newOfferItems = new List<PriceOfferItem>();
                             foreach (var item in items)
                             {
-                                Guid currentProductId = item.ProductId ?? Guid.Empty;
-                                if (currentProductId == Guid.Empty) continue;
-
+                                Guid? currentProductId = (item.ProductId == null || item.ProductId == Guid.Empty) ? null : item.ProductId;
                                 var lineTotal = item.Quantity * item.Price;
                                 grandTotal += lineTotal;
 
-                                offer.Items.Add(new PriceOfferItem
+                                newOfferItems.Add(new PriceOfferItem
                                 {
                                     Id = Guid.NewGuid(),
-                                    PriceOfferId = offer.Id,
+                                    PriceOfferId = offer.Id, // ID'yi manuel set ediyoruz
                                     SparePartId = currentProductId,
                                     ProductName = item.ProductName,
                                     Quantity = item.Quantity,
                                     UnitPrice = item.Price,
                                     TotalPrice = lineTotal,
-                                    CreatedDate = offer.CreatedDate
+                                    CreatedDate = DateTime.Now
                                 });
                             }
+
+                            // Yeni listeyi doğrudan DbContext'e ekle
+                            await _context.Set<PriceOfferItem>().AddRangeAsync(newOfferItems);
                         }
                     }
+
+                    // 5. Toplam Tutarı Güncelle
                     offer.TotalAmount = grandTotal;
 
-                    _context.PriceOffers.Update(offer);
+                    // Ana teklifi güncelle (Track edildiği için Update çağırmaya gerek yok ama garanti olsun diye State set edilebilir)
+                    // _context.Entry(offer).State = EntityState.Modified; 
+
                     await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
                     TempData["Success"] = "Teklif başarıyla güncellendi.";
                     return RedirectToAction("Index");
                 }
                 catch (Exception ex)
                 {
+                    await transaction.RollbackAsync();
                     ModelState.AddModelError("", "Güncelleme Hatası: " + ex.Message);
+                    if (ex.InnerException != null) ModelState.AddModelError("", "Detay: " + ex.InnerException.Message);
                 }
             }
-            await PrepareViewBagsAsync(model, model.BranchId);
+
+            await PrepareViewBagsAsync(model, model.BranchId, model.CustomerId);
             return View(model);
         }
 
@@ -381,7 +366,7 @@ namespace TeknikServis.Web.Controllers
             var parts = await _context.SpareParts.Where(x => x.BranchId == branchId && !x.IsDeleted)
                 .Select(x => new { id = x.Id, productName = x.ProductName, salesPrice = x.SalesPrice, quantity = x.Quantity }).ToListAsync();
 
-            var individualsRaw = await _context.Customers.Where(x => x.BranchId == branchId && !x.IsDeleted && string.IsNullOrEmpty(x.CompanyName))
+            var individualsRaw = await _context.Customers.Where(x => x.BranchId == branchId && !x.IsDeleted)
                 .OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Select(x => new { x.Id, x.FirstName, x.LastName, x.Phone }).ToListAsync();
             var individuals = individualsRaw.Select(x => new { id = x.Id, text = $"{x.FirstName} {x.LastName} - {x.Phone}" }).ToList();
 
@@ -401,6 +386,7 @@ namespace TeknikServis.Web.Controllers
                 taxInfo = !string.IsNullOrEmpty(branchInfoRaw.TaxNumber) ? $"{branchInfoRaw.TaxOffice} / {branchInfoRaw.TaxNumber}" : "-";
             }
             var info = new { title = displayTitle, phone = phoneInfo, address = addressInfo, tax = taxInfo };
+
             return Json(new { parts, individuals, companies, info });
         }
 
@@ -408,16 +394,40 @@ namespace TeknikServis.Web.Controllers
         public async Task<IActionResult> GetCustomerData(Guid customerId)
         {
             var customer = await _context.Customers.FindAsync(customerId);
-            if (customer != null && !customer.IsDeleted) return Json(new { title = $"{customer.FirstName} {customer.LastName}", phone = customer.Phone ?? "-", address = customer.Address ?? "-", tax = "-", email = customer.Email ?? "-" });
+            if (customer != null && !customer.IsDeleted) return Json(new { title = $"{customer.FirstName} {customer.LastName}", phone = customer.Phone ?? "-", address = customer.Address ?? "-", tax = !string.IsNullOrEmpty(customer.TaxNumber) ? $"{customer.TaxOffice} / {customer.TaxNumber}" : "-", email = customer.Email ?? "-" });
             var company = await _context.CompanySettings.FindAsync(customerId);
             if (company != null && !company.IsDeleted) return Json(new { title = company.CompanyName, phone = company.Phone ?? "-", address = company.Address ?? "-", tax = !string.IsNullOrEmpty(company.TaxNumber) ? $"{company.TaxOffice} / {company.TaxNumber}" : "-", email = "-" });
             return Json(null);
         }
 
-        private async Task PrepareViewBagsAsync(PriceOfferViewModel model, Guid branchId)
+        private async Task PrepareViewBagsAsync(PriceOfferViewModel model, Guid branchId, Guid? selectedCustomerId = null)
         {
-            var rawCustomers = await _context.Customers.Where(x => x.BranchId == branchId && !x.IsDeleted).Select(c => new { c.Id, c.CompanyName, c.FirstName, c.LastName, c.Phone }).ToListAsync();
-            model.CustomerList = rawCustomers.Select(c => new SelectListItem { Value = c.Id.ToString(), Text = !string.IsNullOrEmpty(c.CompanyName) ? $"{c.CompanyName} ({c.FirstName} {c.LastName})" : $"{c.FirstName} {c.LastName} - {c.Phone}" }).OrderBy(x => x.Text).ToList();
+            var query = _context.Customers.Where(x => x.BranchId == branchId && !x.IsDeleted);
+            var rawCustomers = await query.Select(c => new { c.Id, c.CompanyName, c.FirstName, c.LastName, c.Phone }).ToListAsync();
+
+            if (selectedCustomerId.HasValue && selectedCustomerId.Value != Guid.Empty)
+            {
+                if (!rawCustomers.Any(x => x.Id == selectedCustomerId.Value))
+                {
+                    var selectedCustomer = await _context.Customers
+                        .Where(c => c.Id == selectedCustomerId.Value)
+                        .Select(c => new { c.Id, c.CompanyName, c.FirstName, c.LastName, c.Phone })
+                        .FirstOrDefaultAsync();
+
+                    if (selectedCustomer != null)
+                    {
+                        rawCustomers.Add(selectedCustomer);
+                    }
+                }
+            }
+
+            model.CustomerList = rawCustomers.Select(c => new SelectListItem
+            {
+                Value = c.Id.ToString(),
+                Text = !string.IsNullOrEmpty(c.CompanyName) ? $"{c.CompanyName} ({c.FirstName} {c.LastName})" : $"{c.FirstName} {c.LastName} - {c.Phone}",
+                Selected = selectedCustomerId.HasValue && c.Id == selectedCustomerId.Value
+            }).OrderBy(x => x.Text).ToList();
+
             model.Products = await _context.SpareParts.Where(x => x.BranchId == branchId && !x.IsDeleted).ToListAsync();
             model.Branches = await _context.Branches.ToListAsync();
         }

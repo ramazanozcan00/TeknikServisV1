@@ -8,15 +8,23 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
 <div class="container-fluid py-4">
-    <form asp-action="Edit" id="offerForm">
+    <form asp-action="Edit" id="offerForm" method="post">
         <input type="hidden" asp-for="Id" />
-        <div asp-validation-summary="All" class="alert alert-danger mb-3" style="display:none;"></div>
+        <input type="hidden" asp-for="ItemsJson" id="ItemsJson" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger mb-3">
+                <h6 class="alert-heading"><i class="fa-solid fa-circle-exclamation me-2"></i>Lütfen aşağıdaki hataları düzeltin:</h6>
+                <div asp-validation-summary="All" class="text-danger small mb-0"></div>
+            </div>
+        }
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="text-primary"><i class="fa-solid fa-pen-to-square me-2"></i>Teklifi Düzenle</h2>
             <div>
                 <a asp-action="Index" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Vazgeç</a>
-                <button type="submit" class="btn btn-primary btn-lg"><i class="fa-solid fa-save"></i> Değişiklikleri Kaydet</button>
+                <button type="button" id="btnSave" class="btn btn-primary btn-lg"><i class="fa-solid fa-save"></i> Değişiklikleri Kaydet</button>
             </div>
         </div>
 
@@ -52,6 +60,7 @@
                         <select asp-for="CustomerId" asp-items="Model.CustomerList" class="form-select select2" required>
                             <option value="">Cari Seçiniz...</option>
                         </select>
+                        <span asp-validation-for="CustomerId" class="text-danger small"></span>
                     </div>
                 </div>
 
@@ -126,7 +135,6 @@
                 </div>
             </div>
         </div>
-        <input type="hidden" asp-for="ItemsJson" id="itemsJson" />
     </form>
 </div>
 
@@ -137,35 +145,48 @@
             $('.select2').select2({ theme: 'bootstrap-5' });
             $('.select2-product').select2({ theme: 'bootstrap-5' });
 
-            // --- SAYFA YÜKLENDİĞİNDE MEVCUT VERİLERİ DOLDUR ---
-            var initialJson = '@Html.Raw(Model.ItemsJson)';
-            if(initialJson && initialJson !== 'null') {
-                var items = JSON.parse(initialJson);
-                items.forEach(function(item) {
-                    // Tabloya satır ekle
-                    addTableRow(item.ProductId, item.ProductName, item.Quantity, item.Price);
-                });
-                calculateGrandTotal();
+            // --- 1. MÜŞTERİ SEÇİMİNİ GARANTİLE ---
+            // Modelden gelen müşteri ID'sini zorla seçtiriyoruz.
+            var currentCustId = '@Model.CustomerId';
+            if(currentCustId && currentCustId !== '@Guid.Empty') {
+                $('.select2').val(currentCustId).trigger('change');
             }
-            // ---------------------------------------------------
 
+            // --- 2. ÜRÜNLERİ TABLOYA DÖK ---
+            var initialJson = '@Html.Raw(Model.ItemsJson)';
+            if(initialJson && initialJson !== 'null' && initialJson !== '') {
+                try {
+                    var items = JSON.parse(initialJson);
+                    items.forEach(function(item) {
+                        addTableRow(item.ProductId, item.ProductName, item.Quantity, item.Price);
+                    });
+                    calculateGrandTotal();
+                } catch(e) {
+                    console.error("JSON Parse Error:", e);
+                }
+            }
+
+            // Ürün seçince bilgileri doldur
             $('#productSelect').on('select2:select', function (e) {
                 var selectedOption = $(this).find(':selected');
-                $('#price').val(selectedOption.attr('data-price') || 0);
-                $('#manualName').val(selectedOption.attr('data-name') || "");
+                var pPrice = parseFloat(selectedOption.attr('data-price')) || 0;
+                var pName = selectedOption.attr('data-name') || "";
+                $('#price').val(pPrice);
+                $('#manualName').val(pName);
             });
 
+            // Ekle Butonu
             $('#btnAddRow').click(function() {
                 var prodId = $('#productSelect').val() || "";
                 var prodName = $('#manualName').val();
                 var qty = parseFloat($('#qty').val()) || 1;
                 var price = parseFloat($('#price').val()) || 0;
 
-                if(prodName === "") { alert("Lütfen ürün adı giriniz."); return; }
+                if(prodName.trim() === "") { alert("Lütfen ürün adı giriniz."); return; }
 
                 addTableRow(prodId, prodName, qty, price);
 
-                // Formu temizle
+                // Temizle
                 $('#manualName').val('');
                 $('#qty').val(1);
                 $('#productSelect').val(null).trigger('change');
@@ -173,50 +194,80 @@
                 calculateGrandTotal();
             });
 
+            // Sil Butonu
             $(document).on('click', '.btn-remove', function() {
                 $(this).closest('tr').remove();
                 calculateGrandTotal();
             });
 
-            // Tabloya satır ekleme fonksiyonu (Hem başlangıçta hem butona basınca kullanılır)
+            // Tabloya Satır Ekle (Inputlarla)
             function addTableRow(id, name, qty, price) {
                 var total = qty * price;
                 var row = `
-                    <tr data-id="${id}" data-qty="${qty}" data-price="${price}" data-name="${name}">
+                    <tr data-id="${id}">
                         <td>${name}</td>
-                        <td class="text-center">${qty}</td>
-                        <td class="text-end">${price.toFixed(2)} ₺</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm text-center item-qty" value="${qty}" min="1" onchange="updateRowTotal(this)" onkeyup="updateRowTotal(this)" />
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm text-end item-price" value="${price}" step="0.01" onchange="updateRowTotal(this)" onkeyup="updateRowTotal(this)" />
+                        </td>
                         <td class="text-end row-total">${total.toFixed(2)} ₺</td>
                         <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>`;
                 $('#itemsTable tbody').append(row);
             }
 
+            // Satır Güncelleme (Global)
+            window.updateRowTotal = function(element) {
+                var row = $(element).closest('tr');
+                var qty = parseFloat(row.find('.item-qty').val()) || 0;
+                var price = parseFloat(row.find('.item-price').val()) || 0;
+                var total = qty * price;
+                row.find('.row-total').text(total.toFixed(2) + " ₺");
+                calculateGrandTotal();
+            }
+
+            // Genel Toplam
             function calculateGrandTotal() {
                 var total = 0;
-                $('.row-total').each(function() {
-                    var val = parseFloat($(this).text().replace(' ₺', ''));
-                    if(!isNaN(val)) total += val;
+                $('#itemsTable tbody tr').each(function() {
+                    var row = $(this);
+                    var qty = parseFloat(row.find('.item-qty').val()) || 0;
+                    var price = parseFloat(row.find('.item-price').val()) || 0;
+                    total += (qty * price);
                 });
                 $('#grandTotal').text(total.toFixed(2) + " ₺");
             }
 
-            $('#offerForm').submit(function() {
+            // --- KAYDETME İŞLEMİ ---
+            $('#btnSave').click(function() {
                 var items = [];
                 $('#itemsTable tbody tr').each(function() {
                     var row = $(this);
                     var pid = row.attr('data-id');
-                    if(pid === "" || pid === "undefined" || pid === "null") pid = null;
+
+                    if(!pid || pid === "undefined" || pid === "null" || pid === "") pid = null;
+
+                    var name = row.find('td:eq(0)').text().trim();
+                    var qty = parseFloat(row.find('.item-qty').val()) || 0;
+                    var price = parseFloat(row.find('.item-price').val()) || 0;
 
                     items.push({
                         ProductId: pid,
-                        ProductName: row.attr('data-name'),
-                        Quantity: parseFloat(row.attr('data-qty')),
-                        Price: parseFloat(row.attr('data-price')),
-                        Total: 0
+                        ProductName: name,
+                        Quantity: qty,
+                        Price: price,
+                        Total: qty * price
                     });
                 });
-                $('#itemsJson').val(JSON.stringify(items));
+
+                // JSON'a çevir ve inputa yaz
+                var jsonStr = JSON.stringify(items);
+                $('#ItemsJson').val(jsonStr);
+
+                // Formu gönder
+                $('#offerForm').submit();
             });
         });
     </script>

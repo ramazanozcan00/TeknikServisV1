@@ -1,5 +1,5 @@
-using Hangfire; // Eklendi
-using Hangfire.SqlServer; // Eklendi
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TeknikServis.Core.Entities;
@@ -10,7 +10,7 @@ using TeknikServis.Data.UnitOfWork;
 using TeknikServis.Service.Services;
 using TeknikServis.Web.Hubs;
 using TeknikServis.Web.Identity;
-using TeknikServis.Web.Services; // ISmsService ve IletiMerkeziSmsService burada
+using TeknikServis.Web.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// --- HANGFIRE KONFÝGÜRASYONU BAÞLANGIÇ ---
+// --- HANGFIRE KONFÝGÜRASYONU ---
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -34,7 +34,6 @@ builder.Services.AddHangfire(configuration => configuration
     }));
 
 builder.Services.AddHangfireServer();
-// --- HANGFIRE KONFÝGÜRASYONU BÝTÝÞ ---
 
 builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
 {
@@ -48,23 +47,15 @@ builder.Services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders()
 .AddClaimsPrincipalFactory<CustomUserClaimsPrincipalFactory>()
-.AddTokenProvider<EmailCodeTokenProvider>("EmailCode"); // 6 Haneli Kod Ýçin
+.AddTokenProvider<EmailCodeTokenProvider>("EmailCode");
 
-// SignalR (Chat Ýçin)
+// SignalR
 builder.Services.AddSignalR();
 
 // Servisler
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
-
-// --- YENÝ EKLENEN: SMS SERVÝSÝ (IletiMerkezi) ---
-// HttpClient ile birlikte servisi kaydediyoruz
 builder.Services.AddScoped<ISmsService, IletiMerkeziSmsService>();
-// ------------------------------------------------
-
-// --- YEDEKLEME SERVÝSÝ KAYDI ---
 builder.Services.AddScoped<IBackupService, BackupService>();
-// -------------------------------
-
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -74,8 +65,8 @@ builder.Services.AddScoped<IEDevletService, EDevletService>();
 builder.Services.AddScoped<TenantService>();
 
 builder.Services.AddControllersWithViews();
-
 builder.Services.AddHttpClient();
+
 // Yetki Politikalarý
 builder.Services.AddAuthorization(options =>
 {
@@ -93,7 +84,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
 });
 
-// Türkçe Karakter ve Tarih Ayarý
+// Dil Ayarý
 var supportedCultures = new[] { "tr-TR" };
 var localizationOptions = new Microsoft.AspNetCore.Builder.RequestLocalizationOptions()
     .SetDefaultCulture("tr-TR")
@@ -109,7 +100,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseRequestLocalization(localizationOptions); // Dil ayarý
+app.UseRequestLocalization(localizationOptions);
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
@@ -121,12 +112,11 @@ app.UseAuthorization();
 // Chat Rotasý
 app.MapHub<SupportHub>("/supportHub");
 
-// --- HANGFIRE DASHBOARD VE ZAMANLAYICI AYARI ---
-
+// Hangfire Dashboard
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new[] { new HangfireAuthorizationFilter() },
-    IgnoreAntiforgeryToken = true // Bazý durumlarda token hatasýný önler
+    IgnoreAntiforgeryToken = true
 });
 
 RecurringJob.AddOrUpdate<IBackupService>(
@@ -134,23 +124,20 @@ RecurringJob.AddOrUpdate<IBackupService>(
     service => service.RunDailyBackupAsync(),
     Cron.Daily(3)
 );
-// -----------------------------------------------
 
-// --- ROTA TANIMLARI ---
-
-// 1. Admin Paneli (Area) Rotasý
+// Rota Tanýmlarý
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
-// 2. Standart Rota
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Otomatik Rol Oluþturma
+// --- UYGULAMA BAÞLANGIÇ ÝÞLEMLERÝ ---
 using (var scope = app.Services.CreateScope())
 {
+    // 1. Rolleri Kontrol Et / Oluþtur
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     var roles = new[] { "Admin", "Personel", "Deneme", "Technician" };
 
@@ -160,6 +147,18 @@ using (var scope = app.Services.CreateScope())
         {
             await roleManager.CreateAsync(new IdentityRole<Guid>(role));
         }
+    }
+
+    // 2. TÜM VERÝTABANLARINI GÜNCELLE (Multi-Tenant Migration)
+    // Bu kýsým, her baþlatmada tüm þube veritabanlarýný gezerek yeni eklenen tablolarý veya güncellemeleri yansýtýr.
+    try
+    {
+        var tenantService = scope.ServiceProvider.GetRequiredService<TenantService>();
+        await tenantService.UpdateAllDatabasesAsync();
+    }
+    catch (Exception ex)
+    {
+        // Loglama yapýlabilir: Console.WriteLine("DB Güncelleme hatasý: " + ex.Message);
     }
 }
 
