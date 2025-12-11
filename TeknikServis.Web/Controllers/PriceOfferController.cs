@@ -445,27 +445,63 @@ namespace TeknikServis.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> SendOfferMail(Guid id)
+        public async Task<IActionResult> SendOfferMail(Guid id, IFormFile pdfBlob)
         {
             try
             {
-                var offer = await _context.PriceOffers.Include(x => x.Customer).Include(x => x.Branch).Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == id);
+                var offer = await _context.PriceOffers
+                    .Include(x => x.Customer)
+                    .Include(x => x.Branch)
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(x => x.Id == id);
+
                 if (offer == null) return Json(new { success = false, message = "Teklif bulunamadı." });
+
                 string toEmail = offer.Customer.Email;
                 if (string.IsNullOrEmpty(toEmail)) return Json(new { success = false, message = "Müşterinin e-posta adresi yok." });
+
+                byte[] attachmentData = null;
+                string attachmentName = null;
+
+                if (pdfBlob != null && pdfBlob.Length > 0)
+                {
+                    using (var ms = new MemoryStream())
+                    {
+                        await pdfBlob.CopyToAsync(ms);
+                        attachmentData = ms.ToArray();
+
+                        // --- DÜZELTİLEN SATIR BURASI ---
+                        attachmentName = $"Teklif_{offer.DocumentNo}.pdf";
+                    }
+                }
+
+                ViewBag.IsEmail = true;
+
+                // Render için gerekli verileri tekrar doldur
                 var branchId = offer.BranchId ?? Guid.Empty;
                 var branchInfo = await _context.Set<BranchInfo>().FirstOrDefaultAsync(x => x.BranchId == branchId);
                 ViewBag.BranchInfo = branchInfo;
+
                 var user = await _userManager.GetUserAsync(User);
                 ViewBag.PersonnelName = user != null ? $"{user.FullName}" : "Yetkili Personel";
-                ViewBag.IsEmail = true;
-                string htmlBody = await RenderViewToStringAsync("Print", offer);
-                await _emailService.SendEmailAsync(toEmail, $"Fiyat Teklifi: {offer.DocumentNo}", htmlBody);
-                return Json(new { success = true, message = "Mail başarıyla gönderildi." });
-            }
-            catch (Exception ex) { return Json(new { success = false, message = "Hata: " + ex.Message }); }
-        }
 
+                string htmlBody = await RenderViewToStringAsync("Print", offer);
+
+                await _emailService.SendEmailWithAttachmentAsync(
+                    toEmail,
+                    $"Fiyat Teklifi - {offer.DocumentNo}",
+                    "Sayın Müşterimiz,<br>Fiyat teklifiniz ektedir.<br><br>" + htmlBody,
+                    attachmentData,
+                    attachmentName
+                );
+
+                return Json(new { success = true, message = "Teklif PDF olarak mail gönderildi." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Mail gönderme hatası: " + ex.Message });
+            }
+        }
         private async Task<string> RenderViewToStringAsync(string viewName, object model)
         {
             ViewData.Model = model;

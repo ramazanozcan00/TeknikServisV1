@@ -62,9 +62,8 @@
                         <th>Müşteri</th>
                         <th>Cihaz Bilgisi</th>
                         <th>Seri No</th>
-                        @* Arıza Tanımı sütunu kaldırıldı *@
                         <th>Durum</th>
-                        <th>Ücret</th>
+                        <th>Kalan Gün</th>
                         <th>Tarih</th>
                         <th class="text-end pe-4">İşlemler</th>
                     </tr>
@@ -85,13 +84,11 @@
                                         <div class="fw-bold d-flex align-items-center gap-2">
                                             @item.Customer?.FirstName @item.Customer?.LastName
 
-                                            @* --- Firma İsmi Eklendi --- *@
                                             @if (!string.IsNullOrEmpty(item.Customer?.CompanyName))
                                             {
                                                 <span class="text-muted small fw-normal">(@item.Customer.CompanyName)</span>
                                             }
 
-                                            @* Müşteri silindiyse uyarı ver *@
                                             @if (item.Customer != null && item.Customer.IsDeleted)
                                             {
                                                 <span class="badge bg-danger bg-opacity-75" style="font-size: 0.65rem;">
@@ -118,8 +115,6 @@
                             </td>
                             <td class="font-monospace">@item.SerialNumber</td>
 
-                            @* Arıza Tanımı hücresi kaldırıldı *@
-
                             <td>
                                 @if (item.Status == "Bekliyor")
                                 {
@@ -134,16 +129,39 @@
                                     <span class="badge bg-info rounded-pill">@item.Status</span>
                                 }
                             </td>
+
                             <td>
-                                @if (item.TotalPrice.HasValue)
-                                {
-                                    <span class="fw-bold text-dark">@item.TotalPrice.Value.ToString("C2")</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
+                                @{
+                                    // Eğer işlem tamamlandıysa veya iptalse gün saymaya gerek yok
+                                    if (item.Status == "Tamamlandı" || item.Status == "İptal" || item.Status == "Teslim Edildi")
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                    else
+                                    {
+                                        // Maksimum servis süresi (Örn: 20 gün)
+                                        int maxGun = 20;
+                                        // Geçen gün sayısı
+                                        var gecenSure = (DateTime.Now - item.CreatedDate).TotalDays;
+                                        int kalanGun = maxGun - (int)gecenSure;
+
+                                        if (kalanGun > 10)
+                                        {
+                                            <span class="badge bg-success">@kalanGun Gün</span>
+                                        }
+                                        else if (kalanGun >= 0)
+                                        {
+                                            <span class="badge bg-warning text-dark">@kalanGun Gün</span>
+                                        }
+                                        else
+                                        {
+                                            // Süre aşıldıysa negatif gösterir
+                                            <span class="badge bg-danger">Aşıldı (@Math.Abs(kalanGun))</span>
+                                        }
+                                    }
                                 }
                             </td>
+
                             <td class="text-muted small">@item.CreatedDate.ToString("dd MMM yyyy")</td>
 
                             <td class="text-end pe-4">
@@ -173,7 +191,6 @@
                     {
                         <tr>
                             <td colspan="8" class="text-center py-5 text-muted">
-                                @* colspan 9'dan 8'e düşürüldü çünkü 1 kolon sildik *@
                                 <i class="fa-solid fa-folder-open fs-1 mb-3 d-block text-secondary opacity-50"></i>
                                 Henüz kayıt bulunamadı.
                             </td>
@@ -189,13 +206,8 @@
         <div class="card-footer bg-white py-3 border-top">
             <nav aria-label="Sayfalama">
                 <ul class="pagination justify-content-center mb-0 shadow-sm">
-
                     <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                        <a class="page-link border-0"
-                           asp-action="Index"
-                           asp-route-page="@(currentPage - 1)"
-                           asp-route-s="@search"
-                           asp-route-status="@status">
+                        <a class="page-link border-0" asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-s="@search" asp-route-status="@status">
                             <i class="fa-solid fa-chevron-left small"></i> Önceki
                         </a>
                     </li>
@@ -205,11 +217,7 @@
                         if (i == 1 || i == totalPages || (i >= currentPage - 2 && i <= currentPage + 2))
                         {
                             <li class="page-item @(i == currentPage ? "active" : "")">
-                                <a class="page-link border-0 @(i == currentPage ? "fw-bold" : "")"
-                                   asp-action="Index"
-                                   asp-route-page="@i"
-                                   asp-route-s="@search"
-                                   asp-route-status="@status">@i</a>
+                                <a class="page-link border-0 @(i == currentPage ? "fw-bold" : "")" asp-action="Index" asp-route-page="@i" asp-route-s="@search" asp-route-status="@status">@i</a>
                             </li>
                         }
                         else if (i == currentPage - 3 || i == currentPage + 3)
@@ -219,15 +227,10 @@
                     }
 
                     <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                        <a class="page-link border-0"
-                           asp-action="Index"
-                           asp-route-page="@(currentPage + 1)"
-                           asp-route-s="@search"
-                           asp-route-status="@status">
+                        <a class="page-link border-0" asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-s="@search" asp-route-status="@status">
                             Sonraki <i class="fa-solid fa-chevron-right small"></i>
                         </a>
                     </li>
-
                 </ul>
             </nav>
         </div>
@@ -236,15 +239,11 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
-        // Tüm silme formlarını yakala
         document.querySelectorAll('.delete-form').forEach(form => {
             form.addEventListener('submit', function(e) {
-                e.preventDefault(); // Formun hemen gitmesini engelle
-
+                e.preventDefault();
                 const formElement = this;
-
                 Swal.fire({
                     title: 'Emin misiniz?',
                     text: "Bu servis kaydı silinecek! Bu işlem geri alınamaz.",
@@ -256,7 +255,7 @@
                     cancelButtonText: 'Vazgeç'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        formElement.submit(); // Kullanıcı 'Evet' derse formu gönder
+                        formElement.submit();
                     }
                 });
             });

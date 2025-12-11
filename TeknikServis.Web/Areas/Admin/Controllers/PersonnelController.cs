@@ -113,8 +113,9 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     IsSmsAuthEnabled = model.IsSmsAuthEnabled,
                     TwoFactorEnabled = model.IsEmailAuthEnabled || model.IsSmsAuthEnabled,
 
-                    // Görünüm
+                    // Görünüm ve Modül Yetkileri
                     IsSidebarVisible = model.IsSidebarVisible,
+                    IsPriceOfferEnabled = model.IsPriceOfferEnabled, // EKLENDİ
 
                     IsDeleted = false,
                     CreatedDate = DateTime.Now
@@ -241,6 +242,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 IsEmailAuthEnabled = user.IsEmailAuthEnabled,
                 IsSmsAuthEnabled = user.IsSmsAuthEnabled,
                 IsSidebarVisible = user.IsSidebarVisible,
+                IsPriceOfferEnabled = user.IsPriceOfferEnabled, // EKLENDİ
 
                 SelectedBranchIds = user.AuthorizedBranches.Select(b => b.BranchId).ToList()
             };
@@ -275,6 +277,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             user.TwoFactorEnabled = model.IsEmailAuthEnabled || model.IsSmsAuthEnabled;
 
             user.IsSidebarVisible = model.IsSidebarVisible;
+            user.IsPriceOfferEnabled = model.IsPriceOfferEnabled; // EKLENDİ
             user.UpdatedDate = DateTime.Now;
 
             if (!string.IsNullOrEmpty(model.Password))

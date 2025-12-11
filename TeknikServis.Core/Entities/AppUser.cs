@@ -29,6 +29,8 @@ namespace TeknikServis.Core.Entities
 
         public bool IsShipmentAuthEnabled { get; set; } = false;
 
+        public bool IsPriceOfferEnabled { get; set; } = false;
+
         // --- GÜVENLİK DOĞRULAMA AYARLARI ---
         public bool IsSmsAuthEnabled { get; set; } = false;
         public bool IsEmailAuthEnabled { get; set; } = false;
