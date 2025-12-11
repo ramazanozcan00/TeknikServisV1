@@ -101,7 +101,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseRequestLocalization(localizationOptions);
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -161,5 +161,6 @@ using (var scope = app.Services.CreateScope())
         // Loglama yapýlabilir: Console.WriteLine("DB Güncelleme hatasý: " + ex.Message);
     }
 }
+app.MapControllers();
 
 app.Run();
