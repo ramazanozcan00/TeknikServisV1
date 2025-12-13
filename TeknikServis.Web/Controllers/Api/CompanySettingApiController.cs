@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace TeknikServis.Web.Controllers.Api
 {
-    [Route("api/[controller]")]
+    [Route("api/CompanySetting")] 
     [ApiController]
     public class CompanySettingApiController : ControllerBase
     {
