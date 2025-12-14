@@ -1,4 +1,4 @@
-﻿@model TeknikServis.Web.Models.LoginViewModel
+﻿@* @model TeknikServis.Web.Models.LoginViewModel
 @{
     Layout = null; // Menüleri (Layout'u) İptal Et
     ViewData["Title"] = "Giriş Yap";
@@ -96,4 +96,304 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+</html> *@
+
+@model TeknikServis.Web.Models.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Giriş Yap";
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Teknik Servis Pro</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #2563eb; /* Kurumsal Mavi */
+            --primary-hover: #1d4ed8;
+            --secondary-bg: #f8fafc; /* Açık Gri Arkaplan */
+            --text-dark: #0f172a; /* Koyu Metin */
+            --text-muted: #64748b; /* Silik Metin */
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #fff;
+            height: 100vh;
+            overflow: hidden; /* Taşmayı engelle */
+        }
+
+        /* Sol Taraf - Görsel Alanı */
+        .login-banner {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(30, 64, 175, 0.9)), url('https://images.unsplash.com/photo-1581092921461-eab62e97a783?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 4rem;
+            color: white;
+            position: relative;
+        }
+
+            .login-banner::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            }
+
+        .banner-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Sağ Taraf - Form Alanı */
+        .login-form-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            overflow-y: auto;
+        }
+
+        .login-wrapper {
+            width: 100%;
+            max-width: 440px;
+            padding: 2rem;
+        }
+
+        /* Marka ve Başlıklar */
+        .brand-logo {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-text h2 {
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Modern Input Alanları */
+        .form-floating > .form-control {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            height: 3.5rem;
+            padding-left: 1rem;
+            transition: all 0.2s ease;
+        }
+
+            .form-floating > .form-control:focus {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            }
+
+        .form-floating > label {
+            padding-left: 1rem;
+            color: var(--text-muted);
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            z-index: 5;
+        }
+
+        /* Butonlar */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+            .btn-primary:hover {
+                background-color: var(--primary-hover);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            }
+
+        /* Checkbox */
+        .form-check-input {
+            width: 1.2rem;
+            height: 1.2rem;
+            margin-top: 0.2rem;
+            border-color: #cbd5e1;
+            cursor: pointer;
+        }
+
+            .form-check-input:checked {
+                background-color: var(--primary-color);
+                border-color: var(--primary-color);
+            }
+
+        /* Animasyonlar */
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @@keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobil Uyumluluk */
+        @@media (max-width: 991px) {
+            .login-banner {
+                display: none;
+            }
+
+            .login-form-container {
+                background-color: var(--secondary-bg);
+            }
+
+            .login-wrapper {
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+
+            <div class="col-lg-7 d-none d-lg-block">
+                <div class="login-banner">
+                    <div class="banner-content fade-in-up">
+                        <div class="mb-4">
+                            <span class="badge bg-white bg-opacity-25 border border-white border-opacity-25 text-white px-3 py-2 rounded-pill fw-light">
+                                v1.0 Enterprise
+                            </span>
+                        </div>
+                        <h1 class="display-4 fw-bold mb-4">Teknik Servis Yönetiminde<br>Profesyonel Çözüm.</h1>
+                        <p class="lead text-white-50 mb-5" style="max-width: 500px;">
+                            İş akışlarınızı hızlandırın, müşteri memnuniyetini artırın ve tüm süreçleri tek bir panelden yönetin.
+                        </p>
+
+                        <div class="d-flex gap-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-circle">
+                                    <i class="fa-solid fa-shield-halved fa-lg"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-white-50">Güvenlik</small>
+                                    <span class="fw-medium">Uçtan Uca Şifreli</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-circle">
+                                    <i class="fa-solid fa-headset fa-lg"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-white-50">Destek</small>
+                                    <span class="fw-medium">7/24 Aktif</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="login-form-container">
+                    <div class="login-wrapper fade-in-up">
+
+                        <div class="text-center text-lg-start">
+                            <a href="/" class="brand-logo text-decoration-none">
+                                <div class="bg-primary text-white rounded-3 p-2 me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fa-solid fa-wrench"></i>
+                                </div>
+                                TeknikServis
+                            </a>
+                        </div>
+
+                        <div class="welcome-text text-center text-lg-start mb-5">
+                            <h2>Tekrar Hoşgeldiniz 👋</h2>
+                            <p class="text-muted">Yönetim paneline erişmek için giriş yapın.</p>
+                        </div>
+
+                        <form asp-action="Login" method="post">
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger mb-4 rounded-3 small"></div>
+
+                            <div class="form-floating mb-3 position-relative">
+                                <input asp-for="Email" class="form-control" id="floatingInput" placeholder="name@example.com">
+                                <label for="floatingInput">E-Posta Adresi</label>
+                                <span class="input-icon"><i class="fa-regular fa-envelope"></i></span>
+                                <span asp-validation-for="Email" class="text-danger small ms-1"></span>
+                            </div>
+
+                            <div class="form-floating mb-3 position-relative">
+                                <input asp-for="Password" type="password" class="form-control" id="floatingPassword" placeholder="Şifre">
+                                <label for="floatingPassword">Şifre</label>
+                                <span class="input-icon"><i class="fa-solid fa-lock-open"></i></span>
+                                <span asp-validation-for="Password" class="text-danger small ms-1"></span>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" asp-for="RememberMe" id="flexCheckDefault">
+                                    <label class="form-check-label text-muted small user-select-none" for="flexCheckDefault">
+                                        Beni Hatırla
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mb-4">
+                                <button type="submit" class="btn btn-primary">
+                                    Güvenli Giriş Yap <i class="fa-solid fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+
+                        </form>
+
+                        <div class="mt-5 text-center border-top pt-4">
+                            <small class="text-muted d-block">&copy; @DateTime.Now.Year Teknik Servis Pro. Tüm hakları saklıdır.</small>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
 </html>
+
