@@ -1,63 +1,84 @@
 ﻿@model TeknikServis.Core.Entities.EmailSetting
-
 @{
     ViewData["Title"] = "Mail Ayarları";
+    var branches = ViewBag.Branches as List<TeknikServis.Core.Entities.Branch>;
+    var selectedBranchId = (Guid)ViewBag.SelectedBranchId;
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow border-0">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0"><i class="fa-solid fa-envelope-open-text me-2"></i>Sistem Mail Ayarları</h5>
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <h5 class="mb-0 text-warning"><i class="fa-solid fa-code-branch me-2"></i>Ayar Yapılacak Şube</h5>
+                        <small class="text-muted">Ayarları düzenlemek istediğiniz şubeyi seçiniz.</small>
+                    </div>
+                    <div style="width: 300px;">
+                        <select class="form-select fw-bold" onchange="window.location.href='?branchId='+this.value">
+                            @if (branches != null && branches.Any())
+                            {
+                                foreach (var branch in branches)
+                                {
+                                    if (branch.Id == selectedBranchId)
+                                    {
+                                        <option value="@branch.Id" selected>@branch.BranchName</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@branch.Id">@branch.BranchName</option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled>Şube bulunamadı</option>
+                            }
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-4">
+        </div>
+    </div>
 
-                <div class="alert alert-info small">
-                    <i class="fa-solid fa-circle-info me-1"></i>
-                    Burada yapacağınız değişiklikler, sistemin mail gönderim altyapısını (Bildirimler, Şifre Sıfırlama vb.) etkiler.
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-primary"><i class="fa-solid fa-envelope-open-text me-2"></i>Mail Sunucu Ayarları</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <input type="hidden" asp-for="BranchId" value="@selectedBranchId" />
+                <input type="hidden" asp-for="Id" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="SmtpHost" class="form-label">SMTP Sunucusu</label>
+                        <input asp-for="SmtpHost" class="form-control" placeholder="mail.siteadi.com" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="SmtpPort" class="form-label">SMTP Port</label>
+                        <input asp-for="SmtpPort" class="form-control" placeholder="587" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="SenderEmail" class="form-label">Gönderen Email</label>
+                        <input asp-for="SenderEmail" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="SenderPassword" class="form-label">Email Şifresi</label>
+                        <input asp-for="SenderPassword" class="form-control" type="password" value="@Model.SenderPassword" placeholder="Değiştirmek istemiyorsanız boş bırakın" />
+                    </div>
+                </div>
+                <div class="mb-3 form-check">
+                    <input asp-for="EnableSsl" class="form-check-input" />
+                    <label asp-for="EnableSsl" class="form-check-label">SSL Kullan (Güvenli Bağlantı)</label>
                 </div>
 
-                <form asp-action="Email" method="post">
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">SMTP Sunucusu (Host)</label>
-                        <input asp-for="SmtpHost" class="form-control" placeholder="Örn: smtp.gmail.com" required />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">SMTP Port</label>
-                        <input asp-for="SmtpPort" class="form-control" placeholder="Örn: 587" required />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Gönderen E-Posta</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fa-solid fa-at"></i></span>
-                            <input asp-for="SenderEmail" class="form-control" placeholder="teknik@servis.com" required />
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Şifre / Uygulama Şifresi</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fa-solid fa-key"></i></span>
-                            <input asp-for="SenderPassword" type="password" class="form-control" value="@Model.SenderPassword" required />
-                        </div>
-                    </div>
-
-                    <div class="mb-4 form-check form-switch">
-                        <input class="form-check-input" type="checkbox" asp-for="EnableSsl" id="sslCheck">
-                        <label class="form-check-label" for="sslCheck">SSL/TLS Kullan (Güvenli Bağlantı)</label>
-                    </div>
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fa-solid fa-save me-2"></i>Ayarları Kaydet
-                        </button>
-                    </div>
-                </form>
-
-            </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save me-2"></i>Kaydet</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

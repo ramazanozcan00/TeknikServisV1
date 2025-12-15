@@ -101,14 +101,12 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("TechnicianPanel", "ServiceTicket");
             }
 
-            // --- BRANCH ID TANIMLAMASI (Eksik olan kýsým burasýydý) ---
+            // --- BRANCH ID KONTROLÜ ---
             var branchId = User.GetBranchId();
             if (branchId == Guid.Empty)
             {
-                // Þubesi olmayan veya oturumu düþen kullanýcýyý at
                 return RedirectToAction("Logout", "Account");
             }
-            // ---------------------------------------------------------
 
             // 1. Tüm Biletleri Çek
             var allTickets = await _ticketService.GetAllTicketsByBranchAsync(branchId);
@@ -117,38 +115,46 @@ namespace TeknikServis.Web.Controllers
             // 2. Müþterileri Çek
             var customers = await _customerService.GetCustomersByBranchAsync(branchId);
 
-            // 3. Kritik Stok Sayýsýný Çek
-            // (Stok miktarý 10 ve altý olanlar kritik kabul edildi)
+            // 3. Kritik Stok Sayýsýný Çek (Miktarý <= 10)
             var lowStockParts = await _unitOfWork.Repository<SparePart>()
                 .FindAsync(x => x.BranchId == branchId && x.Quantity <= 10 && !x.IsDeleted);
 
             // --- HESAPLAMALAR ---
 
-            // Tamamlanmýþ Ýþler
-            var completedTickets = allTickets.Where(x => x.Status == "Tamamlandý").ToList();
+            // 1. AKTÝF SERVÝSLER (GÜNCELLENDÝ): 
+            // "Tamamlandý", "Ýptal" VE "Teslim Edildi" olanlar HARÝÇ hepsi aktiftir.
+            var activeTickets = allTickets
+                .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi")
+                .ToList();
 
-            // Ciro Hesaplarý (Opsiyonel: View'da kullanýlýyor)
+            // 2. Acil Ýþlem Bekleyen: Durumu "Bekliyor" olan ve 3 günden eski kayýtlar
+            var urgentPendingCount = allTickets.Count(x => x.Status == "Bekliyor" && (DateTime.Now - x.CreatedDate).TotalDays > 3);
+
+            // 3. TAMAMLANANLAR (GÜNCELLENDÝ):
+            // "Tamamlandý" VEYA "Teslim Edildi" olanlar
+            var completedTickets = allTickets
+                .Where(x => x.Status == "Tamamlandý" || x.Status == "Teslim Edildi")
+                .ToList();
+
+            // Ciro Hesaplarý
             var now = DateTime.Now;
             var currentMonthStart = new DateTime(now.Year, now.Month, 1);
-
             decimal monthlyRevenue = completedTickets
                  .Where(x => (x.InvoiceDate ?? x.UpdatedDate ?? x.CreatedDate) >= currentMonthStart)
                  .Sum(x => x.TotalPrice ?? 0);
-
             decimal totalRevenue = completedTickets.Sum(x => x.TotalPrice ?? 0);
 
-            // --- ACÝL KAYITLAR (YENÝ MANTIK) ---
-            // Tamamlanmamýþ, Ýptal edilmemiþ kayýtlarý, ESKÝDEN YENÝYE sýrala.
-            var urgentTickets = allTickets
-                .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal")
-                .OrderBy(x => x.CreatedDate) // En eski tarihli en üstte (En acil)
+            // Acil Kayýtlar Listesi (GÜNCELLENDÝ)
+            // Listede "Teslim Edildi" statüsündekiler görünmesin
+            var urgentTicketsList = allTickets
+                .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi")
+                .OrderBy(x => x.CreatedDate)
                 .Take(5)
                 .ToList();
 
-            // Durum Grafiði Verileri
+            // Grafik Verileri
             var statusGroups = allTickets.GroupBy(x => x.Status)
                                          .Select(g => new { Status = g.Key, Count = g.Count() });
-
             string statusLabels = string.Join(",", statusGroups.Select(x => $"'{x.Status}'"));
             string statusCounts = string.Join(",", statusGroups.Select(x => x.Count));
 
@@ -156,9 +162,9 @@ namespace TeknikServis.Web.Controllers
             var model = new DashboardViewModel
             {
                 // Kartlar
-                ActiveTickets = allTickets.Count(x => x.Status != "Tamamlandý" && x.Status != "Ýptal"),
-                CompletedTickets = completedTickets.Count,
-                PendingRepairs = allTickets.Count(x => x.Status == "Bekliyor"),
+                ActiveTickets = activeTickets.Count,      // <-- Artýk "Teslim Edildi" olanlarý saymýyor
+                PendingRepairs = urgentPendingCount,
+                CompletedTickets = completedTickets.Count, // <-- "Teslim Edildi" olanlarý da kapsýyor
                 TotalCustomers = customers.Count(),
                 LowStockCount = lowStockParts.Count(),
 
@@ -168,7 +174,7 @@ namespace TeknikServis.Web.Controllers
 
                 // Listeler
                 RecentTickets = allTickets.OrderByDescending(x => x.CreatedDate).Take(6).ToList(),
-                UrgentTickets = urgentTickets, // <-- Acil kayýtlar listesi
+                UrgentTickets = urgentTicketsList,
 
                 // Grafikler
                 TicketStatusLabels = statusLabels,
