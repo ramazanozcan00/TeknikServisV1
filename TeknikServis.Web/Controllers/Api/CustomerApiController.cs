@@ -8,7 +8,9 @@ using System.Collections.Generic;
 
 namespace TeknikServis.Web.Controllers.Api
 {
-    [Route("api/[controller]")]
+    // ESKİ HALİ: [Route("api/[controller]")] -> Bu "api/CustomerApi" üretiyordu.
+    // YENİ HALİ: Aşağıdaki gibi sabitledik.
+    [Route("api/Customer")]
     [ApiController]
     public class CustomerApiController : ControllerBase
     {
@@ -19,11 +21,9 @@ namespace TeknikServis.Web.Controllers.Api
             _unitOfWork = unitOfWork;
         }
 
-        // --- GÜNCELLENEN AKILLI METOD ---
         [HttpGet("FormData")]
         public async Task<IActionResult> GetFormData()
         {
-            // 1. CompanySetting Tablosundan Firmaları Çek
             var companies = await _unitOfWork.Repository<CompanySetting>()
                 .FindAsync(x => !string.IsNullOrEmpty(x.CompanyName));
 
@@ -33,61 +33,71 @@ namespace TeknikServis.Web.Controllers.Api
                 .OrderBy(n => n)
                 .ToList();
 
-            // 2. Eğer veritabanı boşsa, test amaçlı bunları ekle (Listeyi dolu görmek için)
             if (!companyNames.Any())
             {
-                companyNames.Add("Örnek Firma A.Ş.");
-                companyNames.Add("Deneme Şirketi Ltd.");
+                companyNames.Add("Bireysel");
+                companyNames.Add("Kurumsal (Diğer)");
             }
 
-            // 3. Listeyi Gönder
-            return Ok(new
-            {
-                Companies = companyNames
-            });
+            return Ok(new { Companies = companyNames });
         }
 
-        // --- KAYIT METODU (AYNI KALACAK) ---
         [HttpPost("Create")]
         public async Task<IActionResult> Create([FromBody] CustomerDto model)
         {
-            if (model == null) return BadRequest("Veri gelmedi.");
+            if (model == null) return BadRequest("Veri gönderilmedi.");
 
-            // Eğer mobilden şube ID gelmezse (0000...) varsayılan bir şube bulalım
-            Guid targetBranchId = model.BranchId;
-            if (targetBranchId == Guid.Empty)
+            if (string.IsNullOrWhiteSpace(model.FirstName) || string.IsNullOrWhiteSpace(model.Phone))
+                return BadRequest("Ad ve Telefon alanları zorunludur.");
+
+            try
             {
-                var defaultBranch = (await _unitOfWork.Repository<Branch>().GetAllAsync()).FirstOrDefault();
-                targetBranchId = defaultBranch?.Id ?? Guid.Empty;
+                // Şube ID boş ise varsayılan şubeyi bul
+                Guid targetBranchId = model.BranchId;
+                if (targetBranchId == Guid.Empty)
+                {
+                    var defaultBranch = (await _unitOfWork.Repository<Branch>().GetAllAsync()).FirstOrDefault();
+
+                    if (defaultBranch == null)
+                        return BadRequest("Sistemde kayıtlı şube bulunamadı. Web panelinden şube ekleyiniz.");
+
+                    targetBranchId = defaultBranch.Id;
+                }
+
+                // Mükerrer kayıt kontrolü
+                var existingCustomer = (await _unitOfWork.Repository<Customer>()
+                    .FindAsync(x => x.Phone == model.Phone)).FirstOrDefault();
+
+                if (existingCustomer != null)
+                    return BadRequest($"Bu telefon numarası ({model.Phone}) zaten kayıtlı.");
+
+                var customer = new Customer
+                {
+                    FirstName = model.FirstName,
+                    LastName = model.LastName ?? "",
+                    Phone = model.Phone,
+                    Email = model.Email ?? "",
+                    Address = model.Address,
+                    City = model.City,
+                    District = model.District,
+                    TCNo = model.TCNo,
+                    CompanyName = model.CompanyName,
+                    TaxOffice = model.TaxOffice,
+                    TaxNumber = model.TaxNumber,
+                    CustomerType = !string.IsNullOrEmpty(model.CompanyName) ? "Kurumsal" : "Normal",
+                    BranchId = targetBranchId,
+                    Phone2 = model.Phone2
+                };
+
+                await _unitOfWork.Repository<Customer>().AddAsync(customer);
+                await _unitOfWork.CommitAsync();
+
+                return Ok(new { Message = "Müşteri başarıyla kaydedildi.", Id = customer.Id });
             }
-
-            var exists = (await _unitOfWork.Repository<Customer>()
-                .FindAsync(x => x.Phone == model.Phone)).Any(); // Şube bağımsız telefon kontrolü daha güvenli
-
-            if (exists) return BadRequest("Bu telefon numarası zaten kayıtlı.");
-
-            var customer = new Customer
+            catch (Exception ex)
             {
-                FirstName = model.FirstName,
-                LastName = model.LastName,
-                Phone = model.Phone,
-                Email = model.Email ?? "",
-                Address = model.Address,
-                City = model.City,
-                District = model.District,
-                TCNo = model.TCNo,
-                CompanyName = model.CompanyName,
-                TaxOffice = model.TaxOffice,
-                TaxNumber = model.TaxNumber,
-                CustomerType = !string.IsNullOrEmpty(model.CustomerType) ? model.CustomerType : "Normal",
-                BranchId = targetBranchId, // Güvenli ID
-                Phone2 = model.Phone2
-            };
-
-            await _unitOfWork.Repository<Customer>().AddAsync(customer);
-            await _unitOfWork.CommitAsync();
-
-            return Ok(new { Message = "Müşteri başarıyla kaydedildi.", Id = customer.Id });
+                return StatusCode(500, $"Sunucu hatası: {ex.Message}");
+            }
         }
     }
 

@@ -23,33 +23,55 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Email()
         {
-            // Veritabanındaki ilk ayarı getir, yoksa boş gönder
-            var settings = (await _unitOfWork.Repository<EmailSetting>().GetAllAsync()).FirstOrDefault();
+            var branchId = GetBranchId();
+            if (branchId == Guid.Empty) return RedirectToAction("Index", "Home"); // Şube seçili değilse
+
+            // Sadece seçili şubenin ayarını getir
+            var allSettings = await _unitOfWork.Repository<EmailSetting>().GetAllAsync();
+            var settings = allSettings.FirstOrDefault(x => x.BranchId == branchId);
 
             if (settings == null)
             {
-                settings = new EmailSetting(); // Boş model
+                settings = new EmailSetting();
             }
 
             return View(settings);
         }
+        // Şube ID'sini Cookie'den alan yardımcı metod
+        private Guid GetBranchId()
+        {
+            if (Request.Cookies.TryGetValue("branchId", out string branchIdString))
+            {
+                if (Guid.TryParse(branchIdString, out Guid branchId))
+                {
+                    return branchId;
+                }
+            }
+            return Guid.Empty; // Veya varsayılan bir işlem
+        }
+
+
 
         [HttpPost]
         public async Task<IActionResult> Email(EmailSetting model)
         {
-            // Mevcut ayarı bul
-            var existingSettings = (await _unitOfWork.Repository<EmailSetting>().GetAllAsync()).FirstOrDefault();
+            var branchId = GetBranchId();
+            if (branchId == Guid.Empty) return RedirectToAction("Index", "Home");
+
+            var allSettings = await _unitOfWork.Repository<EmailSetting>().GetAllAsync();
+            var existingSettings = allSettings.FirstOrDefault(x => x.BranchId == branchId);
 
             if (existingSettings == null)
             {
-                // Yoksa Yeni Ekle
+                // Yeni Ekle (Şube ID ile)
                 model.Id = Guid.NewGuid();
+                model.BranchId = branchId; // Şubeyi ata
                 model.CreatedDate = DateTime.Now;
                 await _unitOfWork.Repository<EmailSetting>().AddAsync(model);
             }
             else
             {
-                // Varsa Güncelle
+                // Güncelle
                 existingSettings.SmtpHost = model.SmtpHost;
                 existingSettings.SmtpPort = model.SmtpPort;
                 existingSettings.SenderEmail = model.SenderEmail;
@@ -61,7 +83,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             }
 
             await _unitOfWork.CommitAsync();
-            TempData["Success"] = "Mail ayarları başarıyla güncellendi.";
+            TempData["Success"] = "Mail ayarları bu şube için güncellendi.";
             return RedirectToAction("Email");
         }
         public async Task<IActionResult> Receipt()
@@ -119,34 +141,39 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
         // Mevcut Controller içine ekleyin:
 
-        // SMS AYARLARI (GET)
         [HttpGet]
         public async Task<IActionResult> Sms()
         {
-            var settings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
-            var currentSetting = settings.FirstOrDefault();
+            var branchId = GetBranchId();
+            if (branchId == Guid.Empty) return RedirectToAction("Index", "Home");
+
+            var allSettings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
+            var currentSetting = allSettings.FirstOrDefault(x => x.BranchId == branchId);
 
             if (currentSetting == null)
             {
-                currentSetting = new SmsSetting(); // Boş model gönder
+                currentSetting = new SmsSetting();
             }
 
             return View(currentSetting);
         }
 
-        // SMS AYARLARI (POST)
         [HttpPost]
         public async Task<IActionResult> Sms(SmsSetting model)
         {
+            var branchId = GetBranchId();
+            if (branchId == Guid.Empty) return RedirectToAction("Index", "Home");
+
             if (!ModelState.IsValid) return View(model);
 
-            var settings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
-            var existing = settings.FirstOrDefault();
+            var allSettings = await _unitOfWork.Repository<SmsSetting>().GetAllAsync();
+            var existing = allSettings.FirstOrDefault(x => x.BranchId == branchId);
 
             if (existing == null)
             {
                 // Yeni Kayıt
                 model.Id = Guid.NewGuid();
+                model.BranchId = branchId; // Şubeyi ata
                 model.CreatedDate = DateTime.Now;
                 await _unitOfWork.Repository<SmsSetting>().AddAsync(model);
             }
@@ -164,7 +191,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             }
 
             await _unitOfWork.CommitAsync();
-            TempData["Success"] = "SMS ayarları başarıyla güncellendi.";
+            TempData["Success"] = "SMS ayarları bu şube için güncellendi.";
 
             return RedirectToAction("Sms");
         }
