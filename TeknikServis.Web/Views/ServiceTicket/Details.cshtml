@@ -64,9 +64,19 @@
             <a asp-action="Print" asp-route-id="@Model.Id" target="_blank" class="btn btn-dark shadow-sm">
                 <i class="fa-solid fa-print me-2"></i>Yazdır
             </a>
-            <span class="badge @(Model.Status == "Tamamlandı" ? "bg-success" : (Model.Status == "İptal" ? "bg-danger" : "bg-info text-dark")) p-2 fs-6 shadow-sm">
+
+            @* --- GÜNCELLENEN ROZET KISMI --- *@
+            @{
+                string statusBadgeColor = "bg-info text-dark";
+                if (Model.Status == "Tamamlandı" || Model.Status == "Ödeme Yapıldı") { statusBadgeColor = "bg-success"; }
+                else if (Model.Status == "İptal") { statusBadgeColor = "bg-danger"; }
+                else if (Model.Status == "Ödeme Bekleniyor") { statusBadgeColor = "bg-info text-dark"; }
+            }
+            <span class="badge @statusBadgeColor p-2 fs-6 shadow-sm">
                 @Model.Status
             </span>
+            @* ------------------------------- *@
+
         </div>
     </div>
 
@@ -422,13 +432,20 @@
 
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">İşlem Durumu</label>
+
+                            @* --- GÜNCELLENEN SELECT KISMI --- *@
                             <select name="status" class="form-select fw-bold">
                                 <option value="Bekliyor" selected="@(Model.Status == "Bekliyor")">Bekliyor</option>
                                 <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
                                 <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
+
+                                <option value="Ödeme Bekleniyor" selected="@(Model.Status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
+                                <option value="Ödeme Yapıldı" selected="@(Model.Status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
                                 <option value="Tamamlandı" selected="@(Model.Status == "Tamamlandı")" class="text-success">Tamamlandı</option>
                                 <option value="İptal" selected="@(Model.Status == "İptal")" class="text-danger">İptal</option>
                             </select>
+                            @* -------------------------------- *@
+
                         </div>
 
                         <button class="btn btn-warning w-100 fw-bold shadow-sm" type="submit">

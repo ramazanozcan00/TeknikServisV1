@@ -129,6 +129,9 @@
                                 <select name="status" class="form-select">
                                     <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
                                     <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
+
+                                    <option value="Ödeme Bekleniyor" selected="@(Model.Status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
+                                    <option value="Ödeme Yapıldı" selected="@(Model.Status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
                                     <option value="Tamamlandı" selected="@(Model.Status == "Tamamlandı")">Tamamlandı</option>
                                     <option value="İptal" selected="@(Model.Status == "İptal")">İptal</option>
                                 </select>

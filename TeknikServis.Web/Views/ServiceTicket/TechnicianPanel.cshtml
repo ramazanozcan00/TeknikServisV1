@@ -53,6 +53,8 @@
                         string statusColor = "bg-secondary";
                         if (item.Status == "Bekliyor") { statusColor = "bg-warning text-dark"; }
                         else if (item.Status == "İşlemde") { statusColor = "bg-primary"; }
+                        else if (item.Status == "Ödeme Bekleniyor") { statusColor = "bg-info text-dark"; } // Açık Mavi
+                        else if (item.Status == "Ödeme Yapıldı") { statusColor = "bg-success"; } // Yeşil
                         else if (item.Status == "Parça Bekliyor") { statusColor = "bg-danger"; }
                         else if (item.Status == "İptal") { statusColor = "bg-dark"; }
 

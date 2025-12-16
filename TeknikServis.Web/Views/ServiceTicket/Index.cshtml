@@ -21,14 +21,19 @@
             </div>
 
             <div class="col-md-4">
+                @* --- GÜNCELLENEN SELECT KISMI --- *@
                 <select name="status" class="form-select">
                     <option value="">-- Tüm Durumlar --</option>
                     <option value="Bekliyor" selected="@(status == "Bekliyor")">Bekliyor</option>
                     <option value="İşlemde" selected="@(status == "İşlemde")">İşlemde</option>
                     <option value="Parça Bekliyor" selected="@(status == "Parça Bekliyor")">Parça Bekliyor</option>
+
+                    <option value="Ödeme Bekleniyor" selected="@(status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
+                    <option value="Ödeme Yapıldı" selected="@(status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
                     <option value="Tamamlandı" selected="@(status == "Tamamlandı")">Tamamlandı</option>
                     <option value="İptal" selected="@(status == "İptal")">İptal</option>
                 </select>
+                @* -------------------------------- *@
             </div>
 
             <div class="col-md-2 d-flex gap-2">
@@ -115,6 +120,7 @@
                             </td>
                             <td class="font-monospace">@item.SerialNumber</td>
 
+                            @* --- GÜNCELLENEN DURUM SÜTUNU --- *@
                             <td>
                                 @if (item.Status == "Bekliyor")
                                 {
@@ -124,11 +130,22 @@
                                 {
                                     <span class="badge bg-success rounded-pill"><i class="fa-solid fa-check me-1"></i>Bitti</span>
                                 }
+                                /* --- YENİ EKLENEN KISIM --- */
+                                else if (item.Status == "Ödeme Bekleniyor")
+                                {
+                                    <span class="badge bg-info text-dark rounded-pill"><i class="fa-solid fa-wallet me-1"></i>Ödeme Bekliyor</span>
+                                }
+                                else if (item.Status == "Ödeme Yapıldı")
+                                {
+                                    <span class="badge bg-success rounded-pill"><i class="fa-solid fa-receipt me-1"></i>Ödeme Yapıldı</span>
+                                }
+                                /* -------------------------- */
                                 else
                                 {
                                     <span class="badge bg-info rounded-pill">@item.Status</span>
                                 }
                             </td>
+                            @* -------------------------------- *@
 
                             <td>
                                 @{
