@@ -20,4 +20,24 @@ html {
 body {
     margin-bottom: 60px;
 }
+/* Sidebar ana kapsayýcýsý ve içindeki tüm elemanlar için scroll gizleme */
+.sidebar,
+.sidebar-wrapper,
+.nav-sidebar,
+#sidebar {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE ve Edge */
+    overflow-y: auto !important; /* Kaydýrma iþlevini açýk tutar */
+}
 
+    /* Chrome, Safari ve Opera (WebKit tabanlý tüm tarayýcýlar) için */
+    .sidebar::-webkit-scrollbar,
+    .sidebar-wrapper::-webkit-scrollbar,
+    .nav-sidebar::-webkit-scrollbar,
+    #sidebar::-webkit-scrollbar,
+    .sidebar *::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+    }

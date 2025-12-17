@@ -80,21 +80,14 @@
     <div class="row">
         <div class="col-lg-8">
 
-            @* --- CARİYE AKTAR ONAY ALANI (YENİ) --- *@
-            @if (User.IsInRole("Admin") || User.IsInRole("Personnel"))
+            @if (Model.Status == "Onarım Tamamlandı" && (User.IsInRole("Admin") || User.IsInRole("Personnel")))
             {
-                if (Model.Status == "Onarım Tamamlandı")
-                {
-                    <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm mb-4 border-start border-4 border-info">
-                        <div>
-                            <i class="fa-solid fa-circle-info me-2 fs-4"></i>
-                            <strong>Finansal Onay Bekleniyor:</strong> Teknisyen bu işlem için <b>@Model.TotalPrice?.ToString("C2")</b> tutar girdi.
-                        </div>
-                        <button class="btn btn-success fw-bold" onclick="approveAccount('@Model.Id', '@(Model.TotalPrice ?? 0)')">
-                            <i class="fa-solid fa-check-double me-1"></i> Cariye Aktar ve Kapat
-                        </button>
-                    </div>
-                }
+                <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm">
+                    <span><i class="fa-solid fa-circle-info me-2"></i><strong>Onarım Bitti:</strong> Teknisyen @Model.TotalPrice?.ToString("C2") tutarında işlem tamamladı.</span>
+                    <button type="button" class="btn btn-success fw-bold" onclick="openAccountModal('@Model.Id', '@(Model.TotalPrice?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))')">
+                        <i class="fa-solid fa-file-invoice-dollar me-2"></i>Cariye Aktar ve Onayla
+                    </button>
+                </div>
             }
 
             <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary rounded-3 overflow-hidden">
@@ -205,21 +198,6 @@
                                 }
                             </div>
                         </div>
-
-                        @if (Model.TicketPhotos != null && Model.TicketPhotos.Any())
-                        {
-                            <div class="col-12">
-                                <h6 class="small fw-bold text-muted border-bottom pb-2 mb-2">Diğer Fotoğraflar</h6>
-                                <div class="d-flex gap-2 flex-wrap">
-                                    @foreach (var photo in Model.TicketPhotos)
-                                    {
-                                        <a href="@photo.Path" target="_blank" class="d-block border rounded overflow-hidden shadow-sm hover-shadow transition-all">
-                                            <img src="@photo.Path" style="width: 80px; height: 80px; object-fit: cover;" />
-                                        </a>
-                                    }
-                                </div>
-                            </div>
-                        }
                     </div>
                 </div>
             </div>
@@ -332,12 +310,6 @@
                                 <i class="fa-solid fa-address-card me-1"></i>Profili Görüntüle
                             </a>
                         }
-                        else
-                        {
-                            <button class="btn btn-outline-secondary btn-sm rounded-pill" disabled>
-                                <i class="fa-solid fa-user-slash me-1"></i>Profil Erişime Kapalı
-                            </button>
-                        }
                     </div>
                 </div>
             </div>
@@ -423,6 +395,45 @@
     </div>
 </div>
 
+@* Ödeme Tipi ve Cari Aktarım Modalı *@
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Cariye Aktar ve Onayla</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="modalTicketId" />
+                <div class="mb-4 text-center bg-light p-3 rounded border">
+                    <small class="text-muted text-uppercase fw-bold d-block">Ödenmesi Gereken Toplam</small>
+                    <div class="input-group input-group-lg mt-2">
+                        <span class="input-group-text bg-white border-end-0 fw-bold text-success">₺</span>
+                        <input type="number" id="modalAmount" class="form-control border-start-0 fw-bold text-success text-end" step="0.01" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary">Ödeme Tipi / İşlem Şekli</label>
+                    <select id="modalPaymentType" class="form-select form-select-lg fw-bold">
+                        <option value="Nakit">💵 Nakit</option>
+                        <option value="Kredi Kartı">💳 Kredi Kartı</option>
+                        <option value="Havale">🏦 Havale / EFT</option>
+                        <option value="Borç">📝 Borç (Cari Hesaba İşle)</option>
+                        <option value="Garantili">🛡️ Garantili (Ücretsiz İşlem)</option>
+                    </select>
+                    <div class="form-text mt-2 small">Seçtiğiniz işleme göre müşterinin cari hareketi oluşturulacaktır.</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-link text-secondary text-decoration-none fw-bold" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" onclick="submitToAccount()">
+                    <i class="fa-solid fa-check-double me-2"></i>İşlemi Tamamla ve Servisi Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .hover-opacity-100:hover {
         opacity: 1 !important;
@@ -439,18 +450,76 @@
 
 @section Scripts {
     <script>
-        function approveAccount(id, amount) {
-            if (confirm("Bu tutarı müşterinin hesabına 'Borç' olarak aktarmak istediğinize emin misiniz?")) {
-                let cleanAmount = amount.toString().replace(',', '.');
-                $.post('/ServiceTicket/ApproveToAccount', { ticketId: id, finalAmount: cleanAmount }, function (res) {
-                    if (res.success) {
-                        toastr.success(res.message);
-                        setTimeout(() => { location.reload(); }, 1000);
-                    } else {
-                        toastr.error(res.message);
-                    }
-                });
+        // Modal açılırken tutarı standart formata getiriyoruz
+        function openAccountModal(id, amount) {
+            document.getElementById('modalTicketId').value = id;
+
+            // Sayısal değeri JS tarafında düzgün algılayıp inputa yazıyoruz
+            var cleanAmount = parseFloat(amount.replace(',', '.'));
+            document.getElementById('modalAmount').value = cleanAmount.toFixed(2);
+
+            var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            myModal.show();
+        }
+
+        function submitToAccount() {
+            var id = document.getElementById('modalTicketId').value;
+            var amount = document.getElementById('modalAmount').value;
+            var type = document.getElementById('modalPaymentType').value;
+
+            if (!amount || amount < 0) {
+                showToast("Hata", "Geçerli bir tutar giriniz.", "text-white bg-danger");
+                return;
             }
+
+            $.post("/ServiceTicket/ApproveToAccount", {
+                ticketId: id,
+                finalAmount: amount,
+                paymentType: type
+            }, function(res) {
+                if (res.success) {
+                    // Modal'ı kapat
+                    var modalEl = document.getElementById('paymentModal');
+                    var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if(modalInstance) modalInstance.hide();
+
+                    // Başarı Toast'u göster
+                    showToast("İşlem Başarılı", res.message, "text-white bg-success");
+
+                    // Sayfayı kısa bir gecikmeyle yenile
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    showToast("Hata", res.message, "text-white bg-danger");
+                }
+            });
+        }
+
+        // Yardımcı Toast Fonksiyonu
+        function showToast(title, message, bgClass) {
+            var toastHtml = `
+                <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1060;">
+                    <div id="liveToast" class="toast ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+            var toastElement = document.getElementById('liveToast');
+            var toast = new bootstrap.Toast(toastElement);
+            toast.show();
+
+            // Toast kapandıktan sonra HTML'den temizle
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                toastElement.parentElement.remove();
+            });
         }
     </script>
 }

@@ -15,9 +15,17 @@ using TeknikServis.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. SERVISLERÝN EKLENMESÝ
+//// 1. SERVISLERÝN EKLENMESÝ
+//builder.Services.AddDbContext<AppDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+// Program.cs içinde AddDbContext olan satýrý bulun ve þu þekilde güncelleyin:
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default"),
+        sqlServerOptionsAction: sqlOptions =>
+        {
+            sqlOptions.CommandTimeout(120); // 120 saniye (2 dakika) yapýyoruz
+        }));
 
 // --- HANGFIRE KONFÝGÜRASYONU ---
 builder.Services.AddHangfire(configuration => configuration

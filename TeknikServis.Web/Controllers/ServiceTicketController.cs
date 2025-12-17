@@ -650,25 +650,31 @@ namespace TeknikServis.Web.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Personnel,Admin")]
-        public async Task<IActionResult> ApproveToAccount(Guid ticketId, decimal finalAmount)
+        public async Task<IActionResult> ApproveToAccount(Guid ticketId, string finalAmount, string paymentType)
         {
+            // String olarak alıp InvariantCulture ile decimal'e çevirmek 
+            // nokta/virgül kaynaklı 100 katı büyüme hatalarını engeller.
+            if (!decimal.TryParse(finalAmount, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal amount))
+            {
+                return Json(new { success = false, message = "Geçersiz tutar formatı." });
+            }
+
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticketId);
             if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
 
-            // 1. Servis Kaydını Güncelle
-            ticket.Status = "Ödeme Yapıldı"; // Veya "Teslim Edildi"
-            ticket.TotalPrice = finalAmount;
+            ticket.Status = "Tamamlandı";
+            ticket.TotalPrice = amount;
             _unitOfWork.Repository<ServiceTicket>().Update(ticket);
 
-            // 2. Cari Hareket (Hesap Hareketi) Oluştur
             var movement = new CustomerMovement
             {
                 Id = Guid.NewGuid(),
                 CustomerId = ticket.CustomerId,
                 ServiceTicketId = ticket.Id,
-                Amount = finalAmount,
-                MovementType = "Borç",
-                Description = $"{ticket.FisNo} No'lu servis bedeli (Teknisyen onaylı).",
+                Amount = amount,
+                MovementType = paymentType == "Borç" ? "Borç" : "Alacak",
+                Description = $"{ticket.FisNo} No'lu servis bedeli. Tip: {paymentType}",
                 BranchId = User.GetBranchId(),
                 CreatedDate = DateTime.Now
             };
@@ -678,8 +684,6 @@ namespace TeknikServis.Web.Controllers
 
             return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
         }
-
-
 
     }
 }

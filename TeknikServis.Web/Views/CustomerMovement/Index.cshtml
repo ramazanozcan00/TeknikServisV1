@@ -2,35 +2,93 @@
 
 @{
     ViewData["Title"] = "Cari Hareket Raporu";
-    // Toplam bakiye hesabı
+
+    // Müşteriye kesilen servis bedelleri (Müşterinin borcu artar)
     decimal toplamBorc = Model.Where(x => x.MovementType == "Borç").Sum(x => x.Amount);
+
+    // Müşterinin yaptığı ödemeler (Müşterinin borcu azalır)
+    // Ödeme yapıldığında MovementType "Alacak" olarak kaydedilmelidir.
     decimal toplamAlacak = Model.Where(x => x.MovementType == "Alacak").Sum(x => x.Amount);
+
+    // Dönem Bakiyesi: Toplam Borç - Toplam Alacak
+    // Pozitif çıkarsa: Müşterinin size borcu var.
+    // Negatif çıkarsa: Müşteri fazla ödeme yapmış (Müşteri alacaklı).
     decimal genelBakiye = toplamBorc - toplamAlacak;
 }
 
 <div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body bg-light rounded">
+            <form method="get" asp-action="Index" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Firma / Müşteri</label>
+                    <select name="customerId" class="form-select select2">
+                        <option value="">Tüm Firmalar</option>
+                        @foreach (var cust in ViewBag.Customers)
+                        {
+                            <option value="@cust.Id" selected="@(ViewBag.SelectedCustomer == cust.Id)">@cust.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Ay Seçimi</label>
+                    <select name="month" class="form-select">
+                        <option value="">Tüm Aylar</option>
+                        @{
+                            var aylar = new string[] { "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık" };
+                            for (int i = 1; i <= 12; i++)
+                            {
+                                <option value="@i" selected="@(ViewBag.SelectedMonth == i)">@aylar[i - 1]</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Yıl</label>
+                    <select name="year" class="form-select">
+                        @for (int i = DateTime.Now.Year; i >= 2023; i--)
+                        {
+                            <option value="@i" selected="@(ViewBag.SelectedYear == i)">@i</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="fa-solid fa-filter me-2"></i>Filtrele
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary w-100 fw-bold">Temizle</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="row mb-4">
         <div class="col-md-4">
-            <div class="card border-start border-4 border-danger shadow-sm">
+            <div class="card border-start border-4 border-danger shadow-sm h-100">
                 <div class="card-body">
-                    <h6 class="text-muted small text-uppercase fw-bold">Toplam Borç (Servisler)</h6>
+                    <h6 class="text-muted small text-uppercase fw-bold">Toplam Tahakkuk (Borç)</h6>
                     <h3 class="fw-bold text-danger">@toplamBorc.ToString("C2")</h3>
+                    <small class="text-muted">Müşterinin toplam servis yükümlülüğü</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-start border-4 border-success shadow-sm">
+            <div class="card border-start border-4 border-success shadow-sm h-100">
                 <div class="card-body">
-                    <h6 class="text-muted small text-uppercase fw-bold">Toplam Alacak (Ödemeler)</h6>
+                    <h6 class="text-muted small text-uppercase fw-bold">Toplam Tahsilat (Alacak)</h6>
                     <h3 class="fw-bold text-success">@toplamAlacak.ToString("C2")</h3>
+                    <small class="text-muted">Sisteme girilen toplam ödemeler</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-start border-4 border-primary shadow-sm">
+            <div class="card border-start border-4 @(genelBakiye > 0 ? "border-primary" : "border-info") shadow-sm h-100">
                 <div class="card-body">
-                    <h6 class="text-muted small text-uppercase fw-bold">Genel Bakiye</h6>
-                    <h3 class="fw-bold text-primary">@genelBakiye.ToString("C2")</h3>
+                    <h6 class="text-muted small text-uppercase fw-bold">Dönem Bakiyesi</h6>
+                    <h3 class="fw-bold @(genelBakiye > 0 ? "text-primary" : "text-info")">@genelBakiye.ToString("C2")</h3>
+                    <small class="text-muted">
+                        @(genelBakiye > 0 ? "Müşteriden Alacaklısınız" : (genelBakiye < 0 ? "Müşteri Alacaklı (Fazla Ödeme)" : "Hesap Kapalı"))
+                    </small>
                 </div>
             </div>
         </div>
@@ -38,10 +96,19 @@
 
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar me-2 text-primary"></i>Cari Hareketler</h5>
+            <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar me-2 text-primary"></i>Hareket Detayları</h5>
             <div class="btn-group">
-                <button class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-print me-1"></i>Yazdır</button>
-                <button class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
+                <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-print me-1"></i>Yazdır
+                </button>
+
+                <a asp-action="ExportToExcel"
+                   asp-route-month="@ViewBag.SelectedMonth"
+                   asp-route-year="@ViewBag.SelectedYear"
+                   asp-route-customerId="@ViewBag.SelectedCustomer"
+                   class="btn btn-outline-success btn-sm">
+                    <i class="fa-solid fa-file-excel me-1"></i>Excel'e Aktar
+                </a>
             </div>
         </div>
         <div class="card-body p-0">
@@ -84,13 +151,20 @@
                                     else
                                     {
                                         <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                            <i class="fa-solid fa-arrow-down me-1"></i>Alacak
+                                            <i class="fa-solid fa-arrow-down me-1"></i>Ödeme Yapıldı
                                         </span>
                                     }
                                 </td>
                                 <td class="text-end pe-3 fw-bold @(item.MovementType == "Borç" ? "text-danger" : "text-success")">
-                                    @(item.MovementType == "Borç" ? "-" : "+") @item.Amount.ToString("C2")
+                                    @* Borç (Servis Ücreti) ise tutarı direkt göster, Alacak (Ödeme) ise parantez veya artı ile göster *@
+                                    @(item.MovementType == "Borç" ? "" : "+") @item.Amount.ToString("C2")
                                 </td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">Seçilen kriterlere uygun hareket bulunamadı.</td>
                             </tr>
                         }
                     </tbody>
