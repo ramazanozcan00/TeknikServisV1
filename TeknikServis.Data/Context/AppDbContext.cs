@@ -27,7 +27,7 @@ namespace TeknikServis.Data.Context
         public DbSet<PriceOffer> PriceOffers { get; set; }
         public DbSet<PriceOfferItem> PriceOfferItems { get; set; }
 
-
+        public DbSet<CustomerMovement> CustomerMovements { get; set; }
         public DbSet<ReceiptSetting> ReceiptSettings { get; set; }
         public DbSet<EmailSetting> EmailSettings { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }

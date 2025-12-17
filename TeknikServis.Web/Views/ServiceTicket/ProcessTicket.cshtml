@@ -126,14 +126,12 @@
                             </div>
                             <div class="col-md-6 mb-4">
                                 <label class="form-label fw-bold">Yeni Durum</label>
-                                <select name="status" class="form-select">
+                                <select name="status" class="form-select fw-bold">
                                     <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
                                     <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
-
-                                    <option value="Ödeme Bekleniyor" selected="@(Model.Status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
-                                    <option value="Ödeme Yapıldı" selected="@(Model.Status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
-                                    <option value="Tamamlandı" selected="@(Model.Status == "Tamamlandı")">Tamamlandı</option>
-                                    <option value="İptal" selected="@(Model.Status == "İptal")">İptal</option>
+                                    <option value="Onarım Fiyat Bilgisi Verildi" selected="@(Model.Status == "Onarım Fiyat Bilgisi Verildi")">Onarım Fiyat Bilgisi Verildi</option>
+                                    <option value="Onarım Sürüyor" selected="@(Model.Status == "Onarım Sürüyor")">Onarım Sürüyor</option>
+                                    <option value="Onarım Tamamlandı" selected="@(Model.Status == "Onarım Tamamlandı")" class="text-success">Onarım Tamamlandı</option>
                                 </select>
                             </div>
                         </div>

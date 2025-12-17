@@ -74,7 +74,8 @@ namespace TeknikServis.Web.Controllers
 
             var result = parts
                 .Where(p => p.ProductName.ToLower().Contains(term.ToLower()) && p.Quantity > 0)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.Id,
                     label = $"{p.ProductName} (Stok: {p.Quantity} {p.UnitType}) - {p.SalesPrice:C2}",
                     price = p.SalesPrice
@@ -150,22 +151,28 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Parça iptal edildi." });
         }
 
-        // --- 2. TEKNİSYEN PANELİ VE İŞLEMLERİ ---
         [HttpGet]
         [Authorize(Roles = "Technician")]
         public async Task<IActionResult> TechnicianPanel()
         {
             var user = await _userManager.GetUserAsync(User);
 
-            // Aktif İşler
+            // Aktif İşler: Sadece teknisyenin üzerindeki ve henüz tamamlanmamış işler
+            // "Onarım Tamamlandı" durumu artık bu listeden çıkacak
             var myTickets = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(t => t.TechnicianId == user.Id && t.Status != "Tamamlandı",
+                .FindAsync(t => t.TechnicianId == user.Id &&
+                           t.Status != "Tamamlandı" &&
+                           t.Status != "Onarım Tamamlandı" &&
+                           t.Status != "Ödeme Yapıldı" &&
+                           t.Status != "İptal",
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
 
-            // Tamamlanan İşler (ViewBag ile gönderiyoruz)
+            // Tamamlanan İşler: Süreci bitmiş veya finansal onay bekleyen işler
             var completed = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(t => t.TechnicianId == user.Id && t.Status == "Tamamlandı",
+                .FindAsync(t => t.TechnicianId == user.Id &&
+                           (t.Status == "Tamamlandı" || t.Status == "Onarım Tamamlandı" || t.Status == "Ödeme Yapıldı"),
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
+
             ViewBag.CompletedTickets = completed;
 
             return View(myTickets);
@@ -199,42 +206,34 @@ namespace TeknikServis.Web.Controllers
         public async Task<IActionResult> ProcessTicket(Guid id, string status, string description, decimal? price)
         {
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
-            if (ticket != null)
+            if (ticket == null) return NotFound();
+
+            // Sadece teknisyenin seçebileceği izinli durumlar
+            var allowedStatuses = new[] {
+        "İşlemde", "Parça Bekliyor",
+        "Onarım Fiyat Bilgisi Verildi",
+        "Onarım Sürüyor", "Onarım Tamamlandı"
+    };
+
+            if (!allowedStatuses.Contains(status))
             {
-                string oldStatus = ticket.Status;
-                ticket.Status = status;
-
-                // Teknisyen Notu Ekleme
-                if (!string.IsNullOrEmpty(description))
-                {
-                    string yeniNot = $"[{DateTime.Now:dd.MM.yyyy HH:mm}]: {description}";
-                    if (string.IsNullOrEmpty(ticket.TechnicianNotes))
-                        ticket.TechnicianNotes = yeniNot;
-                    else
-                        ticket.TechnicianNotes += "\n" + yeniNot;
-                }
-
-                if (price.HasValue) ticket.TotalPrice = price;
-                ticket.UpdatedDate = DateTime.Now;
-
-                _unitOfWork.Repository<ServiceTicket>().Update(ticket);
-                await _unitOfWork.CommitAsync();
-
-                // Loglama
-                try
-                {
-                    string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                    string userName = User.GetFullName();
-                    Guid branchId = User.GetBranchId();
-                    string userIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-                    string logDesc = $"Teknisyen İşlemi: Durum '{oldStatus}' -> '{status}' yapıldı.";
-
-                    await _auditLogService.LogAsync(userId, userName, branchId, "Servis (Teknisyen)", "Güncelleme", logDesc, userIp);
-                }
-                catch { }
-
-                TempData["Success"] = "İşlem kaydedildi.";
+                TempData["Error"] = "Bu durum için yetkiniz yok.";
+                return RedirectToAction("TechnicianPanel");
             }
+
+            ticket.Status = status;
+            if (price.HasValue) ticket.TotalPrice = price; // Teknisyen fiyat girer (Cariye işlemez)
+
+            if (!string.IsNullOrEmpty(description))
+            {
+                string yeniNot = $"[{DateTime.Now:dd.MM.yyyy HH:mm}]: {description}";
+                ticket.TechnicianNotes = string.IsNullOrEmpty(ticket.TechnicianNotes) ? yeniNot : ticket.TechnicianNotes + "\n" + yeniNot;
+            }
+
+            _unitOfWork.Repository<ServiceTicket>().Update(ticket);
+            await _unitOfWork.CommitAsync();
+
+            TempData["Success"] = "İşlem kaydedildi.";
             return RedirectToAction("TechnicianPanel");
         }
 
@@ -266,7 +265,8 @@ namespace TeknikServis.Web.Controllers
             var customers = await _customerService.GetCustomersByBranchAsync(currentBranchId);
 
             // Müşteri listesini oluştururken Firma İsmi kontrolü (Burası doğru)
-            var customerList = customers.Select(c => new {
+            var customerList = customers.Select(c => new
+            {
                 Id = c.Id,
                 DisplayText = string.IsNullOrEmpty(c.CompanyName)
                       ? $"{c.FirstName} {c.LastName} ({c.Phone})"
@@ -646,5 +646,40 @@ namespace TeknikServis.Web.Controllers
             TempData["Success"] = "Servis kaydı başarıyla silindi.";
             return RedirectToAction("Index");
         }
+
+
+        [HttpPost]
+        [Authorize(Roles = "Personnel,Admin")]
+        public async Task<IActionResult> ApproveToAccount(Guid ticketId, decimal finalAmount)
+        {
+            var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticketId);
+            if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
+
+            // 1. Servis Kaydını Güncelle
+            ticket.Status = "Ödeme Yapıldı"; // Veya "Teslim Edildi"
+            ticket.TotalPrice = finalAmount;
+            _unitOfWork.Repository<ServiceTicket>().Update(ticket);
+
+            // 2. Cari Hareket (Hesap Hareketi) Oluştur
+            var movement = new CustomerMovement
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = ticket.CustomerId,
+                ServiceTicketId = ticket.Id,
+                Amount = finalAmount,
+                MovementType = "Borç",
+                Description = $"{ticket.FisNo} No'lu servis bedeli (Teknisyen onaylı).",
+                BranchId = User.GetBranchId(),
+                CreatedDate = DateTime.Now
+            };
+
+            await _unitOfWork.Repository<CustomerMovement>().AddAsync(movement);
+            await _unitOfWork.CommitAsync();
+
+            return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
+        }
+
+
+
     }
 }

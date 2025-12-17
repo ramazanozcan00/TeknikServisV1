@@ -1,9 +1,12 @@
 ﻿﻿@using Microsoft.AspNetCore.Identity
+@using TeknikServis.Core.Interfaces
 @using TeknikServis.Web.Extensions
 @inject SignInManager<TeknikServis.Core.Entities.AppUser> SignInManager
 @inject UserManager<TeknikServis.Core.Entities.AppUser> UserManager
 
+
 @{
+    
     // --- 1. KULLANICI YETKİLERİNİ VERİTABANINDAN ÇEK ---
     bool isSidebarVisible = true;
     bool isAdmin = false;
@@ -300,6 +303,19 @@
                         <a asp-area="" asp-controller="PriceOffer" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "PriceOffer" ? "active-link" : "")">
                             <i class="fa-solid fa-file-invoice"></i><span>Fiyat Teklifleri</span>
                         </a>
+                    }
+                    @* --- CARİ HAREKETLER MENÜSÜ (YENİ) --- *@
+                    @if (isAdmin || User.IsInRole("Personnel"))
+                    {
+                        <a asp-area="" asp-controller="CustomerMovement" asp-action="Index"
+                           class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "CustomerMovement" ? "active-link" : "")">
+                            <i class="fa-solid fa-file-invoice-dollar"></i><span>Cari Hareketler</span>
+                        </a>
+                    }
+
+                    @if (showEDevlet)
+                    {
+                        <a asp-area="" asp-controller="EDevlet" asp-action="Index" class="sidebar-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "EDevlet" ? "active-link" : "")"><i class="fa-solid fa-building-columns"></i><span>E-Devlet</span></a>
                     }
 
                     // --- SEVKİYAT MODÜLÜ ---

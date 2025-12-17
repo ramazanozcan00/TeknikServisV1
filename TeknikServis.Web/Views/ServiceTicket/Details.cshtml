@@ -65,7 +65,6 @@
                 <i class="fa-solid fa-print me-2"></i>Yazdır
             </a>
 
-            @* --- GÜNCELLENEN ROZET KISMI --- *@
             @{
                 string statusBadgeColor = "bg-info text-dark";
                 if (Model.Status == "Tamamlandı" || Model.Status == "Ödeme Yapıldı") { statusBadgeColor = "bg-success"; }
@@ -75,13 +74,28 @@
             <span class="badge @statusBadgeColor p-2 fs-6 shadow-sm">
                 @Model.Status
             </span>
-            @* ------------------------------- *@
-
         </div>
     </div>
 
     <div class="row">
         <div class="col-lg-8">
+
+            @* --- CARİYE AKTAR ONAY ALANI (YENİ) --- *@
+            @if (User.IsInRole("Admin") || User.IsInRole("Personnel"))
+            {
+                if (Model.Status == "Onarım Tamamlandı")
+                {
+                    <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm mb-4 border-start border-4 border-info">
+                        <div>
+                            <i class="fa-solid fa-circle-info me-2 fs-4"></i>
+                            <strong>Finansal Onay Bekleniyor:</strong> Teknisyen bu işlem için <b>@Model.TotalPrice?.ToString("C2")</b> tutar girdi.
+                        </div>
+                        <button class="btn btn-success fw-bold" onclick="approveAccount('@Model.Id', '@(Model.TotalPrice ?? 0)')">
+                            <i class="fa-solid fa-check-double me-1"></i> Cariye Aktar ve Kapat
+                        </button>
+                    </div>
+                }
+            }
 
             <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary rounded-3 overflow-hidden">
                 <div class="card-header bg-white fw-bold text-uppercase small py-3 d-flex justify-content-between align-items-center">
@@ -136,7 +150,6 @@
                             </span>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -155,7 +168,6 @@
                 </div>
                 <div class="card-body bg-light">
                     <div class="row g-3">
-
                         <div class="col-md-6">
                             <div class="p-3 bg-white border rounded h-100 d-flex flex-column justify-content-center align-items-center text-center">
                                 @if (!string.IsNullOrEmpty(Model.PdfPath))
@@ -208,11 +220,11 @@
                                 </div>
                             </div>
                         }
-
                     </div>
                 </div>
             </div>
 
+            @* Teknisyen Notları *@
             <div class="card shadow-sm mb-4 border-0 border-start border-4 border-info">
                 <div class="card-header bg-white text-info fw-bold text-uppercase small py-3">
                     <i class="fa-solid fa-screwdriver-wrench me-2"></i>Teknisyen İşlemleri / Notları
@@ -226,9 +238,7 @@
                             <div class="card border-0 shadow-sm mb-2">
                                 <div class="card-body p-3 d-flex align-items-start">
                                     <i class="fa-solid fa-pen-to-square text-info mt-1 me-3"></i>
-                                    <div class="text-dark small">
-                                        @note
-                                    </div>
+                                    <div class="text-dark small">@note</div>
                                 </div>
                             </div>
                         }
@@ -243,6 +253,7 @@
                 </div>
             </div>
 
+            @* Yedek Parçalar *@
             <div class="card shadow-sm mb-4 border-0 border-start border-4 border-warning">
                 <div class="card-header bg-white text-warning fw-bold text-uppercase small py-3">
                     <i class="fa-solid fa-boxes-stacked me-2"></i>Kullanılan Yedek Parçalar
@@ -264,12 +275,8 @@
                                     @foreach (var part in Model.UsedParts)
                                     {
                                         <tr>
-                                            <td class="ps-3 fw-bold text-dark">
-                                                @(part.SparePart?.ProductName ?? "Silinmiş Parça")
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-white text-dark border">@part.Quantity</span>
-                                            </td>
+                                            <td class="ps-3 fw-bold text-dark">@(part.SparePart?.ProductName ?? "Silinmiş Parça")</td>
+                                            <td class="text-center"><span class="badge bg-white text-dark border">@part.Quantity</span></td>
                                             <td class="text-end">@part.Price.ToString("C2")</td>
                                             <td class="text-end pe-3 fw-bold text-primary">@part.TotalPrice.ToString("C2")</td>
                                         </tr>
@@ -295,15 +302,12 @@
                     }
                 </div>
             </div>
-
         </div>
 
         <div class="col-lg-4">
-
+            @* Müşteri Bilgileri *@
             <div class="card shadow-sm border-0 mb-3 rounded-3">
                 <div class="card-body text-center p-4">
-
-                    @* --- MÜŞTERİ SİLİNDİ UYARISI --- *@
                     @if (Model.Customer != null && Model.Customer.IsDeleted)
                     {
                         <div class="alert alert-danger shadow-sm border-danger mb-4 text-start">
@@ -311,13 +315,9 @@
                                 <i class="fa-solid fa-user-xmark me-2 fs-5"></i>
                                 <h6 class="fw-bold mb-0">Müşteri Silindi!</h6>
                             </div>
-                            <p class="mb-0 small lh-sm">
-                                Müşteri sistemden silinmiştir. Bu müşteriye yeni kayıt açılamaz.
-                            </p>
+                            <p class="mb-0 small lh-sm">Müşteri sistemden silinmiştir.</p>
                         </div>
                     }
-                    @* -------------------------------- *@
-
                     <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle d-inline-block mb-3">
                         <i class="fa-solid fa-user-circle fa-3x"></i>
                     </div>
@@ -325,8 +325,6 @@
                     <p class="text-muted small mb-3">
                         <i class="fa-solid fa-phone me-1"></i> <a href="tel:@Model.Customer?.Phone" class="text-decoration-none text-muted">@Model.Customer?.Phone</a>
                     </p>
-
-                    @* --- PROFİL BUTONU (GÜNCELLENDİ) --- *@
                     <div class="d-grid">
                         @if (Model.Customer != null && !Model.Customer.IsDeleted)
                         {
@@ -341,16 +339,13 @@
                             </button>
                         }
                     </div>
-                    @* ---------------------------------- *@
-
                 </div>
             </div>
 
+            @* Teknisyen Bilgisi *@
             <div class="card shadow-sm border-0 border-start border-4 border-info mb-3">
                 <div class="card-body">
-                    <h6 class="text-uppercase text-muted small fw-bold mb-3">
-                        <i class="fa-solid fa-user-gear me-2"></i>Sorumlu Teknisyen
-                    </h6>
+                    <h6 class="text-uppercase text-muted small fw-bold mb-3"><i class="fa-solid fa-user-gear me-2"></i>Sorumlu Teknisyen</h6>
                     @if (Model.Technician != null)
                     {
                         <div class="d-flex align-items-center">
@@ -363,19 +358,10 @@
                             </div>
                         </div>
                     }
-                    else
-                    {
-                        <div class="alert alert-secondary d-flex align-items-center p-2 mb-0 small">
-                            <i class="fa-solid fa-user-clock me-2 fs-5"></i>
-                            <div>
-                                <strong>Atama Bekleniyor</strong><br />
-                                Henüz bir teknisyen atanmadı.
-                            </div>
-                        </div>
-                    }
                 </div>
             </div>
 
+            @* Yasal Süre Kartı *@
             <div class="card shadow-sm @kartRengi mb-3">
                 <div class="card-header @baslikRengi text-white fw-bold d-flex align-items-center justify-content-between">
                     <span><i class="fa-solid @ikon me-2"></i>Yasal Süre</span>
@@ -386,34 +372,20 @@
                         <span class="text-muted small">Giriş Tarihi:</span>
                         <span class="fw-bold small">@Model.CreatedDate.ToString("dd.MM.yyyy")</span>
                     </div>
-                    <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
-                        <span class="text-muted small">Son Teslim:</span>
-                        <span class="fw-bold text-danger small">@yasalBitisTarihi.ToString("dd.MM.yyyy")</span>
-                    </div>
-
                     @if (Model.Status != "Tamamlandı" && Model.Status != "İptal")
                     {
                         <div class="text-center mb-2">
-                            @if (DateTime.Now <= yasalBitisTarihi)
-                            {
-                                <h2 class="fw-bold mb-0 display-6">@kalanIsGunu</h2>
-                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">İş Günü Kaldı</small>
-                            }
-                            else
-                            {
-                                <h4 class="fw-bold text-danger mb-0">SÜRE DOLDU</h4>
-                            }
+                            <h2 class="fw-bold mb-0 display-6">@kalanIsGunu</h2>
+                            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">İş Günü Kaldı</small>
                         </div>
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar @barColor" role="progressbar" style="width: @yuzde%"></div>
                         </div>
                     }
-                    <div class="mt-3 mb-0 text-center small fw-bold @(Model.Status == "Tamamlandı" ? "text-success" : "text-muted")">
-                        @durumMesaji
-                    </div>
                 </div>
             </div>
 
+            @* Durum ve Ücret Formu *@
             <div class="card shadow-sm border-warning">
                 <div class="card-header bg-warning bg-opacity-25 fw-bold text-dark">
                     <i class="fa-solid fa-cash-register me-2"></i>Durum ve Ücret
@@ -421,44 +393,31 @@
                 <div class="card-body">
                     <form asp-action="ChangeStatus" method="post">
                         <input type="hidden" name="id" value="@Model.Id" />
-
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">Toplam Servis Ücreti</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white fw-bold">₺</span>
-                                <input type="number" name="price" value="@(Model.TotalPrice.HasValue? Model.TotalPrice.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "")" class="form-control fw-bold text-end" step="0.01" min="0" placeholder="0.00" />
+                                <input type="number" name="price" value="@(Model.TotalPrice.HasValue? Model.TotalPrice.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "")" class="form-control fw-bold text-end" step="0.01" min="0" />
                             </div>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">İşlem Durumu</label>
-
-                            @* --- GÜNCELLENEN SELECT KISMI --- *@
                             <select name="status" class="form-select fw-bold">
                                 <option value="Bekliyor" selected="@(Model.Status == "Bekliyor")">Bekliyor</option>
                                 <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
                                 <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
-
+                                <option value="Onarım Tamamlandı" selected="@(Model.Status == "Onarım Tamamlandı")">Onarım Tamamlandı</option>
                                 <option value="Ödeme Bekleniyor" selected="@(Model.Status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
                                 <option value="Ödeme Yapıldı" selected="@(Model.Status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
                                 <option value="Tamamlandı" selected="@(Model.Status == "Tamamlandı")" class="text-success">Tamamlandı</option>
                                 <option value="İptal" selected="@(Model.Status == "İptal")" class="text-danger">İptal</option>
                             </select>
-                            @* -------------------------------- *@
-
                         </div>
-
                         <button class="btn btn-warning w-100 fw-bold shadow-sm" type="submit">
                             <i class="fa-solid fa-check-circle me-2"></i>Değişiklikleri Kaydet
                         </button>
                     </form>
                 </div>
-            </div>
-
-            <div class="d-grid mt-3">
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">
-                    <i class="fa-solid fa-pen-to-square me-2"></i>Kaydı Düzenle
-                </a>
             </div>
         </div>
     </div>
@@ -477,3 +436,21 @@
         transition: all 0.3s ease;
     }
 </style>
+
+@section Scripts {
+    <script>
+        function approveAccount(id, amount) {
+            if (confirm("Bu tutarı müşterinin hesabına 'Borç' olarak aktarmak istediğinize emin misiniz?")) {
+                let cleanAmount = amount.toString().replace(',', '.');
+                $.post('/ServiceTicket/ApproveToAccount', { ticketId: id, finalAmount: cleanAmount }, function (res) {
+                    if (res.success) {
+                        toastr.success(res.message);
+                        setTimeout(() => { location.reload(); }, 1000);
+                    } else {
+                        toastr.error(res.message);
+                    }
+                });
+            }
+        }
+    </script>
+}
