@@ -120,7 +120,8 @@
                             <th>Müşteri / Firma</th>
                             <th>Açıklama</th>
                             <th>İşlem Tipi</th>
-                            <th class="text-end pe-3">Tutar</th>
+                            <th class="text-end">Tutar</th>
+                            <th class="text-center">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -155,16 +156,22 @@
                                         </span>
                                     }
                                 </td>
-                                <td class="text-end pe-3 fw-bold @(item.MovementType == "Borç" ? "text-danger" : "text-success")">
-                                    @* Borç (Servis Ücreti) ise tutarı direkt göster, Alacak (Ödeme) ise parantez veya artı ile göster *@
+                                <td class="text-end fw-bold @(item.MovementType == "Borç" ? "text-danger" : "text-success")">
                                     @(item.MovementType == "Borç" ? "" : "+") @item.Amount.ToString("C2")
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-warning">
+                                            <i class="fa-solid fa-edit"></i> Düzenle
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         }
                         @if (!Model.Any())
                         {
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">Seçilen kriterlere uygun hareket bulunamadı.</td>
+                                <td colspan="6" class="text-center py-5 text-muted">Seçilen kriterlere uygun hareket bulunamadı.</td>
                             </tr>
                         }
                     </tbody>

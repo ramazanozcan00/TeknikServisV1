@@ -149,7 +149,9 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     if (model.ShowAudit) claims.Add(new Claim("MenuAccess", "Audit"));
                     if (model.ShowSupport) claims.Add(new Claim("MenuAccess", "Support"));
                     if (model.ShowStock) claims.Add(new Claim("MenuAccess", "Stock"));
-
+                    if (model.ShowBranchProfile) claims.Add(new Claim("MenuAccess", "BranchProfile"));
+                    if (model.ShowCompanyInfo) claims.Add(new Claim("MenuAccess", "CompanyInfo"));
+                    if (model.ShowCustomerMovements) claims.Add(new Claim("MenuAccess", "CustomerMovements"));
                     if (claims.Any()) await _userManager.AddClaimsAsync(user, claims);
 
                     // Ek Şubeler
@@ -233,6 +235,10 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 ShowAudit = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Audit"),
                 ShowSupport = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Support"),
                 ShowStock = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Stock"),
+                // model nesnesi oluşturulurken içine ekleyin:
+                ShowBranchProfile = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "BranchProfile"),
+                ShowCompanyInfo = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "CompanyInfo"),
+                ShowCustomerMovements = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "CustomerMovements"),
 
                 PrintBalance = user.PrintBalance,
                 MailBalance = user.MailBalance,
@@ -316,6 +322,9 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 if (model.ShowAudit) newClaims.Add(new Claim("MenuAccess", "Audit"));
                 if (model.ShowSupport) newClaims.Add(new Claim("MenuAccess", "Support"));
                 if (model.ShowStock) newClaims.Add(new Claim("MenuAccess", "Stock"));
+                if (model.ShowBranchProfile) newClaims.Add(new Claim("MenuAccess", "BranchProfile"));
+                if (model.ShowCompanyInfo) newClaims.Add(new Claim("MenuAccess", "CompanyInfo"));
+                if (model.ShowCustomerMovements) newClaims.Add(new Claim("MenuAccess", "CustomerMovements"));
 
                 if (newClaims.Any()) await _userManager.AddClaimsAsync(user, newClaims);
 

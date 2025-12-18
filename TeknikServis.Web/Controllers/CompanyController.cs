@@ -23,8 +23,12 @@ namespace TeknikServis.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            // Eğer firmalar tüm şubeler için ortaksa BranchId kontrolünü kaldırabilirsiniz.
-            // Burada her şubenin kendi firma listesi olduğunu varsayıyoruz.
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             Guid currentBranchId = User.GetBranchId();
 
             var companies = await _unitOfWork.Repository<CompanySetting>()
@@ -37,6 +41,12 @@ namespace TeknikServis.Web.Controllers
         [HttpGet]
         public IActionResult Create()
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             return View();
         }
 
@@ -44,6 +54,12 @@ namespace TeknikServis.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CompanySetting company)
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             if (ModelState.IsValid)
             {
                 company.Id = Guid.NewGuid();
@@ -63,6 +79,12 @@ namespace TeknikServis.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id)
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var company = await _unitOfWork.Repository<CompanySetting>().GetByIdAsync(id);
             if (company == null) return NotFound();
             return View(company);
@@ -72,6 +94,12 @@ namespace TeknikServis.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit(CompanySetting company)
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var existing = await _unitOfWork.Repository<CompanySetting>().GetByIdAsync(company.Id);
             if (existing == null) return NotFound();
 
@@ -82,7 +110,6 @@ namespace TeknikServis.Web.Controllers
                 existing.TaxOffice = company.TaxOffice;
                 existing.TaxNumber = company.TaxNumber;
                 existing.Address = company.Address;
-                // Varsa diğer alanları da eşleştirin
                 existing.UpdatedDate = DateTime.Now;
 
                 _unitOfWork.Repository<CompanySetting>().Update(existing);
@@ -98,6 +125,12 @@ namespace TeknikServis.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(Guid id)
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "CompanyInfo"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var company = await _unitOfWork.Repository<CompanySetting>().GetByIdAsync(id);
             if (company != null)
             {

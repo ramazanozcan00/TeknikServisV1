@@ -22,6 +22,13 @@ namespace TeknikServis.Web.Controllers
 
         public async Task<IActionResult> Index()
         {
+            // --- YETKİ KONTROLÜ ---
+            // Admin değilse VE "BranchProfile" menü yetkisi (Claim) yoksa engelle
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "BranchProfile"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return RedirectToAction("Login", "Account");
 
@@ -42,7 +49,7 @@ namespace TeknikServis.Web.Controllers
 
             var model = new CompanyInfoViewModel
             {
-                Setting = info, // ViewModel'deki tipi BranchInfo yapmıştık
+                Setting = info,
                 LicenseEndDate = branch.LicenseEndDate
             };
 
@@ -53,6 +60,12 @@ namespace TeknikServis.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Save(CompanyInfoViewModel model)
         {
+            // --- YETKİ KONTROLÜ ---
+            if (!User.IsInRole("Admin") && !User.HasClaim("MenuAccess", "BranchProfile"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var user = await _userManager.GetUserAsync(User);
             var branchId = user.BranchId;
 

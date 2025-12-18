@@ -58,5 +58,9 @@ namespace TeknikServis.Web.Models
 
         
         public bool IsPriceOfferEnabled { get; set; }
+
+        public bool ShowBranchProfile { get; set; } // Şube Profili
+        public bool ShowCompanyInfo { get; set; }   // Firma Bilgileri
+        public bool ShowCustomerMovements { get; set; } // Cari Hareketler
     }
 }
