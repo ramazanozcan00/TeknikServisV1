@@ -145,35 +145,19 @@ namespace TeknikServis.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(CustomerMovement model)
         {
-            // 1. Veritabanından mevcut kaydı 'BaseEntity' özelliklerini (CreatedDate vb.) korumak için çekiyoruz
             var movement = await _unitOfWork.Repository<CustomerMovement>().GetByIdAsync(model.Id);
 
             if (movement == null) return NotFound();
-            if (movement.BranchId != User.GetBranchId()) return Forbid(); // Güvenlik kontrolü
+            if (movement.BranchId != User.GetBranchId()) return Forbid();
 
-            // 2. OTOMATİK TİP BELİRLEME MANTIĞI
-            // Açıklama içerisinde servis ibaresi geçiyorsa tipi her zaman "Borç" yap
-            bool isServiceFee = !string.IsNullOrEmpty(movement.Description) &&
-                (movement.Description.Contains("servis bedeli", StringComparison.OrdinalIgnoreCase) ||
-                 movement.Description.Contains("No'lu servis", StringComparison.OrdinalIgnoreCase));
-
-            if (isServiceFee)
-            {
-                movement.MovementType = "Borç";
-            }
-            else
-            {
-                // Eğer özel bir servis açıklaması değilse, kullanıcının seçtiği yeni tipi ata
-                movement.MovementType = model.MovementType;
-            }
-
-            // 3. DİĞER ALANLARI GÜNCELLE
+            // DÜZELTME: JS'den gelen güncel metni ve tipi kaydet
+            movement.MovementType = model.MovementType;
+            movement.Description = model.Description;
             movement.Amount = model.Amount;
-            movement.UpdatedDate = DateTime.Now; // BaseEntity'den gelir
+            movement.UpdatedDate = DateTime.Now;
 
-            // 4. KAYDETME
             _unitOfWork.Repository<CustomerMovement>().Update(movement);
-            await _unitOfWork.CommitAsync(); // IUnitOfWork.cs içindeki doğru metod ismi
+            await _unitOfWork.CommitAsync();
 
             return RedirectToAction(nameof(Index));
         }
