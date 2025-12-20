@@ -20,5 +20,11 @@ namespace TeknikServis.Core.Entities
 
         [Display(Name = "Adres")]
         public string Address { get; set; }
+
+        [Display(Name = "Canlı Destek (Chat) Aktif")]
+        public bool IsChatActive { get; set; } = true;
+
+
+
     }
 }

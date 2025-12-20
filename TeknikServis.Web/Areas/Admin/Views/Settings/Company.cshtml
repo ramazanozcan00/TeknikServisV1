@@ -1,0 +1,77 @@
+﻿@model TeknikServis.Core.Entities.CompanySetting
+@{
+    ViewData["Title"] = "Firma ve Genel Ayarlar";
+    var branches = ViewBag.Branches as List<TeknikServis.Core.Entities.Branch>;
+}
+
+<div class="container-fluid pt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="fa-solid fa-gear text-secondary me-2"></i>Firma ve Genel Ayarlar</h5>
+                </div>
+                <div class="card-body">
+
+                    @* Şube Seçimi *@
+                    @if (branches != null && branches.Count > 1)
+                    {
+                        <div class="mb-4 p-3 bg-light rounded border">
+                            <label class="form-label fw-bold">İşlem Yapılacak Şube:</label>
+                            <div class="d-flex gap-2">
+                                @foreach (var branch in branches)
+                                {
+                                    <a href="/Admin/Settings/Company?branchId=@branch.Id"
+                                       class="btn btn-sm @(ViewBag.SelectedBranchId != null && (Guid)ViewBag.SelectedBranchId == branch.Id ? "btn-primary" : "btn-outline-secondary")">
+                                        @branch.BranchName
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <form asp-action="Company" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="BranchId" />
+
+                        @* --- CHAT AYARI --- *@
+                        <div class="mb-4 p-3 border rounded border-primary bg-opacity-10" style="background-color: #f0f9ff;">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="IsChatActive" style="width: 3em; height: 1.5em; cursor: pointer;">
+                                <label class="form-check-label ms-2 fw-bold mt-1" asp-for="IsChatActive">Canlı Destek (Chat) Sistemi Aktif Olsun</label>
+                            </div>
+                            <small class="text-muted d-block mt-1">Bu seçenek kapatıldığında, bu şubeye bağlı kullanıcılar sağ alttaki sohbet balonunu göremez.</small>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label asp-for="CompanyName" class="form-label fw-bold">Firma Ünvanı</label>
+                                <input asp-for="CompanyName" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Phone" class="form-label">Telefon</label>
+                                <input asp-for="Phone" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="TaxOffice" class="form-label">Vergi Dairesi</label>
+                                <input asp-for="TaxOffice" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="TaxNumber" class="form-label">Vergi No</label>
+                                <input asp-for="TaxNumber" class="form-control" />
+                            </div>
+                            <div class="col-md-12">
+                                <label asp-for="Address" class="form-label">Adres</label>
+                                <textarea asp-for="Address" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-end">
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save me-2"></i>Ayarları Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

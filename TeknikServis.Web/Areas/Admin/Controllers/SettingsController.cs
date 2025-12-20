@@ -255,12 +255,68 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             return RedirectToAction("Receipt");
         }
 
+        // --- COMPANY / GENEL AYARLAR (GET) ---
         [HttpGet]
-        public async Task<IActionResult> Company()
+        public async Task<IActionResult> Company(Guid? branchId)
         {
-            var settings = (await _unitOfWork.Repository<CompanySetting>().GetAllAsync()).FirstOrDefault();
-            if (settings == null) settings = new CompanySetting();
+            // Şube listesini hazırla (Admin yetkisine göre)
+            var branches = await GetAccessibleBranches();
+            ViewBag.Branches = branches;
+
+            // Seçili şubeyi belirle
+            var targetBranchId = branchId ?? User.GetBranchId();
+            if (targetBranchId == Guid.Empty && branches.Any()) targetBranchId = branches.First().Id;
+            ViewBag.SelectedBranchId = targetBranchId;
+
+            // Ayarları veritabanından çek
+            var settingsList = await _unitOfWork.Repository<CompanySetting>().FindAsync(x => x.BranchId == targetBranchId);
+            var settings = settingsList.FirstOrDefault();
+
+            if (settings == null)
+            {
+                settings = new CompanySetting { BranchId = targetBranchId, IsChatActive = true };
+            }
+
             return View(settings);
+        }
+
+        // --- COMPANY / GENEL AYARLAR (POST) ---
+        [HttpPost]
+        public async Task<IActionResult> Company(CompanySetting model)
+        {
+            ViewBag.Branches = await GetAccessibleBranches();
+            ViewBag.SelectedBranchId = model.BranchId;
+
+            if (!ModelState.IsValid) return View(model);
+
+            var settingsList = await _unitOfWork.Repository<CompanySetting>().FindAsync(x => x.BranchId == model.BranchId);
+            var existing = settingsList.FirstOrDefault();
+
+            if (existing == null)
+            {
+                model.Id = Guid.NewGuid();
+                model.CreatedDate = DateTime.Now;
+                await _unitOfWork.Repository<CompanySetting>().AddAsync(model);
+            }
+            else
+            {
+                existing.CompanyName = model.CompanyName;
+                existing.Phone = model.Phone;
+                existing.TaxOffice = model.TaxOffice;
+                existing.TaxNumber = model.TaxNumber;
+                existing.Address = model.Address;
+
+                // Chat Aktiflik Durumu Güncellemesi
+                existing.IsChatActive = model.IsChatActive;
+
+                existing.UpdatedDate = DateTime.Now;
+                _unitOfWork.Repository<CompanySetting>().Update(existing);
+            }
+
+            await _unitOfWork.CommitAsync();
+            TempData["Success"] = "Firma ve Genel ayarlar güncellendi.";
+
+            return RedirectToAction("Company", new { branchId = model.BranchId });
         }
     }
 }
