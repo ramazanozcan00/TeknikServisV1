@@ -48,14 +48,32 @@
                                 <p class="mb-0 text-dark small">@Model.Ariza</p>
                             </li>
                         </ul>
-
-                        @if (Model.Durum == "Tamamlandı")
+                        @* Durum "Ödeme Bekliyor" ise veya "Tamamlandı" ise ücreti göster *@
+                        @if (Model.Durum == "Ödeme Bekliyor" || Model.Durum == "Tamamlandı")
                         {
                             <div class="alert alert-success text-center fw-bold">
                                 Toplam Tutar: @Model.Ucret
                             </div>
-                        }
 
+                            @* Ödeme Butonu SADECE "Ödeme Bekliyor" ise çıksın *@
+                            @if (Model.Durum == "Ödeme Bekliyor" && !string.IsNullOrEmpty(Model.Ucret) && Model.Ucret != "0" && Model.Ucret != "0 TL")
+                            {
+                                <div class="text-center mt-3">
+                                    <form asp-action="StartPayment" asp-controller="Home" method="post">
+                                        <input type="hidden" name="fisNo" value="@Model.FisNo" />
+                                        <input type="hidden" name="ucret" value="@Model.Ucret" />
+                                        <input type="hidden" name="cihaz" value="@Model.Cihaz" />
+
+                                        <button type="submit" class="btn btn-primary btn-lg shadow pulse-button">
+                                            <i class="fa-regular fa-credit-card me-2"></i>Kredi Kartı ile Öde
+                                        </button>
+                                    </form>
+                                    <div class="small text-muted mt-2">
+                                        <i class="fa-solid fa-lock"></i> Ödemeler Iyzico güvencesiyle alınmaktadır.
+                                    </div>
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
             </div>
