@@ -21,19 +21,16 @@
             </div>
 
             <div class="col-md-4">
-                @* --- GÜNCELLENEN SELECT KISMI --- *@
                 <select name="status" class="form-select">
                     <option value="">-- Tüm Durumlar --</option>
                     <option value="Bekliyor" selected="@(status == "Bekliyor")">Bekliyor</option>
                     <option value="İşlemde" selected="@(status == "İşlemde")">İşlemde</option>
                     <option value="Parça Bekliyor" selected="@(status == "Parça Bekliyor")">Parça Bekliyor</option>
-
                     <option value="Ödeme Bekleniyor" selected="@(status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
                     <option value="Ödeme Yapıldı" selected="@(status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
                     <option value="Tamamlandı" selected="@(status == "Tamamlandı")">Tamamlandı</option>
                     <option value="İptal" selected="@(status == "İptal")">İptal</option>
                 </select>
-                @* -------------------------------- *@
             </div>
 
             <div class="col-md-2 d-flex gap-2">
@@ -67,7 +64,10 @@
                         <th>Müşteri</th>
                         <th>Cihaz Bilgisi</th>
                         <th>Seri No</th>
-                        <th>Durum</th>
+                        <th>Genel Durum</th>
+                        @* --- YENİ EKLENEN BAŞLIK --- *@
+                        <th class="text-center">Teknisyen Durumu</th>
+                        @* --------------------------- *@
                         <th>Kalan Gün</th>
                         <th>Tarih</th>
                         <th class="text-end pe-4">İşlemler</th>
@@ -120,7 +120,6 @@
                             </td>
                             <td class="font-monospace">@item.SerialNumber</td>
 
-                            @* --- GÜNCELLENEN DURUM SÜTUNU --- *@
                             <td>
                                 @if (item.Status == "Bekliyor")
                                 {
@@ -130,7 +129,6 @@
                                 {
                                     <span class="badge bg-success rounded-pill"><i class="fa-solid fa-check me-1"></i>Bitti</span>
                                 }
-                                /* --- YENİ EKLENEN KISIM --- */
                                 else if (item.Status == "Ödeme Bekleniyor")
                                 {
                                     <span class="badge bg-info text-dark rounded-pill"><i class="fa-solid fa-wallet me-1"></i>Ödeme Bekliyor</span>
@@ -139,26 +137,69 @@
                                 {
                                     <span class="badge bg-success rounded-pill"><i class="fa-solid fa-receipt me-1"></i>Ödeme Yapıldı</span>
                                 }
-                                /* -------------------------- */
                                 else
                                 {
                                     <span class="badge bg-info rounded-pill">@item.Status</span>
                                 }
                             </td>
-                            @* -------------------------------- *@
+
+                            @* --- YENİ EKLENEN İKONLU TEKNİSYEN DURUMU SÜTUNU --- *@
+                            <td class="text-center">
+                                @if (!string.IsNullOrEmpty(item.TechnicianStatus))
+                                {
+                                    string iconClass = "fa-circle-question";
+                                    string colorClass = "text-secondary";
+                                    string animClass = "";
+
+                                    if (item.TechnicianStatus == "İşlemde")
+                                    {
+                                        iconClass = "fa-gears";
+                                        colorClass = "text-primary";
+                                        animClass = "fa-spin";
+                                    }
+                                    else if (item.TechnicianStatus == "Parça Bekliyor")
+                                    {
+                                        iconClass = "fa-box-open";
+                                        colorClass = "text-warning";
+                                        animClass = "fa-beat-fade";
+                                    }
+                                    else if (item.TechnicianStatus == "Onarım Fiyat Bilgisi Verildi")
+                                    {
+                                        iconClass = "fa-hand-holding-dollar";
+                                        colorClass = "text-info";
+                                        animClass = "fa-bounce";
+                                    }
+                                    else if (item.TechnicianStatus == "Onarım Sürüyor")
+                                    {
+                                        iconClass = "fa-screwdriver-wrench";
+                                        colorClass = "text-info";
+                                        animClass = "fa-fade";
+                                    }
+                                    else if (item.TechnicianStatus == "Onarım Tamamlandı")
+                                    {
+                                        iconClass = "fa-circle-check";
+                                        colorClass = "text-success";
+                                        animClass = ""; // Sabit tik
+                                    }
+
+                                    <i class="fa-solid @iconClass @colorClass @animClass fa-2x" title="@item.TechnicianStatus" data-bs-toggle="tooltip"></i>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">-</span>
+                                }
+                            </td>
+                            @* --------------------------------------------------- *@
 
                             <td>
                                 @{
-                                    // Eğer işlem tamamlandıysa veya iptalse gün saymaya gerek yok
                                     if (item.Status == "Tamamlandı" || item.Status == "İptal" || item.Status == "Teslim Edildi")
                                     {
                                         <span class="text-muted">-</span>
                                     }
                                     else
                                     {
-                                        // Maksimum servis süresi (Örn: 20 gün)
                                         int maxGun = 20;
-                                        // Geçen gün sayısı
                                         var gecenSure = (DateTime.Now - item.CreatedDate).TotalDays;
                                         int kalanGun = maxGun - (int)gecenSure;
 
@@ -172,7 +213,6 @@
                                         }
                                         else
                                         {
-                                            // Süre aşıldıysa negatif gösterir
                                             <span class="badge bg-danger">Aşıldı (@Math.Abs(kalanGun))</span>
                                         }
                                     }
@@ -207,7 +247,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fa-solid fa-folder-open fs-1 mb-3 d-block text-secondary opacity-50"></i>
                                 Henüz kayıt bulunamadı.
                             </td>
@@ -277,5 +317,11 @@
                 });
             });
         });
+
+        // Tooltip'leri etkinleştir (İkon açıklamaları için)
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
     </script>
 }

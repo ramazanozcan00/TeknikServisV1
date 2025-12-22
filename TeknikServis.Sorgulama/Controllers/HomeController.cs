@@ -6,19 +6,20 @@ using Iyzipay;
 using Iyzipay.Model;
 using Iyzipay.Request;
 using System.Collections.Generic;
-using Microsoft.Extensions.Configuration; // 1. Bu kütüphaneyi ekleyin
+using Microsoft.Extensions.Configuration;
+using System.Text;
+using System;
 
 namespace TeknikServis.Sorgulama.Controllers
 {
     public class HomeController : Controller
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration; // 2. Configuration tanımı
+        private readonly IConfiguration _configuration;
 
-        // Not: İsterseniz bu API URL'sini de appsettings.json'a taşıyabilirsiniz.
-        private const string ApiUrl = "https://test.ramazanozcan.com/api/TicketApi/CheckStatus?q=";
+        // API URL'sini appsettings.json'dan alır
+        private string BaseApiUrl => _configuration["ApiSettings:BaseUrl"] ?? "https://localhost:44326";
 
-        // 3. Constructor'a IConfiguration parametresi eklendi
         public HomeController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _httpClientFactory = httpClientFactory;
@@ -39,17 +40,25 @@ namespace TeknikServis.Sorgulama.Controllers
 
             try
             {
-                var response = await client.GetAsync(ApiUrl + query);
+                // SSL Hatasını CheckStatus için de bypass edelim ki sorgulama da bozulmasın
+                var handler = new HttpClientHandler();
+                handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                handler.ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true;
 
-                if (response.IsSuccessStatusCode)
+                using (var customClient = new System.Net.Http.HttpClient(handler))
                 {
-                    var jsonString = await response.Content.ReadAsStringAsync();
-                    var result = JsonConvert.DeserializeObject<TicketResultViewModel>(jsonString);
-                    return View("Result", result);
-                }
-                else
-                {
-                    ViewBag.Error = "Kayıt bulunamadı.";
+                    var response = await customClient.GetAsync($"{BaseApiUrl}/api/TicketApi/CheckStatus?q={query}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonString = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<TicketResultViewModel>(jsonString);
+                        return View("Result", result);
+                    }
+                    else
+                    {
+                        ViewBag.Error = "Kayıt bulunamadı.";
+                    }
                 }
             }
             catch
@@ -62,33 +71,24 @@ namespace TeknikServis.Sorgulama.Controllers
 
         // --- IYZICO ÖDEME ENTEGRASYONU ---
 
-    
         [HttpPost]
         public async Task<IActionResult> StartPayment(string fisNo, string ucret, string cihaz)
         {
-            // 1. Ayarları Çek
             Options options = new Options();
             options.ApiKey = _configuration["Iyzico:ApiKey"];
             options.SecretKey = _configuration["Iyzico:SecretKey"];
             options.BaseUrl = _configuration["Iyzico:BaseUrl"];
 
-            // --- FİYAT FORMATINI DÜZELTME (GÜNCELLENDİ) ---
             string cleanPrice = "0";
             try
             {
-                // "TL", "₺" ve boşlukları temizle
                 string rawPrice = ucret.Replace("TL", "").Replace("tl", "").Replace("₺", "").Trim();
-
-                // Sayıyı Türkiye kültürüne (1.250,50) göre decimal'e çevir
                 if (decimal.TryParse(rawPrice, System.Globalization.NumberStyles.Any, new System.Globalization.CultureInfo("tr-TR"), out decimal parsedPrice))
                 {
-                    // Iyzico için "en-US" formatına (1250.50) çevir. (Binlik ayracı yok, ondalık nokta)
                     cleanPrice = parsedPrice.ToString(new System.Globalization.CultureInfo("en-US"));
                 }
                 else
                 {
-                    // Parse edilemezse fallback: Noktaları sil (binlik), virgülü nokta yap (ondalık)
-                    // Örn: "1.250,00" -> "1250.00"
                     cleanPrice = rawPrice.Replace(".", "").Replace(",", ".");
                 }
             }
@@ -98,7 +98,6 @@ namespace TeknikServis.Sorgulama.Controllers
                 return View("Index");
             }
 
-            // 2. İstek Oluşturma
             CreateCheckoutFormInitializeRequest request = new CreateCheckoutFormInitializeRequest();
             request.Locale = Locale.TR.ToString();
             request.ConversationId = fisNo;
@@ -107,11 +106,12 @@ namespace TeknikServis.Sorgulama.Controllers
             request.Currency = Currency.TRY.ToString();
             request.BasketId = "B" + fisNo;
             request.PaymentGroup = PaymentGroup.PRODUCT.ToString();
+
+            // Dönüş URL'i
             request.CallbackUrl = Url.Action("PaymentResult", "Home", null, Request.Scheme);
 
             request.EnabledInstallments = new List<int>() { 2, 3, 6, 9 };
 
-            // 3. Alıcı Bilgileri (Dummy Data - Zorunlu Alanlar)
             Buyer buyer = new Buyer();
             buyer.Id = "BY789";
             buyer.Name = "Misafir";
@@ -121,7 +121,7 @@ namespace TeknikServis.Sorgulama.Controllers
             buyer.IdentityNumber = "74300864791";
             buyer.LastLoginDate = "2015-10-05 12:43:35";
             buyer.RegistrationDate = "2013-04-21 15:12:09";
-            buyer.RegistrationAddress = "Nidakule Göztepe, Merdivenköy Mah. Bora Sok. No:1";
+            buyer.RegistrationAddress = "Merkez Mah.";
             buyer.Ip = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "85.34.78.112";
             buyer.City = "Istanbul";
             buyer.Country = "Turkey";
@@ -132,23 +132,21 @@ namespace TeknikServis.Sorgulama.Controllers
             billingAddress.ContactName = "Misafir Müşteri";
             billingAddress.City = "Istanbul";
             billingAddress.Country = "Turkey";
-            billingAddress.Description = "Nidakule Göztepe, Merdivenköy Mah. Bora Sok. No:1";
+            billingAddress.Description = "Merkez Mah.";
             billingAddress.ZipCode = "34742";
             request.BillingAddress = billingAddress;
             request.ShippingAddress = billingAddress;
 
-            // 4. Sepet (Fiyat Eşleşmeli)
             List<BasketItem> basketItems = new List<BasketItem>();
             BasketItem firstBasketItem = new BasketItem();
             firstBasketItem.Id = "BI101";
-            firstBasketItem.Name = cihaz + " Tamir Hizmeti";
+            firstBasketItem.Name = cihaz + " Hizmet Bedeli";
             firstBasketItem.Category1 = "Hizmet";
             firstBasketItem.ItemType = BasketItemType.VIRTUAL.ToString();
-            firstBasketItem.Price = cleanPrice; // Buradaki fiyat yukarıdaki request.Price ile aynı olmalı
+            firstBasketItem.Price = cleanPrice;
             basketItems.Add(firstBasketItem);
             request.BasketItems = basketItems;
 
-            // 5. Başlat
             CheckoutFormInitialize checkoutFormInitialize = await CheckoutFormInitialize.Create(request, options);
 
             if (checkoutFormInitialize.Status == "success")
@@ -157,61 +155,66 @@ namespace TeknikServis.Sorgulama.Controllers
             }
             else
             {
-                // Hata detayını ekrana yazdıralım
-                ViewBag.Error = "Ödeme sistemi hatası: " + checkoutFormInitialize.ErrorMessage + " (Hata Kodu: " + checkoutFormInitialize.ErrorCode + ")";
+                ViewBag.Error = "Ödeme sistemi hatası: " + checkoutFormInitialize.ErrorMessage;
                 return View("Index");
             }
         }
+
         [HttpPost]
         public async Task<IActionResult> PaymentResult(string token)
         {
-            // 1. Ayarları Al
             Options options = new Options();
             options.ApiKey = _configuration["Iyzico:ApiKey"];
             options.SecretKey = _configuration["Iyzico:SecretKey"];
             options.BaseUrl = _configuration["Iyzico:BaseUrl"];
 
-            // 2. Iyzico'ya sor: Bu işlem gerçekten başarılı mı?
             RetrieveCheckoutFormRequest request = new RetrieveCheckoutFormRequest();
             request.Token = token;
-
             CheckoutForm checkoutForm = await CheckoutForm.Retrieve(request, options);
 
             if (checkoutForm.PaymentStatus == "SUCCESS")
             {
-                // --- ÖNEMLİ: API'YE GÜNCELLEME İSTEĞİ GÖNDER ---
-
-                // Sepet ID'si "B" + FisNo şeklindeydi, "B" harfini atıp Fiş No'yu alalım.
-                // Veya checkoutForm.BasketId yerine, StartPayment'te conversationId'ye FisNo vermiştik.
                 string odenenFisNo = checkoutForm.ConversationId;
+                string debugMessage = "";
 
                 if (!string.IsNullOrEmpty(odenenFisNo))
                 {
-                    var client = _httpClientFactory.CreateClient();
-
-                    // API adresiniz (Test ortamı ise localhost veya test domaini)
-                    // Canlıya aldığınızda burayı gerçek domain yapmalısınız.
-                    string updateApiUrl = "https://test.ramazanozcan.com/api/TicketApi/UpdatePaymentStatus";
-
-                    var updateModel = new { FisNo = odenenFisNo };
-                    var jsonContent = new StringContent(JsonConvert.SerializeObject(updateModel), System.Text.Encoding.UTF8, "application/json");
-
                     try
                     {
-                        // API'ye POST isteği atıyoruz
-                        var updateResponse = await client.PostAsync(updateApiUrl, jsonContent);
+                        // --- SSL BYPASS VE API ÇAĞRISI ---
+                        var handler = new HttpClientHandler();
+                        handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                        handler.ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true;
 
-                        if (!updateResponse.IsSuccessStatusCode)
+                        using (var client = new System.Net.Http.HttpClient(handler))
                         {
-                            // API güncelleyemedi ise loglanabilir ama kullanıcıya ödeme başarılı denmeli.
+                            string updateApiUrl = $"{BaseApiUrl}/api/TicketApi/UpdatePaymentStatus";
+
+                            var updateModel = new { FisNo = odenenFisNo };
+                            var jsonContent = new StringContent(
+                                JsonConvert.SerializeObject(updateModel),
+                                Encoding.UTF8,
+                                "application/json");
+
+                            // API'ye isteği gönder ve cevabı bekle
+                            var response = await client.PostAsync(updateApiUrl, jsonContent);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                debugMessage = "Durum Güncellendi.";
+                            }
+                            else
+                            {
+                                debugMessage = $"API Hatası: {response.StatusCode}";
+                            }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // API'ye ulaşılamadı hatası (Loglanmalı)
+                        // Bağlantı hatası olsa bile kullanıcıya ödeme başarılı gösterilir
+                        // debugMessage = "API'ye ulaşılamadı: " + ex.Message;
                     }
                 }
-                // --------------------------------------------------
 
                 ViewBag.Message = "Ödeme Başarıyla Alındı! Cihaz durumu 'Ödeme Yapıldı' olarak güncellendi.";
                 return View("Success");

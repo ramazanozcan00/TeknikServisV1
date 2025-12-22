@@ -175,13 +175,14 @@ namespace TeknikServis.Service.Services
                 ticket.Status = newStatus;
                 ticket.UpdatedDate = DateTime.Now;
 
+                // Eğer ücret güncellemesi de gönderildiyse güncelle
                 if (price.HasValue)
                 {
                     ticket.TotalPrice = price.Value;
                 }
 
                 _unitOfWork.Repository<ServiceTicket>().Update(ticket);
-                await _unitOfWork.CommitAsync();
+                await _unitOfWork.CommitAsync(); // <-- BU SATIR ÇOK ÖNEMLİ
             }
         }
 

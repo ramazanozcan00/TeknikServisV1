@@ -3,7 +3,6 @@
 
 @{
     ViewData["Title"] = "Servis Detayı";
-
     // --- YASAL SÜRE HESAPLAMALARI ---
     var yasalBitisTarihi = Model.CreatedDate.AddBusinessDays(21);
     var kalanIsGunu = yasalBitisTarihi.GetRemainingBusinessDays();
@@ -19,7 +18,6 @@
     string baslikRengi = "bg-success";
     string ikon = "fa-calendar-check";
     string durumMesaji = "Yasal süre içindesiniz.";
-
     if (Model.Status == "Tamamlandı" || Model.Status == "İptal")
     {
         kartRengi = "border-secondary";
@@ -333,10 +331,30 @@
                                 <span class="badge bg-info bg-opacity-10 text-info border border-info rounded-pill" style="font-size: 0.7rem;">Yetkili Personel</span>
                             </div>
                         </div>
+
+                        // --- YENİ EKLENEN KISIM: Teknisyenin Belirlediği Durum ---
+                        <div class="mt-3 border-top pt-2">
+                            <small class="text-muted d-block fw-bold mb-1" style="font-size: 0.75rem;">TEKNİSYEN DURUMU</small>
+                            @if (!string.IsNullOrEmpty(Model.TechnicianStatus))
+                            {
+                                string techColor = "bg-secondary";
+                                if (Model.TechnicianStatus == "İşlemde") { techColor = "bg-primary"; }
+                                else if (Model.TechnicianStatus == "Parça Bekliyor") { techColor = "bg-warning text-dark"; }
+                                else if (Model.TechnicianStatus == "Onarım Fiyat Bilgisi Verildi") { techColor = "bg-info text-dark"; }
+                                else if (Model.TechnicianStatus == "Onarım Sürüyor") { techColor = "bg-info"; }
+                                else if (Model.TechnicianStatus == "Onarım Tamamlandı") { techColor = "bg-success"; }
+
+                                <span class="badge @techColor w-100 py-2 shadow-sm">@Model.TechnicianStatus</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-muted border w-100 py-2">Henüz durum girilmedi</span>
+                            }
+                        </div>
+                        // ---------------------------------------------------------
                     }
                     else
                     {
-                        // --- EKLENEN KISIM ---
                         <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning d-flex align-items-center mb-0 p-3 rounded-3">
                             <i class="fa-solid fa-user-slash fs-3 me-3"></i>
                             <div>
@@ -344,12 +362,11 @@
                                 <small class="text-muted">Bu servis işlemi için henüz bir teknisyen görevlendirilmemiştir.</small>
                             </div>
                         </div>
-                        // ---------------------
                     }
                 </div>
             </div>
 
-            @* Yasal Süre Kartı *@
+            @* Yasal Süre Kartı - MODERN BAR GÜNCELLEMESİ *@
             <div class="card shadow-sm @kartRengi mb-3">
                 <div class="card-header @baslikRengi text-white fw-bold d-flex align-items-center justify-content-between">
                     <span><i class="fa-solid @ikon me-2"></i>Yasal Süre</span>
@@ -366,8 +383,8 @@
                             <h2 class="fw-bold mb-0 display-6">@kalanIsGunu</h2>
                             <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">İş Günü Kaldı</small>
                         </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar @barColor" role="progressbar" style="width: @yuzde%"></div>
+                        <div class="progress rounded-pill bg-secondary bg-opacity-10 shadow-sm" style="height: 15px;">
+                            <div class="progress-bar @barColor progress-bar-striped progress-bar-animated rounded-pill" role="progressbar" style="width: @yuzde%"></div>
                         </div>
                     }
                 </div>
@@ -466,14 +483,10 @@
 
 @section Scripts {
     <script>
-        // Modal açılırken tutarı standart formata getiriyoruz
         function openAccountModal(id, amount) {
             document.getElementById('modalTicketId').value = id;
-
-            // Sayısal değeri JS tarafında düzgün algılayıp inputa yazıyoruz
             var cleanAmount = parseFloat(amount.replace(',', '.'));
             document.getElementById('modalAmount').value = cleanAmount.toFixed(2);
-
             var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
             myModal.show();
         }
@@ -494,25 +507,17 @@
                 paymentType: type
             }, function(res) {
                 if (res.success) {
-                    // Modal'ı kapat
                     var modalEl = document.getElementById('paymentModal');
                     var modalInstance = bootstrap.Modal.getInstance(modalEl);
                     if(modalInstance) modalInstance.hide();
-
-                    // Başarı Toast'u göster
                     showToast("İşlem Başarılı", res.message, "text-white bg-success");
-
-                    // Sayfayı kısa bir gecikmeyle yenile
-                    setTimeout(function() {
-                        location.reload();
-                    }, 2000);
+                    setTimeout(function() { location.reload(); }, 2000);
                 } else {
                     showToast("Hata", res.message, "text-white bg-danger");
                 }
             });
         }
 
-        // Yardımcı Toast Fonksiyonu
         function showToast(title, message, bgClass) {
             var toastHtml = `
                 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1060;">
@@ -521,24 +526,16 @@
                             <strong class="me-auto">${title}</strong>
                             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
-                        <div class="toast-body">
-                            ${message}
-                        </div>
+                        <div class="toast-body">${message}</div>
                     </div>
                 </div>`;
-
             document.body.insertAdjacentHTML('beforeend', toastHtml);
             var toastElement = document.getElementById('liveToast');
             var toast = new bootstrap.Toast(toastElement);
             toast.show();
-
-            // Toast kapandıktan sonra HTML'den temizle
-            toastElement.addEventListener('hidden.bs.toast', function () {
-                toastElement.parentElement.remove();
-            });
+            toastElement.addEventListener('hidden.bs.toast', function () { toastElement.parentElement.remove(); });
         }
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function sendWhatsappMessage(id) {
@@ -552,24 +549,16 @@
                 confirmButtonText: 'Evet, Gönder!'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Yükleniyor göster
                     Swal.fire({ title: 'Gönderiliyor...', didOpen: () => { Swal.showLoading() } });
-
-                    // AJAX İsteği
                     $.ajax({
                         url: '/ServiceTicket/SendReadyMessage',
                         type: 'POST',
                         data: { id: id },
                         success: function (response) {
-                            if (response.success) {
-                                Swal.fire('Başarılı!', response.message, 'success');
-                            } else {
-                                Swal.fire('Hata!', response.message, 'error');
-                            }
+                            if (response.success) { Swal.fire('Başarılı!', response.message, 'success'); }
+                            else { Swal.fire('Hata!', response.message, 'error'); }
                         },
-                        error: function () {
-                            Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error');
-                        }
+                        error: function () { Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error'); }
                     });
                 }
             })

@@ -9,9 +9,15 @@
     <div class="row justify-content-center">
         <div class="col-md-9">
             <div class="card shadow border-0">
-                <div class="card-header bg-primary text-white">
+                @* --- DEĞİŞİKLİK BURADA: Başlık satırı düzenlendi ve sağ üste Durum eklendi --- *@
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fa-solid fa-screwdriver-wrench me-2"></i>Cihaz İşlemi: @Model.FisNo</h5>
+                    <span class="badge bg-white text-primary fw-bold shadow-sm">
+                        <i class="fa-solid fa-info-circle me-1"></i>@Model.Status
+                    </span>
                 </div>
+                @* -------------------------------------------------------------------------- *@
+
                 <div class="card-body p-4">
 
                     <div class="row g-3 mb-4">
@@ -49,7 +55,6 @@
                         }
                         else
                         {
-
                             <div class="alert alert-light border text-center small">Henüz not girilmedi.</div>
                         }
                     </div>
@@ -126,12 +131,12 @@
                             </div>
                             <div class="col-md-6 mb-4">
                                 <label class="form-label fw-bold">Yeni Durum</label>
-                                <select name="status" class="form-select fw-bold">
-                                    <option value="İşlemde" selected="@(Model.Status == "İşlemde")">İşlemde</option>
-                                    <option value="Parça Bekliyor" selected="@(Model.Status == "Parça Bekliyor")">Parça Bekliyor</option>
-                                    <option value="Onarım Fiyat Bilgisi Verildi" selected="@(Model.Status == "Onarım Fiyat Bilgisi Verildi")">Onarım Fiyat Bilgisi Verildi</option>
-                                    <option value="Onarım Sürüyor" selected="@(Model.Status == "Onarım Sürüyor")">Onarım Sürüyor</option>
-                                    <option value="Onarım Tamamlandı" selected="@(Model.Status == "Onarım Tamamlandı")" class="text-success">Onarım Tamamlandı</option>
+                                <select name="technicianStatus" class="form-select fw-bold">
+                                    <option value="İşlemde" selected="@(Model.TechnicianStatus == "İşlemde")">İşlemde</option>
+                                    <option value="Parça Bekliyor" selected="@(Model.TechnicianStatus == "Parça Bekliyor")">Parça Bekliyor</option>
+                                    <option value="Onarım Fiyat Bilgisi Verildi" selected="@(Model.TechnicianStatus == "Onarım Fiyat Bilgisi Verildi")">Onarım Fiyat Bilgisi Verildi</option>
+                                    <option value="Onarım Sürüyor" selected="@(Model.TechnicianStatus == "Onarım Sürüyor")">Onarım Sürüyor</option>
+                                    <option value="Onarım Tamamlandı" selected="@(Model.TechnicianStatus == "Onarım Tamamlandı")" class="text-success">Onarım Tamamlandı</option>
                                 </select>
                             </div>
                         </div>
@@ -164,7 +169,6 @@
                 }
             });
         });
-
         function addPart() {
             var partId = $("#selectedPartId").val();
             var qty = $("#partQty").val();

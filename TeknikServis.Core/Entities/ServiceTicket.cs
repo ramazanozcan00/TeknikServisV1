@@ -35,6 +35,11 @@ namespace TeknikServis.Core.Entities
         public string ProblemDescription { get; set; }
         public string PhotoPath { get; set; }
         public string Status { get; set; } = "Bekliyor";
+
+        // --- YENİ EKLENEN ALAN: Teknisyen Durumu ---
+        public string TechnicianStatus { get; set; }
+        // -------------------------------------------
+
         public decimal? TotalPrice { get; set; }
         public bool IsWarranty { get; set; } = false;
 
