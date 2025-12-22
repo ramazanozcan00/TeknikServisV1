@@ -24,8 +24,9 @@ namespace TeknikServis.Web.Controllers
         private readonly IAuditLogService _auditLogService;
         private readonly UserManager<AppUser> _userManager;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IWhatsAppService _whatsAppService; // <--- EKLENDİ
 
-        // Constructor (Dependency Injection) - BURASI ORİJİNAL VE DOĞRU HALİDİR
+        // Constructor (Dependency Injection)
         public ServiceTicketController(
             IServiceTicketService ticketService,
             ICustomerService customerService,
@@ -33,7 +34,8 @@ namespace TeknikServis.Web.Controllers
             IEmailService emailService,
             IAuditLogService auditLogService,
             UserManager<AppUser> userManager,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IWhatsAppService whatsAppService) // <--- EKLENDİ
         {
             _ticketService = ticketService;
             _customerService = customerService;
@@ -42,9 +44,10 @@ namespace TeknikServis.Web.Controllers
             _auditLogService = auditLogService;
             _userManager = userManager;
             _unitOfWork = unitOfWork;
+            _whatsAppService = whatsAppService; // <--- EKLENDİ
         }
 
-        // --- YARDIMCI METOT: Teknisyenleri Dropdown'a Doldurur (GÜNCELLENDİ) ---
+        // --- YARDIMCI METOT: Teknisyenleri Dropdown'a Doldurur ---
         private async Task LoadTechniciansAsync()
         {
             // 1. İşlem yapan kullanıcının aktif şube ID'sini alıyoruz
@@ -55,7 +58,7 @@ namespace TeknikServis.Web.Controllers
 
             // 3. Bu listeyi sadece mevcut şubeye ait olanlar kalacak şekilde filtreliyoruz
             var techList = technicians
-                .Where(u => u.BranchId == currentBranchId) // Şube Filtresi Eklendi
+                .Where(u => u.BranchId == currentBranchId)
                 .Select(u => new { Id = u.Id, Name = u.FullName })
                 .ToList();
 
@@ -157,8 +160,7 @@ namespace TeknikServis.Web.Controllers
         {
             var user = await _userManager.GetUserAsync(User);
 
-            // Aktif İşler: Sadece teknisyenin üzerindeki ve henüz tamamlanmamış işler
-            // "Onarım Tamamlandı" durumu artık bu listeden çıkacak
+            // Aktif İşler
             var myTickets = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
                            t.Status != "Tamamlandı" &&
@@ -167,7 +169,7 @@ namespace TeknikServis.Web.Controllers
                            t.Status != "İptal",
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
 
-            // Tamamlanan İşler: Süreci bitmiş veya finansal onay bekleyen işler
+            // Tamamlanan İşler
             var completed = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
                            (t.Status == "Tamamlandı" || t.Status == "Onarım Tamamlandı" || t.Status == "Ödeme Yapıldı"),
@@ -210,10 +212,10 @@ namespace TeknikServis.Web.Controllers
 
             // Sadece teknisyenin seçebileceği izinli durumlar
             var allowedStatuses = new[] {
-        "İşlemde", "Parça Bekliyor",
-        "Onarım Fiyat Bilgisi Verildi",
-        "Onarım Sürüyor", "Onarım Tamamlandı"
-    };
+                "İşlemde", "Parça Bekliyor",
+                "Onarım Fiyat Bilgisi Verildi",
+                "Onarım Sürüyor", "Onarım Tamamlandı"
+            };
 
             if (!allowedStatuses.Contains(status))
             {
@@ -222,7 +224,7 @@ namespace TeknikServis.Web.Controllers
             }
 
             ticket.Status = status;
-            if (price.HasValue) ticket.TotalPrice = price; // Teknisyen fiyat girer (Cariye işlemez)
+            if (price.HasValue) ticket.TotalPrice = price;
 
             if (!string.IsNullOrEmpty(description))
             {
@@ -264,7 +266,6 @@ namespace TeknikServis.Web.Controllers
 
             var customers = await _customerService.GetCustomersByBranchAsync(currentBranchId);
 
-            // Müşteri listesini oluştururken Firma İsmi kontrolü (Burası doğru)
             var customerList = customers.Select(c => new
             {
                 Id = c.Id,
@@ -273,9 +274,7 @@ namespace TeknikServis.Web.Controllers
                       : $"{c.FirstName} {c.LastName} - {c.CompanyName} ({c.Phone})"
             });
 
-            // --- EKSİK OLAN KISIM BURASI (BUNU EKLEYİN) ---
             ViewBag.CustomerList = new SelectList(customerList, "Id", "DisplayText");
-            // ----------------------------------------------
 
             var types = await _unitOfWork.Repository<DeviceType>().GetAllAsync();
             var brands = await _unitOfWork.Repository<DeviceBrand>().GetAllAsync();
@@ -286,7 +285,7 @@ namespace TeknikServis.Web.Controllers
             return View();
         }
 
-        // CREATE (POST) - PDF PARAMETRESİ EKLENDİ
+        // CREATE (POST)
         [HttpPost]
         [Authorize(Policy = "CreatePolicy")]
         public async Task<IActionResult> Create(ServiceTicket ticket, IFormFile photo, IFormFile pdfFile)
@@ -321,7 +320,7 @@ namespace TeknikServis.Web.Controllers
                 ticket.PhotoPath = "/uploads/" + uniqueFileName;
             }
 
-            // 3. PDF Yükleme (YENİ)
+            // 3. PDF Yükleme
             if (pdfFile != null && pdfFile.Length > 0)
             {
                 string extension = Path.GetExtension(pdfFile.FileName);
@@ -425,7 +424,6 @@ namespace TeknikServis.Web.Controllers
             return View(ticket);
         }
 
-        // EDIT (POST) - TAMAMEN GÜNCELLENMİŞ HALİ
         [HttpPost]
         [Authorize(Policy = "EditPolicy")]
         public async Task<IActionResult> Edit(ServiceTicket ticket, IFormFile photo, IFormFile pdfFile)
@@ -436,18 +434,15 @@ namespace TeknikServis.Web.Controllers
             if (existingTicket == null) return NotFound();
 
             // 2. Fotoğraf İşlemleri
-            // 2. Fotoğraf İşlemleri
             if (photo != null && photo.Length > 0)
             {
                 string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
 
-                // --- EKLENEN KISIM: Klasör yoksa oluştur ---
                 if (!Directory.Exists(uploadsFolder))
                 {
                     Directory.CreateDirectory(uploadsFolder);
                 }
-                // -------------------------------------------
 
                 using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create))
                 {
@@ -457,7 +452,6 @@ namespace TeknikServis.Web.Controllers
             }
 
             // 3. PDF İşlemleri
-            // 3. PDF İşlemleri (GÜNCELLENDİ)
             if (pdfFile != null && pdfFile.Length > 0)
             {
                 string extension = Path.GetExtension(pdfFile.FileName);
@@ -466,12 +460,10 @@ namespace TeknikServis.Web.Controllers
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
 
-                    // --- KLASÖR KONTROLÜ (EKLENDİ) ---
                     if (!Directory.Exists(uploadsFolder))
                     {
                         Directory.CreateDirectory(uploadsFolder);
                     }
-                    // ---------------------------------
 
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create))
@@ -495,13 +487,9 @@ namespace TeknikServis.Web.Controllers
             existingTicket.Accessories = ticket.Accessories;
             existingTicket.PhysicalDamage = ticket.PhysicalDamage;
 
-            // --- DEĞİŞİKLİK BURADA ---
-            // Yönetici ise SADECE teknisyen atamasını güncellesin.
-            // Notlara buradan müdahale edilmesin (Satır silindi).
             if (User.IsInRole("Admin"))
             {
                 existingTicket.TechnicianId = ticket.TechnicianId;
-                // existingTicket.TechnicianNotes = ticket.TechnicianNotes; // BU SATIR İPTAL EDİLDİ
             }
 
             existingTicket.UpdatedDate = DateTime.Now;
@@ -512,6 +500,7 @@ namespace TeknikServis.Web.Controllers
             TempData["Success"] = "Kayıt başarıyla güncellendi.";
             return RedirectToAction("Details", new { id = ticket.Id });
         }
+
         [HttpPost]
         [Authorize(Policy = "EditPolicy")]
         public async Task<IActionResult> ChangeStatus(Guid id, string status, decimal? price)
@@ -601,14 +590,11 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, id = ticket.Id });
         }
 
-        // ServiceTicketController.cs içine ekleyin:
-
         [HttpPost]
-        [Authorize] // Genel yetki kontrolü (Rol kontrolünü içeride yapacağız)
+        [Authorize]
         public async Task<IActionResult> Delete(Guid id)
         {
             // 1. KULLANICI YETKİ KONTROLÜ
-            // Admin değilse VE "Silme" yetkisi (Claim) yoksa engelle
             if (!User.IsInRole("Admin") && !User.HasClaim(x => x.Type == "Permission" && x.Value == "Delete"))
             {
                 TempData["Error"] = "Silme yetkiniz bulunmamaktadır.";
@@ -633,7 +619,7 @@ namespace TeknikServis.Web.Controllers
             // 3. SİLME İŞLEMİ
             await _ticketService.DeleteTicketAsync(id);
 
-            // Loglama (Opsiyonel ama önerilir)
+            // Loglama
             try
             {
                 string userId = _userManager.GetUserId(User);
@@ -647,13 +633,10 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("Index");
         }
 
-
         [HttpPost]
         [Authorize(Roles = "Personnel,Admin")]
         public async Task<IActionResult> ApproveToAccount(Guid ticketId, string finalAmount, string paymentType)
         {
-            // String olarak alıp InvariantCulture ile decimal'e çevirmek 
-            // nokta/virgül kaynaklı 100 katı büyüme hatalarını engeller.
             if (!decimal.TryParse(finalAmount, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out decimal amount))
             {
@@ -685,5 +668,35 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> SendReadyMessage(Guid id)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            var ticket = await _ticketService.GetTicketByIdAsync(id);
+          
+            if (ticket == null) return Json(new { success = false, message = "Fiş bulunamadı." });
+            if (currentUser != null && !currentUser.IsWhatsAppEnabled)
+            {
+                return Json(new { success = false, message = "WhatsApp gönderme yetkiniz kapalıdır. Yöneticinizle görüşün." });
+            }
+            if (ticket.Customer == null || string.IsNullOrEmpty(ticket.Customer.Phone))
+            {
+                return Json(new { success = false, message = "Müşterinin telefon numarası kayıtlı değil." });
+            }
+
+            string mesaj = $"Sayın {ticket.Customer.FirstName} {ticket.Customer.LastName}, {ticket.FisNo} numaralı cihazınızın işlemleri tamamlanmıştır. Teslim alabilirsiniz. - Teknik Servis";
+
+            // Servisi çağır
+            bool basarili = await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, mesaj);
+
+            if (basarili)
+            {
+                return Json(new { success = true, message = "WhatsApp mesajı başarıyla gönderildi." });
+            }
+            else
+            {
+                return Json(new { success = false, message = "Mesaj gönderilemedi. (Sunucu hatası veya numara geçersiz)" });
+            }
+        }
     }
 }

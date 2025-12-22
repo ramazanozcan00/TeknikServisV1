@@ -124,21 +124,58 @@
                             <div class="col-md-6">
                                 <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
                                     <div class="card-body p-4">
-                                        <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-toggle-on me-2"></i>İşlem Yetkileri</h6>
-                                        <div class="d-flex gap-3 flex-wrap">
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanCreate"><label class="form-check-label text-success fw-bold" asp-for="CanCreate">Ekleme</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanEdit"><label class="form-check-label text-warning fw-bold" asp-for="CanEdit">Düzenleme</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="CanDelete"><label class="form-check-label text-danger fw-bold" asp-for="CanDelete">Silme</label></div>
+                                        <h6 class="fw-bold text-secondary mb-4"><i class="fa-solid fa-toggle-on me-2"></i>İşlem Yetkileri</h6>
+
+                                        <div class="list-group mb-4 shadow-sm border-0">
+                                            <label class="list-group-item d-flex justify-content-between align-items-center border-0 bg-light rounded-top p-3">
+                                                <span class="fw-bold text-dark small"><i class="fa-solid fa-plus text-success me-2"></i>Ekleme Yetkisi</span>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" asp-for="CanCreate" style="transform: scale(1.1);">
+                                                </div>
+                                            </label>
+                                            <label class="list-group-item d-flex justify-content-between align-items-center border-0 bg-light border-top border-white p-3">
+                                                <span class="fw-bold text-dark small"><i class="fa-solid fa-pen text-warning me-2"></i>Düzenleme Yetkisi</span>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" asp-for="CanEdit" style="transform: scale(1.1);">
+                                                </div>
+                                            </label>
+                                            <label class="list-group-item d-flex justify-content-between align-items-center border-0 bg-light rounded-bottom border-top border-white p-3">
+                                                <span class="fw-bold text-dark small"><i class="fa-solid fa-trash text-danger me-2"></i>Silme Yetkisi</span>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" asp-for="CanDelete" style="transform: scale(1.1);">
+                                                </div>
+                                            </label>
                                         </div>
-                                        <hr />
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="IsSidebarVisible">
-                                            <label class="form-check-label text-primary fw-bold" asp-for="IsSidebarVisible">Sol Menü Görünsün</label>
+
+                                        <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-10 rounded-3 mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="form-check-label fw-bold text-success" asp-for="IsWhatsAppEnabled">
+                                                    <i class="fa-brands fa-whatsapp me-2"></i>WhatsApp İşlemleri Aktif
+                                                </label>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" asp-for="IsWhatsAppEnabled" style="transform: scale(1.2);">
+                                                </div>
+                                            </div>
+                                            <div class="small text-muted opacity-75 lh-sm">
+                                                <i class="fa-solid fa-circle-info me-1" style="font-size: 0.7rem;"></i>
+                                                İşaretlenmezse bu personel WhatsApp butonu ile mesaj gönderemez.
+                                            </div>
                                         </div>
+
+                                        <div class="p-3 bg-primary bg-opacity-10 border border-primary border-opacity-10 rounded-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <label class="form-check-label fw-bold text-primary" asp-for="IsSidebarVisible">
+                                                    <i class="fa-solid fa-table-columns me-2"></i>Sol Menü Görünsün
+                                                </label>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" asp-for="IsSidebarVisible" style="transform: scale(1.2);">
+                                                </div>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
                         <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
                             <div class="card-body p-4">

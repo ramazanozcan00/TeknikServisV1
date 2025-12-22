@@ -33,6 +33,9 @@ namespace TeknikServis.Web.Models
         public int CustomerBalance { get; set; }
         public int TicketBalance { get; set; }
 
+        [Display(Name = "WhatsApp Yetkisi")]
+        public bool IsWhatsAppEnabled { get; set; }
+
         // --- GÜVENLİK ---
         [Display(Name = "E-Posta Doğrulama")]
         public bool IsEmailAuthEnabled { get; set; }

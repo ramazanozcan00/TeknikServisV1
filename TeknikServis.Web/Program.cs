@@ -72,6 +72,18 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IEDevletService, EDevletService>();
 builder.Services.AddScoped<TenantService>();
 
+builder.Services.AddHttpClient<IWhatsAppService, EvolutionApiWhatsAppService>(client =>
+{
+    var config = builder.Configuration.GetSection("EvolutionApi");
+    client.BaseAddress = new Uri(config["BaseUrl"]);
+    client.DefaultRequestHeaders.Add("apikey", config["ApiKey"]);
+});
+
+
+
+
+
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 

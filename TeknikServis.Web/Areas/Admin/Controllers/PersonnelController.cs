@@ -222,7 +222,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 UserRole = userRoles.FirstOrDefault(),
 
                 IsShipmentAuthEnabled = user.IsShipmentAuthEnabled,
-
+                IsWhatsAppEnabled = user.IsWhatsAppEnabled,
                 CanCreate = userClaims.Any(c => c.Type == "Permission" && c.Value == "Create"),
                 CanEdit = userClaims.Any(c => c.Type == "Permission" && c.Value == "Edit"),
                 CanDelete = userClaims.Any(c => c.Type == "Permission" && c.Value == "Delete"),
@@ -281,7 +281,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             user.IsEmailAuthEnabled = model.IsEmailAuthEnabled;
             user.IsSmsAuthEnabled = model.IsSmsAuthEnabled;
             user.TwoFactorEnabled = model.IsEmailAuthEnabled || model.IsSmsAuthEnabled;
-
+            user.IsWhatsAppEnabled = model.IsWhatsAppEnabled;
             user.IsSidebarVisible = model.IsSidebarVisible;
             user.IsPriceOfferEnabled = model.IsPriceOfferEnabled; // EKLENDİ
             user.UpdatedDate = DateTime.Now;

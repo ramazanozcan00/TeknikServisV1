@@ -65,6 +65,10 @@
                 <i class="fa-solid fa-print me-2"></i>Yazdır
             </a>
 
+            <button type="button" class="btn btn-success shadow-sm" onclick="sendWhatsappMessage('@Model.Id')">
+                <i class="fa-brands fa-whatsapp me-2"></i>Cihaz Hazır Mesajı Gönder
+            </button>
+
             @{
                 string statusBadgeColor = "bg-info text-dark";
                 if (Model.Status == "Tamamlandı" || Model.Status == "Ödeme Yapıldı") { statusBadgeColor = "bg-success"; }
@@ -520,6 +524,43 @@
             toastElement.addEventListener('hidden.bs.toast', function () {
                 toastElement.parentElement.remove();
             });
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function sendWhatsappMessage(id) {
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: "Müşteriye 'Cihazınız Hazır' mesajı gönderilecek!",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Evet, Gönder!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Yükleniyor göster
+                    Swal.fire({ title: 'Gönderiliyor...', didOpen: () => { Swal.showLoading() } });
+
+                    // AJAX İsteği
+                    $.ajax({
+                        url: '/ServiceTicket/SendReadyMessage',
+                        type: 'POST',
+                        data: { id: id },
+                        success: function (response) {
+                            if (response.success) {
+                                Swal.fire('Başarılı!', response.message, 'success');
+                            } else {
+                                Swal.fire('Hata!', response.message, 'error');
+                            }
+                        },
+                        error: function () {
+                            Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error');
+                        }
+                    });
+                }
+            })
         }
     </script>
 }
