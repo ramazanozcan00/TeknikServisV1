@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeknikServis.Service", "Tek
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeknikServis.Web", "TeknikServis.Web\TeknikServis.Web.csproj", "{8BDFCCE0-8E30-4B3B-958A-CCC676A768F9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeknikServis.Sorgulama", "..\..\TeknikServis_Sorgulama\TeknikServis.Sorgulama\TeknikServis.Sorgulama.csproj", "{188CE580-652E-4D7F-8A82-3B5B135D12B5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeknikServis.Sorgulama", "TeknikServis.Sorgulama\TeknikServis.Sorgulama.csproj", "{6BA86E74-381E-1B24-3B85-5C59BEA4A537}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +35,10 @@ Global
 		{8BDFCCE0-8E30-4B3B-958A-CCC676A768F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8BDFCCE0-8E30-4B3B-958A-CCC676A768F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8BDFCCE0-8E30-4B3B-958A-CCC676A768F9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{188CE580-652E-4D7F-8A82-3B5B135D12B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{188CE580-652E-4D7F-8A82-3B5B135D12B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{188CE580-652E-4D7F-8A82-3B5B135D12B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{188CE580-652E-4D7F-8A82-3B5B135D12B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BA86E74-381E-1B24-3B85-5C59BEA4A537}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BA86E74-381E-1B24-3B85-5C59BEA4A537}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BA86E74-381E-1B24-3B85-5C59BEA4A537}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BA86E74-381E-1B24-3B85-5C59BEA4A537}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
