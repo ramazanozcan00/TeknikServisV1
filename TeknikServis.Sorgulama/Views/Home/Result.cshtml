@@ -1,110 +1,104 @@
 ﻿@model TeknikServis.Sorgulama.Controllers.TicketResultViewModel
+
 @{
-    Layout = null;
+    ViewData["Title"] = "Sorgulama Sonucu";
 }
 
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sorgulama Sonucu</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <style>
-        .pulse-button {
-            animation: pulse 2s infinite;
-        }
-
-        @@keyframes pulse {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            
+            @* Hata ve Başarı Mesajları *@
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert alert-danger text-center">@ViewBag.Error</div>
+            }
+            @if (ViewBag.Message != null)
+            {
+                <div class="alert alert-success text-center">@ViewBag.Message</div>
             }
 
-            70% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
-            }
-
-            100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
-            }
-        }
-    </style>
-</head>
-<body class="bg-light py-5">
-
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card shadow-lg border-0 rounded-3">
-
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-3">
-                        <h5 class="mb-0">Sorgu Sonucu</h5>
-                        <a href="/" class="btn btn-sm btn-light text-success fw-bold">Yeni Sorgu</a>
-                    </div>
-
-                    <div class="card-body p-4">
-
-                        <div class="text-center mb-4">
-                            <span class="badge bg-dark fs-5 mb-2">@Model.FisNo</span>
-                            <h3 class="fw-bold text-primary">@Model.Cihaz</h3>
-                            <div class="text-muted">SN: @(string.IsNullOrEmpty(Model.SeriNo) ? "-" : Model.SeriNo)</div>
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h4 class="mb-0 fw-bold">Servis Durumu: @Model.FisNo</h4>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong class="d-block text-muted">Cihaz:</strong>
+                            <span class="fs-5">@Model.Cihaz</span>
                         </div>
-
-                        <ul class="list-group list-group-flush mb-4">
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span class="fw-bold text-secondary">Durum:</span>
-                                <span class="badge bg-info text-dark fs-6">@Model.Durum</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span class="fw-bold text-secondary">Giriş Tarihi:</span>
-                                <span>@Model.GirisTarihi</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span class="fw-bold text-secondary">Tahmini Teslim:</span>
-                                <span class="text-danger fw-bold">@Model.TahminiTeslim</span>
-                            </li>
-                            <li class="list-group-item">
-                                <span class="fw-bold text-secondary d-block mb-1">Arıza / İşlem:</span>
-                                <p class="mb-0 text-dark small">@Model.Ariza</p>
-                            </li>
-                        </ul>
-
-                        @* --- ÖDEME BUTONU GÖSTERİM MANTIĞI --- *@
-                        @* Personelin seçtiği durum "Ödeme Bekleniyor" olduğu için burayı güncelledik *@
-                        @if (Model.Durum == "Ödeme Bekleniyor" || Model.Durum == "Ödeme Bekliyor" || Model.Durum == "Tamamlandı" || Model.Durum == "Ödeme Yapıldı")
-                        {
-                            <div class="alert alert-success text-center fw-bold">
-                                Toplam Tutar: @Model.Ucret ₺
-                            </div>
-
-                            @* Ödeme Butonu SADECE "Ödeme Bekleniyor" durumunda ve ücret varsa çıksın *@
-                            @if ((Model.Durum == "Ödeme Bekleniyor" || Model.Durum == "Ödeme Bekliyor") && !string.IsNullOrEmpty(Model.Ucret) && Model.Ucret != "0" && Model.Ucret != "0,00" && Model.Ucret != "0.00")
-                            {
-                                <div class="text-center mt-3">
-                                    <form asp-action="StartPayment" asp-controller="Home" method="post">
-                                        <input type="hidden" name="fisNo" value="@Model.FisNo" />
-                                        <input type="hidden" name="ucret" value="@Model.Ucret" />
-                                        <input type="hidden" name="cihaz" value="@Model.Cihaz" />
-
-                                        <button type="submit" class="btn btn-primary btn-lg shadow pulse-button">
-                                            <i class="fa-regular fa-credit-card me-2"></i>Kredi Kartı ile Öde
-                                        </button>
-                                    </form>
-                                    <div class="small text-muted mt-2">
-                                        <i class="fa-solid fa-lock"></i> Ödemeler Iyzico güvencesiyle alınmaktadır.
-                                    </div>
-                                </div>
-                            }
-                        }
+                        <div class="col-md-6 text-md-end">
+                            <strong class="d-block text-muted">Seri No:</strong>
+                            <span>@Model.SeriNo</span>
+                        </div>
                     </div>
+
+                    <div class="alert alert-light border text-center">
+                        <h5 class="fw-bold text-dark mb-0">Durum: <span class="badge bg-info text-dark">@Model.Durum</span></h5>
+                        <p class="mb-0 mt-2 text-muted">@Model.Ariza</p>
+                    </div>
+
+                    <hr />
+
+                    <div class="row text-center mt-3">
+                        <div class="col-6">
+                            <small class="text-muted">Giriş Tarihi</small><br />
+                            <strong>@Model.GirisTarihi</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Servis Ücreti</small><br />
+                            <strong class="text-success fs-5">@Model.Ucret ₺</strong>
+                        </div>
+                    </div>
+
+                    @* --- IYZICO ÖDEME ALANI --- *@
+                    @if (Model.Durum == "Ödeme Bekleniyor")
+                    {
+                        <div class="card border-warning mt-4 bg-light">
+                            <div class="card-body text-center">
+                                <h4 class="text-warning fw-bold"><i class="fa-solid fa-credit-card me-2"></i>Online Ödeme</h4>
+                                
+                                <p class="fs-5 mt-3">
+                                    Cihazınızın işlemleri tamamlanacaktir. Teslimat için ödemeniz gereken tutar:
+                                    <br />
+                                    <span class="fw-bold text-success display-6">@Model.Ucret ₺</span>
+                                </p>
+
+                                <form asp-controller="Home" asp-action="StartPayment" method="post" class="mt-4">
+                                    @* StartPayment metoduna gidecek parametreler *@
+                                    <input type="hidden" name="fisNo" value="@Model.FisNo" />
+                                    <input type="hidden" name="ucret" value="@Model.Ucret" />
+                                    <input type="hidden" name="cihaz" value="@Model.Cihaz" />
+
+                                    <button type="submit" class="btn btn-success btn-lg px-5 shadow-sm hover-scale">
+                                        <i class="fa-solid fa-shield-halved me-2"></i>Güvenli Ödeme Yap (Iyzico)
+                                    </button>
+                                </form>
+                                
+                                <div class="mt-3">
+                                    <img src="https://sandbox-api.iyzipay.com/content/images/iyzipay-logo.png" alt="Iyzico" style="height: 30px; opacity: 0.7;">
+                                </div>
+                                <small class="text-muted d-block mt-2">Ödemeniz onaylandığında durum otomatik güncellenecektir.</small>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Durum == "Ödeme Yapıldı")
+                    {
+                        <div class="alert alert-success text-center mt-4">
+                            <i class="fa-solid fa-circle-check fa-3x mb-3"></i><br />
+                            <h4 class="alert-heading">Ödeme Başarıyla Alındı!</h4>
+                            <p>Cihazınız teslimat için hazırdır. Servisimizden teslim alabilirsiniz.</p>
+                        </div>
+                    }
+                    @* ------------------------- *@
+
+                </div>
+                <div class="card-footer bg-white text-center py-3">
+                    <a href="/" class="btn btn-outline-secondary">Yeni Sorgulama Yap</a>
                 </div>
             </div>
         </div>
     </div>
-
-</body>
-</html>
+</div>

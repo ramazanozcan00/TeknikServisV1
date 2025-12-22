@@ -43,21 +43,20 @@ namespace TeknikServis.Web.Controllers.Api
         [HttpPost("UpdatePaymentStatus")]
         public async Task<IActionResult> UpdatePaymentStatus([FromBody] PaymentUpdateDto model)
         {
-            if (string.IsNullOrEmpty(model.FisNo)) return BadRequest();
+            if (model == null || string.IsNullOrEmpty(model.FisNo))
+                return BadRequest();
 
+            // 1. Fiş numarasına göre kaydı bul
             var ticket = await _serviceTicketService.GetTicketByFisNoAsync(model.FisNo);
 
             if (ticket != null)
             {
-                // --- KRİTİK DÜZELTME BURADA ---
+                // 2. Durumu güncelle
+                ticket.Status = "Ödeme Yapıldı";
+                ticket.UpdatedDate = System.DateTime.Now;
 
-                // ESKİ (HATALI): 
-                // ticket.Status = "Ödeme Yapıldı";
-                // await _serviceTicketService.UpdateTicketAsync(ticket);
-
-                // YENİ (DOĞRU):
-                // Durumu veritabanına işleyen özel metodu çağırıyoruz.
-                await _serviceTicketService.UpdateTicketStatusAsync(ticket.Id, "Ödeme Yapıldı");
+                // 3. Veritabanına kaydet
+                await _serviceTicketService.UpdateTicketAsync(ticket);
 
                 return Ok(new { message = "Durum başarıyla güncellendi." });
             }
