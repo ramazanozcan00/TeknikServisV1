@@ -397,26 +397,60 @@ namespace TeknikServis.Web.Controllers
 
         [HttpPost]
         [Authorize(Policy = "EditPolicy")]
-        public async Task<IActionResult> ChangeStatus(Guid id, string status, decimal? price)
+        public async Task<IActionResult> ChangeStatus(Guid id, string status, string price)
         {
-            await _ticketService.UpdateTicketStatusAsync(id, status, price);
+            // 1. Kaydı veritabanından çek
+            var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
+            if (ticket == null) return NotFound();
+
+            // 2. Durumu güncelle
+            ticket.Status = status;
+
+            // 3. Fiyatı güncelle (Format hatasını önlemek için string olarak alıp çeviriyoruz)
+            if (!string.IsNullOrEmpty(price))
+            {
+                // "TL", "₺" ve boşlukları temizle
+                string cleanPrice = price.Replace("₺", "").Replace("TL", "").Trim();
+
+                // Önce Türkçe formatı (Virgül) dene, olmazsa Uluslararası formatı (Nokta) dene
+                if (decimal.TryParse(cleanPrice, System.Globalization.NumberStyles.Any, new System.Globalization.CultureInfo("tr-TR"), out decimal parsedPrice))
+                {
+                    ticket.TotalPrice = parsedPrice;
+                }
+                else if (decimal.TryParse(cleanPrice, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal parsedPriceInvariant))
+                {
+                    ticket.TotalPrice = parsedPriceInvariant;
+                }
+            }
+
+            ticket.UpdatedDate = DateTime.Now;
+
+            // 4. Veritabanına kaydet
+            _unitOfWork.Repository<ServiceTicket>().Update(ticket);
+            await _unitOfWork.CommitAsync();
+
+            // 5. Loglama ve Mail İşlemleri
             try
             {
-                var t = await _ticketService.GetTicketByIdAsync(id);
                 string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 string userName = User.GetFullName();
                 Guid branchId = User.GetBranchId();
                 string userIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-                await _auditLogService.LogAsync(userId, userName, branchId, "Servis", "Güncelleme", $"{t.FisNo} durumu '{status}' oldu.", userIp);
 
-                if (status == "Tamamlandı" && t.Customer?.Email != null)
+                await _auditLogService.LogAsync(userId, userName, branchId, "Servis", "Güncelleme", $"{ticket.FisNo} durumu '{status}' olarak güncellendi.", userIp);
+
+                if (status == "Tamamlandı" && ticket.Customer?.Email != null)
                 {
-                    await _emailService.SendEmailAsync(t.Customer.Email, "Cihaz Hazır", $"Fiş No: {t.FisNo} tamamlandı.");
+                    await _emailService.SendEmailAsync(ticket.Customer.Email, "Cihaz Hazır", $"Fiş No: {ticket.FisNo} işlemleri tamamlandı.");
                     TempData["Success"] = "Tamamlandı ve mail gönderildi.";
                 }
-                else { TempData["Success"] = "Durum güncellendi."; }
+                else
+                {
+                    TempData["Success"] = "Durum ve ücret güncellendi.";
+                }
             }
             catch { }
+
             return RedirectToAction("Details", new { id = id });
         }
 

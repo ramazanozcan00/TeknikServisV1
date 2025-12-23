@@ -40,10 +40,22 @@
                     </div>
                     <div class="card-body p-5">
 
+                        @* HATA MESAJI BLOĞU *@
                         @if (ViewBag.Error != null)
                         {
-                            <div class="alert alert-danger text-center">@ViewBag.Error</div>
+                            <div class="alert alert-danger text-center shadow-sm">
+                                <i class="fa-solid fa-triangle-exclamation me-2"></i>@ViewBag.Error
+                            </div>
                         }
+
+                        @* --- YENİ EKLENEN: BAŞARI MESAJI BLOĞU --- *@
+                        @if (ViewBag.Message != null)
+                        {
+                            <div class="alert alert-success text-center shadow-sm">
+                                <i class="fa-solid fa-circle-check me-2"></i>@ViewBag.Message
+                            </div>
+                        }
+                        @* ----------------------------------------- *@
 
                         <form method="post">
                             <div class="form-floating mb-3">

@@ -32,7 +32,7 @@ namespace TeknikServis.Web.Controllers.Api
             {
                 FisNo = ticket.FisNo,
                 Cihaz = $"{markaAdi} {ticket.DeviceModel}",
-                SeriNo = ticket.SerialNumber ?? "-", // Seri No eklendi
+                SeriNo = ticket.SerialNumber ?? "-",
                 Durum = ticket.Status,
                 Ariza = ticket.ProblemDescription,
                 GirisTarihi = ticket.CreatedDate.ToString("dd.MM.yyyy"),
@@ -41,32 +41,23 @@ namespace TeknikServis.Web.Controllers.Api
         }
 
         [HttpPost("UpdatePaymentStatus")]
-        public async Task<IActionResult> UpdatePaymentStatus([FromBody] PaymentUpdateDto model)
+        public async Task<IActionResult> UpdatePaymentStatus([FromForm] string fisNo)
         {
-            if (model == null || string.IsNullOrEmpty(model.FisNo))
-                return BadRequest();
+            if (string.IsNullOrEmpty(fisNo))
+                return BadRequest(new { message = "Fiş numarası (fisNo) boş olamaz." });
 
             // 1. Fiş numarasına göre kaydı bul
-            var ticket = await _serviceTicketService.GetTicketByFisNoAsync(model.FisNo);
+            var ticket = await _serviceTicketService.GetTicketByFisNoAsync(fisNo);
 
             if (ticket != null)
             {
-                // 2. Durumu güncelle
-                ticket.Status = "Ödeme Yapıldı";
-                ticket.UpdatedDate = System.DateTime.Now;
-
-                // 3. Veritabanına kaydet
-                await _serviceTicketService.UpdateTicketAsync(ticket);
+                // 2. Durumu güncelle (Ödeme Yapıldı)
+                await _serviceTicketService.UpdateTicketStatusAsync(ticket.Id, "Ödeme Yapıldı");
 
                 return Ok(new { message = "Durum başarıyla güncellendi." });
             }
 
             return NotFound(new { message = "Kayıt bulunamadı." });
         }
-    }
-
-    public class PaymentUpdateDto
-    {
-        public string FisNo { get; set; }
     }
 }

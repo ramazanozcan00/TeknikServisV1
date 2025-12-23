@@ -71,6 +71,9 @@ builder.Services.AddScoped<IServiceTicketService, ServiceTicketService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IEDevletService, EDevletService>();
 builder.Services.AddScoped<TenantService>();
+// Diðer servis kayýtlarýnýn olduðu yere ekleyin:
+builder.Services.AddHttpClient(); // HttpClientFactory kullanýmý için
+builder.Services.AddScoped<TeknikServis.Core.Interfaces.ICurrencyService, TeknikServis.Service.Services.CurrencyService>();
 
 builder.Services.AddHttpClient<IWhatsAppService, EvolutionApiWhatsAppService>(client =>
 {

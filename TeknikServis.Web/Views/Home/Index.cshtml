@@ -351,7 +351,7 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white border-bottom-0 py-3">
                 <h5 class="card-title fw-bold mb-0 text-dark">Servis Durumları</h5>
             </div>
@@ -360,6 +360,46 @@
             </div>
             <div class="card-footer bg-white border-0 text-center pb-4">
                 <small class="text-muted">Toplam @Model.ActiveTickets aktif kayıt</small>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="card-title fw-bold mb-0 text-dark">Canlı Döviz Kurları (TCMB)</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-3">Kod</th>
+                            <th>Alış</th>
+                            <th>Satış</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (ViewBag.Currencies != null)
+                        {
+                            foreach (var item in (List<TeknikServis.Core.DTOs.CurrencyDto>)ViewBag.Currencies)
+                            {
+                                // Sadece USD, EUR ve GBP gösterimi
+                                if (item.Code == "USD" || item.Code == "EUR" || item.Code == "GBP")
+                                {
+                                    <tr>
+                                        <td class="ps-3 fw-bold">@item.Code</td>
+                                        <td>@item.ForexBuying</td>
+                                        <td>@item.ForexSelling</td>
+                                    </tr>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="3" class="text-center p-3 text-muted">Kur bilgisi alınamadı.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -440,7 +480,7 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // SADECE DURUM GRAFİĞİ KALDI (Gelir Grafiği Silindi)
+        // SADECE DURUM GRAFİĞİ
         const ctxStatus = document.getElementById('statusChart').getContext('2d');
         new Chart(ctxStatus, {
             type: 'doughnut',

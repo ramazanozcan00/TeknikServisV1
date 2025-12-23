@@ -332,48 +332,36 @@
                             </div>
                         </div>
 
-                        @* --- Modern İkonlu Teknisyen Durumu --- *@
+                        @* --- Teknisyen Durumu (İkonsuz - Renkli) --- *@
                         <div class="mt-3 border-top pt-3 text-center">
                             <small class="text-muted d-block fw-bold mb-2 text-uppercase" style="font-size: 0.7rem;">Teknisyen Durumu</small>
                             @if (!string.IsNullOrEmpty(Model.TechnicianStatus))
                             {
-                                string iconClass = "fa-circle-question";
                                 string colorClass = "text-secondary";
-                                string animClass = "";
 
                                 if (Model.TechnicianStatus == "İşlemde")
                                 {
-                                    iconClass = "fa-gears";
                                     colorClass = "text-primary";
-                                    animClass = "fa-spin"; // Dönme animasyonu
                                 }
                                 else if (Model.TechnicianStatus == "Parça Bekliyor")
                                 {
-                                    iconClass = "fa-box-open";
                                     colorClass = "text-warning";
-                                    animClass = "fa-beat-fade"; // Yanıp sönme
                                 }
                                 else if (Model.TechnicianStatus == "Onarım Fiyat Bilgisi Verildi")
                                 {
-                                    iconClass = "fa-hand-holding-dollar";
                                     colorClass = "text-info";
-                                    animClass = "fa-bounce";
                                 }
                                 else if (Model.TechnicianStatus == "Onarım Sürüyor")
                                 {
-                                    iconClass = "fa-screwdriver-wrench";
                                     colorClass = "text-info";
-                                    animClass = "fa-fade"; // Yanıp sönme
                                 }
                                 else if (Model.TechnicianStatus == "Onarım Tamamlandı")
                                 {
-                                    iconClass = "fa-circle-check";
                                     colorClass = "text-success";
-                                    animClass = ""; // Sabit tik (onay)
                                 }
 
                                 <div class="py-2">
-                                    <i class="fa-solid @iconClass @colorClass @animClass fa-3x" title="@Model.TechnicianStatus" data-bs-toggle="tooltip" data-bs-placement="top"></i>
+                                    <h5 class="fw-bold @colorClass mb-0">@Model.TechnicianStatus</h5>
                                 </div>
                             }
                             else

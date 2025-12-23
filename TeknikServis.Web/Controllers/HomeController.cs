@@ -85,12 +85,18 @@ namespace TeknikServis.Web.Controllers
         private readonly IServiceTicketService _ticketService;
         private readonly ICustomerService _customerService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrencyService _currencyService; // Yeni eklenen servis
 
-        public HomeController(IServiceTicketService ticketService, ICustomerService customerService, IUnitOfWork unitOfWork)
+        // Constructor güncellendi: ICurrencyService eklendi
+        public HomeController(IServiceTicketService ticketService,
+                              ICustomerService customerService,
+                              IUnitOfWork unitOfWork,
+                              ICurrencyService currencyService)
         {
             _ticketService = ticketService;
             _customerService = customerService;
             _unitOfWork = unitOfWork;
+            _currencyService = currencyService;
         }
 
         public async Task<IActionResult> Index()
@@ -108,6 +114,11 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("Logout", "Account");
             }
 
+            // --- DÖVÝZ KURLARI (YENÝ EKLENDÝ) ---
+            // Dashboard açýlýrken kurlarý çekip ViewBag'e atýyoruz
+            var rates = await _currencyService.GetDailyRatesAsync();
+            ViewBag.Currencies = rates;
+
             // 1. Tüm Biletleri Çek
             var allTickets = await _ticketService.GetAllTicketsByBranchAsync(branchId);
             if (allTickets == null) allTickets = new List<ServiceTicket>();
@@ -121,7 +132,7 @@ namespace TeknikServis.Web.Controllers
 
             // --- HESAPLAMALAR ---
 
-            // 1. AKTÝF SERVÝSLER (GÜNCELLENDÝ): 
+            // 1. AKTÝF SERVÝSLER: 
             // "Tamamlandý", "Ýptal" VE "Teslim Edildi" olanlar HARÝÇ hepsi aktiftir.
             var activeTickets = allTickets
                 .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi")
@@ -130,7 +141,7 @@ namespace TeknikServis.Web.Controllers
             // 2. Acil Ýþlem Bekleyen: Durumu "Bekliyor" olan ve 3 günden eski kayýtlar
             var urgentPendingCount = allTickets.Count(x => x.Status == "Bekliyor" && (DateTime.Now - x.CreatedDate).TotalDays > 3);
 
-            // 3. TAMAMLANANLAR (GÜNCELLENDÝ):
+            // 3. TAMAMLANANLAR:
             // "Tamamlandý" VEYA "Teslim Edildi" olanlar
             var completedTickets = allTickets
                 .Where(x => x.Status == "Tamamlandý" || x.Status == "Teslim Edildi")
@@ -144,7 +155,7 @@ namespace TeknikServis.Web.Controllers
                  .Sum(x => x.TotalPrice ?? 0);
             decimal totalRevenue = completedTickets.Sum(x => x.TotalPrice ?? 0);
 
-            // Acil Kayýtlar Listesi (GÜNCELLENDÝ)
+            // Acil Kayýtlar Listesi
             // Listede "Teslim Edildi" statüsündekiler görünmesin
             var urgentTicketsList = allTickets
                 .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi")
@@ -162,9 +173,9 @@ namespace TeknikServis.Web.Controllers
             var model = new DashboardViewModel
             {
                 // Kartlar
-                ActiveTickets = activeTickets.Count,      // <-- Artýk "Teslim Edildi" olanlarý saymýyor
+                ActiveTickets = activeTickets.Count,
                 PendingRepairs = urgentPendingCount,
-                CompletedTickets = completedTickets.Count, // <-- "Teslim Edildi" olanlarý da kapsýyor
+                CompletedTickets = completedTickets.Count,
                 TotalCustomers = customers.Count(),
                 LowStockCount = lowStockParts.Count(),
 
@@ -182,6 +193,14 @@ namespace TeknikServis.Web.Controllers
             };
 
             return View(model);
+        }
+
+        // --- CANLI KUR API (YENÝ EKLENDÝ) ---
+        [HttpGet]
+        public async Task<IActionResult> GetLiveRates()
+        {
+            var rates = await _currencyService.GetDailyRatesAsync();
+            return Json(rates);
         }
 
         public IActionResult Privacy()
