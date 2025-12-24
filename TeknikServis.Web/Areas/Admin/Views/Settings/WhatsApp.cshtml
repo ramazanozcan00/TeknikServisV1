@@ -1,0 +1,87 @@
+﻿@model TeknikServis.Core.Entities.WhatsAppSetting
+@{
+    ViewData["Title"] = "WhatsApp Ayarları";
+    var branches = ViewBag.Branches as List<TeknikServis.Core.Entities.Branch>;
+    var selectedBranchId = (Guid)ViewBag.SelectedBranchId;
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-success">
+                <div class="card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <h5 class="mb-0 text-success"><i class="fa-solid fa-code-branch me-2"></i>Ayar Yapılacak Şube</h5>
+                        <small class="text-muted">Ayarları düzenlemek istediğiniz şubeyi seçiniz.</small>
+                    </div>
+                    <div style="width: 300px;">
+                        <select class="form-select fw-bold" onchange="window.location.href='?branchId='+this.value">
+                            @if (branches != null && branches.Any())
+                            {
+                                foreach (var branch in branches)
+                                {
+                                    if (branch.Id == selectedBranchId)
+                                    {
+                                        <option value="@branch.Id" selected>@branch.BranchName</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@branch.Id">@branch.BranchName</option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled>Şube bulunamadı</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-success"><i class="fa-brands fa-whatsapp me-2"></i>Evolution API WhatsApp Ayarları</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <input type="hidden" asp-for="BranchId" value="@selectedBranchId" />
+                <input type="hidden" asp-for="Id" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="InstanceName" class="form-label fw-bold"></label>
+                        <input asp-for="InstanceName" class="form-control" placeholder="Örn: MyInstance" />
+                        <span asp-validation-for="InstanceName" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="ApiUrl" class="form-label fw-bold"></label>
+                        <input asp-for="ApiUrl" class="form-control" placeholder="http://localhost:8080" />
+                        <span asp-validation-for="ApiUrl" class="text-danger small"></span>
+                        <small class="text-muted">Evolution API'nin çalıştığı sunucu adresi.</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label asp-for="ApiKey" class="form-label fw-bold"></label>
+                        <input asp-for="ApiKey" class="form-control" placeholder="Global API Key (Opsiyonel)" />
+                        <span asp-validation-for="ApiKey" class="text-danger small"></span>
+                        <small class="text-muted">Eğer Evolution API üzerinde Global API Key ayarlıysa buraya giriniz.</small>
+                    </div>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label">Aktif Et</label>
+                </div>
+
+                <div class="text-end">
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-2"></i>Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

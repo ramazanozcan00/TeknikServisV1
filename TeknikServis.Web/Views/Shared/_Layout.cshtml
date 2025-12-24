@@ -420,19 +420,6 @@
                     <button class="btn btn-light border-0 me-3" id="sidebar-toggle"><i class="fa-solid fa-bars fs-5"></i></button>
                 }
                 <h5 class="mb-0 fw-bold text-secondary d-none d-sm-block">@ViewData["Title"]</h5>
-
-                @* --- DÖVİZ KURLARI (YENİ EKLENDİ) --- *@
-                <div class="d-none d-md-flex align-items-center ms-4 bg-light rounded px-3 py-1 border shadow-sm" style="font-size: 0.85rem;">
-                    <div class="me-3 text-success fw-bold d-flex align-items-center" title="Dolar Kuru">
-                        <i class="fa-solid fa-dollar-sign me-1"></i>
-                        <span id="usd-rate">...</span>
-                    </div>
-                    <div class="text-primary fw-bold d-flex align-items-center" title="Euro Kuru">
-                        <i class="fa-solid fa-euro-sign me-1"></i>
-                        <span id="eur-rate">...</span>
-                    </div>
-                </div>
-
             </div>
 
             <div class="d-flex align-items-center gap-3">
@@ -457,9 +444,10 @@
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Backup" asp-action="Index"><i class="fa-solid fa-database me-2 text-success"></i>Veritabanı</a></li>
                                 <li><a class="dropdown-item" href="/hangfire" target="_blank"><i class="fa-solid fa-clock me-2 text-danger"></i>Zamanlayıcı</a></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Announcement" asp-action="Index"><i class="fa-solid fa-bullhorn me-2 text-primary"></i>Duyurular</a></li>
-                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Email"><i class="fa-solid fa-envelope-open-text me-2 text-info"></i>Mail Ayar</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Email"><i class="fa-solid fa-envelope-open-text me-2 text-info"></i>Mail Ayarlar</a></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Sms"><i class="fa-solid fa-comment-sms"></i> SMS Ayarları</a></li>
-                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Receipt"><i class="fa-solid fa-print me-2 text-dark"></i>Fiş Ayar</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="WhatsApp"><i class="fa-brands fa-whatsapp me-2 text-success"></i>WhatsApp Ayarlar</a></li>
+                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Receipt"><i class="fa-solid fa-print me-2 text-dark"></i>Fiş Ayarlar</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Settings" asp-action="Company"><i class="fa-solid fa-gear me-2 text-secondary"></i>Genel Ayarlar</a></li>
                                 <li><a class="dropdown-item text-success" asp-area="Admin" asp-controller="License" asp-action="Index"><i class="fa-solid fa-key me-2"></i>Lisans Kontrol</a></li>
@@ -597,100 +585,78 @@
         toastr.options = { "closeButton": true, "progressBar": true, "positionClass": "toast-top-right" };
         $(document).ready(function () {
 
-             // --- DÖVİZ KURLARINI ÇEK (YENİ EKLENDİ) ---
-             function getExchangeRates() {
-                 // Dolar Kuru
-                 $.get('https://api.frankfurter.app/latest?from=USD&to=TRY', function(data) {
-                     if(data && data.rates && data.rates.TRY) {
-                         $('#usd-rate').text(data.rates.TRY.toFixed(2));
-                     }
-                 }).fail(function() { $('#usd-rate').text('-'); });
-
-                 // Euro Kuru
-                 $.get('https://api.frankfurter.app/latest?from=EUR&to=TRY', function(data) {
-                     if(data && data.rates && data.rates.TRY) {
-                         $('#eur-rate').text(data.rates.TRY.toFixed(2));
-                     }
-                 }).fail(function() { $('#eur-rate').text('-'); });
-             }
-
-             // İlk açılışta çek
-             getExchangeRates();
-             // 5 Dakikada bir güncelle
-             setInterval(getExchangeRates, 300000);
-
              @if (TempData["Success"] != null)
             {
-                     <text>toastr.success('@Html.Raw(Json.Serialize(TempData["Success"]))');</text>
+                         <text>toastr.success('@Html.Raw(Json.Serialize(TempData["Success"]))');</text>
              }
              @if (TempData["Error"] != null)
             {
-                     <text>toastr.error('@Html.Raw(Json.Serialize(TempData["Error"]))');</text>
+                         <text>toastr.error('@Html.Raw(Json.Serialize(TempData["Error"]))');</text>
              }
              @if (SignInManager.IsSignedIn(User))
             {
-                         <text>
-                         $.get('/Support/CheckNewReplies', function(data) { if (data.count > 0) $('#support-badge').text(data.count).removeClass('d-none'); });
-                         $.get('/Notification/GetAnnouncements', function(data) { const list = $('#announcement-list'); list.empty(); if(data.length>0) { $('#announcement-badge').text(data.length).removeClass('d-none'); list.append('<div class="dropdown-header fw-bold">Duyurular</div>'); data.forEach(i => list.append(`<div class="notification-item border-bottom p-2 small"><div class="fw-bold text-primary">${i.title}</div><div class="text-muted text-truncate">${i.content}</div></div>`)); } else { list.append('<div class="text-center py-2 text-muted small">Duyuru yok.</div>'); } });
-                         @if (!isAdmin)
-                        {
-                                 <text>$.get('/Chat/CheckUnread', function(d){if(d.count>0)$('#chat-badge').removeClass('d-none');});</text>
-                         }
-                         </text>
+                             <text>
+                             $.get('/Support/CheckNewReplies', function(data) { if (data.count > 0) $('#support-badge').text(data.count).removeClass('d-none'); });
+                             $.get('/Notification/GetAnnouncements', function(data) { const list = $('#announcement-list'); list.empty(); if(data.length>0) { $('#announcement-badge').text(data.length).removeClass('d-none'); list.append('<div class="dropdown-header fw-bold">Duyurular</div>'); data.forEach(i => list.append(`<div class="notification-item border-bottom p-2 small"><div class="fw-bold text-primary">${i.title}</div><div class="text-muted text-truncate">${i.content}</div></div>`)); } else { list.append('<div class="text-center py-2 text-muted small">Duyuru yok.</div>'); } });
+                             @if (!isAdmin)
+                            {
+                                         <text>$.get('/Chat/CheckUnread', function(d){if(d.count>0)$('#chat-badge').removeClass('d-none');});</text>
+                             }
+                             </text>
              }
         });
         @if (SignInManager.IsSignedIn(User))
         {
-                    <text>
-                    const conn = new signalR.HubConnectionBuilder().withUrl("/supportHub").build();
-                    const lnc = document.getElementById('chat-launcher'); const win = document.getElementById('chat-window'); const badge = document.getElementById('chat-badge');
-                    if(lnc){ // Check if launcher exists (it might be hidden by settings)
-                        lnc.onclick=()=>{win.classList.remove('d-none');lnc.classList.add('d-none');badge.classList.add('d-none'); if(typeof loadAdmin==='function')loadAdmin(); if(typeof loadUser==='function')loadUser();};
-                        document.getElementById('chat-close').onclick=()=>{win.classList.add('d-none');lnc.classList.remove('d-none');};
-                    }
+                        <text>
+                        const conn = new signalR.HubConnectionBuilder().withUrl("/supportHub").build();
+                        const lnc = document.getElementById('chat-launcher'); const win = document.getElementById('chat-window'); const badge = document.getElementById('chat-badge');
+                        if(lnc){ // Check if launcher exists (it might be hidden by settings)
+                            lnc.onclick=()=>{win.classList.remove('d-none');lnc.classList.add('d-none');badge.classList.add('d-none'); if(typeof loadAdmin==='function')loadAdmin(); if(typeof loadUser==='function')loadUser();};
+                            document.getElementById('chat-close').onclick=()=>{win.classList.add('d-none');lnc.classList.remove('d-none');};
+                        }
 
-                    conn.start().catch(e=>console.error(e));
-                    function addMsg(cont, txt, pos, style, name='', msgId=null) {
-                        const d = document.createElement('div'); d.className = `d-flex flex-column align-items-${pos === 'end' ? 'end' : 'start'} mb-2 position-relative group-hover`;
-                        let n = name ? `<small class="text-muted mb-1" style="font-size:10px;">${name}</small>` : '';
-                        let delBtn = '';
+                        conn.start().catch(e=>console.error(e));
+                        function addMsg(cont, txt, pos, style, name='', msgId=null) {
+                            const d = document.createElement('div'); d.className = `d-flex flex-column align-items-${pos === 'end' ? 'end' : 'start'} mb-2 position-relative group-hover`;
+                            let n = name ? `<small class="text-muted mb-1" style="font-size:10px;">${name}</small>` : '';
+                            let delBtn = '';
+                            @if (isAdmin)
+                            {
+                                        <text>if(msgId) { delBtn = `<i class="fa-solid fa-trash text-danger delete-btn position-absolute" style="top:50%; ${pos==='end'?'left:-25px':'right:-25px'}; transform:translateY(-50%); cursor:pointer; opacity:0.6;" onclick="deleteMsg('${msgId}', this)" title="Mesajı Sil"></i>`; }</text>
+                            }
+                            d.innerHTML = `${n}<div class="d-flex align-items-center position-relative">${pos==='end'?delBtn:''} <div class="p-2 rounded shadow-sm ${style} chat-msg">${txt}</div> ${pos==='start'?delBtn:''}</div>`;
+                            cont.appendChild(d); cont.scrollTop = cont.scrollHeight;
+                        }
+                        function deleteMsg(id, el) { if(!confirm('Mesaj silinsin mi?')) return; $.post('/Chat/DeleteMessage', { id: id }, function(res) { if(res.success) { $(el).closest('.d-flex.flex-column').fadeOut(300, function(){ $(this).remove(); }); toastr.success('Mesaj silindi.'); } else { toastr.error('Silinemedi.'); } }); }
+                        function deleteChat(userId, e) { e.stopPropagation(); if(!confirm('Tüm sohbet geçmişi silinecek. Emin misiniz?')) return; $.post('/Chat/DeleteChat', { userId: userId }, function(res) { if(res.success) { $('#r-' + userId).fadeOut(300, function(){ $(this).remove(); }); const cId = document.getElementById('chatting-with-id'); if(cId && cId.value === userId) { document.getElementById('back-to-list').click(); } toastr.success('Sohbet silindi.'); } else { toastr.error('Hata: ' + res.message); } }); }
                         @if (isAdmin)
                         {
-                                <text>if(msgId) { delBtn = `<i class="fa-solid fa-trash text-danger delete-btn position-absolute" style="top:50%; ${pos==='end'?'left:-25px':'right:-25px'}; transform:translateY(-50%); cursor:pointer; opacity:0.6;" onclick="deleteMsg('${msgId}', this)" title="Mesajı Sil"></i>`; }</text>
+                                        <text>
+                                        const uList=document.getElementById('admin-user-list'); const cView=document.getElementById('admin-chat-view'); const mCont=document.getElementById('admin-messages'); const cId=document.getElementById('chatting-with-id');
+                                        function loadAdmin(){ $.get('/Chat/GetActiveChats', d=>{ uList.innerHTML=''; if(d.length===0){uList.innerHTML='<div class="text-center text-muted mt-5 small">Yok.</div>';return;} d.forEach(c=>addList(c.userId,c.userName,c.lastMessage,c.unreadCount>0)); }); }
+                                        conn.on("ReceiveMessage", (id,name,msg, msgId)=>{ if(win.classList.contains('d-none')) badge.classList.remove('d-none'); toastr.info(name+' mesaj attı'); addList(id,name,msg,true); if(cId.value===id && !cView.classList.contains('d-none')) addMsg(mCont,msg,'start','bg-white border text-dark',name, msgId); });
+                                        function addList(id,name,msg,ur){
+                                            let it=document.getElementById('r-'+id); let b=ur?'<span class="badge bg-danger rounded-pill me-2">Yeni</span>':'<span class="d-none me-2"></span>';
+                                            let chatDelBtn = `<button class="btn btn-sm btn-link text-danger p-0 border-0 ms-2" onclick="deleteChat('${id}', event)" title="Sohbeti Sil"><i class="fa-solid fa-trash"></i></button>`;
+                                            if(it){ it.querySelector('small').innerText=msg; if(ur)it.querySelector('.badge').classList.remove('d-none'); uList.prepend(it); } else { if(uList.innerText.includes('Yok')) uList.innerHTML=''; let d=document.createElement('div'); d.id='r-'+id; d.className='p-2 border-bottom d-flex justify-content-between align-items-center bg-white mb-1 rounded position-relative group-hover'; d.style.cursor='pointer'; d.innerHTML=`<div class="flex-grow-1 overflow-hidden"><strong>${name}</strong><br><small class="text-muted text-truncate d-block" style="max-width:150px;">${msg}</small></div><div class="d-flex align-items-center">${b}${chatDelBtn}</div>`; d.onclick=()=>openC(id,name); uList.prepend(d); }
+                                        }
+                                        function openC(id,name){ uList.classList.add('d-none'); cView.classList.remove('d-none'); cView.classList.add('d-flex'); document.getElementById('chatting-with-name').innerText=name; cId.value=id; mCont.innerHTML='...'; $.get('/Chat/GetHistory?userId='+id, m=>{ mCont.innerHTML=''; m.forEach(x=>addMsg(mCont,x.message,x.sender==='Admin'?'end':'start',x.sender==='Admin'?'bg-primary text-white':'bg-white border text-dark',x.sender==='Admin'?'Siz':x.senderName, x.id)); let r=document.getElementById('r-'+id); if(r)r.querySelector('.badge').classList.add('d-none'); }); }
+                                        document.getElementById('back-to-list').onclick=()=>{ cView.classList.add('d-none'); cView.classList.remove('d-flex'); uList.classList.remove('d-none'); cId.value=''; loadAdmin(); };
+                                        document.getElementById('admin-send-btn').onclick=sendA; document.getElementById('admin-message-input').onkeypress=e=>{if(e.key==='Enter')sendA();};
+                                        function sendA(){ let i=document.getElementById('admin-message-input'); let m=i.value; let id=cId.value; if(m&&id){ conn.invoke("SendMessageToUser",id,m); addMsg(mCont,m,'end','bg-primary text-white','Siz'); i.value=''; } }
+                                        </text>
                         }
-                        d.innerHTML = `${n}<div class="d-flex align-items-center position-relative">${pos==='end'?delBtn:''} <div class="p-2 rounded shadow-sm ${style} chat-msg">${txt}</div> ${pos==='start'?delBtn:''}</div>`;
-                        cont.appendChild(d); cont.scrollTop = cont.scrollHeight;
-                    }
-                    function deleteMsg(id, el) { if(!confirm('Mesaj silinsin mi?')) return; $.post('/Chat/DeleteMessage', { id: id }, function(res) { if(res.success) { $(el).closest('.d-flex.flex-column').fadeOut(300, function(){ $(this).remove(); }); toastr.success('Mesaj silindi.'); } else { toastr.error('Silinemedi.'); } }); }
-                    function deleteChat(userId, e) { e.stopPropagation(); if(!confirm('Tüm sohbet geçmişi silinecek. Emin misiniz?')) return; $.post('/Chat/DeleteChat', { userId: userId }, function(res) { if(res.success) { $('#r-' + userId).fadeOut(300, function(){ $(this).remove(); }); const cId = document.getElementById('chatting-with-id'); if(cId && cId.value === userId) { document.getElementById('back-to-list').click(); } toastr.success('Sohbet silindi.'); } else { toastr.error('Hata: ' + res.message); } }); }
-                    @if (isAdmin)
-                    {
-                                <text>
-                                const uList=document.getElementById('admin-user-list'); const cView=document.getElementById('admin-chat-view'); const mCont=document.getElementById('admin-messages'); const cId=document.getElementById('chatting-with-id');
-                                function loadAdmin(){ $.get('/Chat/GetActiveChats', d=>{ uList.innerHTML=''; if(d.length===0){uList.innerHTML='<div class="text-center text-muted mt-5 small">Yok.</div>';return;} d.forEach(c=>addList(c.userId,c.userName,c.lastMessage,c.unreadCount>0)); }); }
-                                conn.on("ReceiveMessage", (id,name,msg, msgId)=>{ if(win.classList.contains('d-none')) badge.classList.remove('d-none'); toastr.info(name+' mesaj attı'); addList(id,name,msg,true); if(cId.value===id && !cView.classList.contains('d-none')) addMsg(mCont,msg,'start','bg-white border text-dark',name, msgId); });
-                                function addList(id,name,msg,ur){
-                                    let it=document.getElementById('r-'+id); let b=ur?'<span class="badge bg-danger rounded-pill me-2">Yeni</span>':'<span class="d-none me-2"></span>';
-                                    let chatDelBtn = `<button class="btn btn-sm btn-link text-danger p-0 border-0 ms-2" onclick="deleteChat('${id}', event)" title="Sohbeti Sil"><i class="fa-solid fa-trash"></i></button>`;
-                                    if(it){ it.querySelector('small').innerText=msg; if(ur)it.querySelector('.badge').classList.remove('d-none'); uList.prepend(it); } else { if(uList.innerText.includes('Yok')) uList.innerHTML=''; let d=document.createElement('div'); d.id='r-'+id; d.className='p-2 border-bottom d-flex justify-content-between align-items-center bg-white mb-1 rounded position-relative group-hover'; d.style.cursor='pointer'; d.innerHTML=`<div class="flex-grow-1 overflow-hidden"><strong>${name}</strong><br><small class="text-muted text-truncate d-block" style="max-width:150px;">${msg}</small></div><div class="d-flex align-items-center">${b}${chatDelBtn}</div>`; d.onclick=()=>openC(id,name); uList.prepend(d); }
-                                }
-                                function openC(id,name){ uList.classList.add('d-none'); cView.classList.remove('d-none'); cView.classList.add('d-flex'); document.getElementById('chatting-with-name').innerText=name; cId.value=id; mCont.innerHTML='...'; $.get('/Chat/GetHistory?userId='+id, m=>{ mCont.innerHTML=''; m.forEach(x=>addMsg(mCont,x.message,x.sender==='Admin'?'end':'start',x.sender==='Admin'?'bg-primary text-white':'bg-white border text-dark',x.sender==='Admin'?'Siz':x.senderName, x.id)); let r=document.getElementById('r-'+id); if(r)r.querySelector('.badge').classList.add('d-none'); }); }
-                                document.getElementById('back-to-list').onclick=()=>{ cView.classList.add('d-none'); cView.classList.remove('d-flex'); uList.classList.remove('d-none'); cId.value=''; loadAdmin(); };
-                                document.getElementById('admin-send-btn').onclick=sendA; document.getElementById('admin-message-input').onkeypress=e=>{if(e.key==='Enter')sendA();};
-                                function sendA(){ let i=document.getElementById('admin-message-input'); let m=i.value; let id=cId.value; if(m&&id){ conn.invoke("SendMessageToUser",id,m); addMsg(mCont,m,'end','bg-primary text-white','Siz'); i.value=''; } }
-                                </text>
-                    }
-                    else
-                    {
-                                <text>
-                                const uCont=document.getElementById('user-messages');
-                                function loadUser(){ $.get('/Chat/GetHistory?userId=me', m=>{ uCont.innerHTML=''; if(m.length===0) uCont.innerHTML='<div class="text-center mt-2 small">Merhaba!</div>'; m.forEach(x=>addMsg(uCont,x.message,x.sender==='User'?'end':'start',x.sender==='User'?'bg-primary text-white':'bg-white border text-dark', '', x.id)); }); }
-                                conn.on("ReceiveSupportMessage", (msg,name, msgId)=>{ if(win.classList.contains('d-none')) badge.classList.remove('d-none'); addMsg(uCont,msg,'start','bg-white border text-dark',name, msgId); toastr.success('Cevap geldi'); });
-                                document.getElementById('user-send-btn').onclick=sendU; document.getElementById('user-message-input').onkeypress=e=>{if(e.key==='Enter')sendU();};
-                                function sendU(){ let i=document.getElementById('user-message-input'); let m=i.value; if(m){ conn.invoke("SendMessageToAdmins",m); addMsg(uCont,m,'end','bg-primary text-white'); i.value=''; } }
-                                </text>
-                    }
-                    </text>
+                        else
+                        {
+                                        <text>
+                                        const uCont=document.getElementById('user-messages');
+                                        function loadUser(){ $.get('/Chat/GetHistory?userId=me', m=>{ uCont.innerHTML=''; if(m.length===0) uCont.innerHTML='<div class="text-center mt-2 small">Merhaba!</div>'; m.forEach(x=>addMsg(uCont,x.message,x.sender==='User'?'end':'start',x.sender==='User'?'bg-primary text-white':'bg-white border text-dark', '', x.id)); }); }
+                                        conn.on("ReceiveSupportMessage", (msg,name, msgId)=>{ if(win.classList.contains('d-none')) badge.classList.remove('d-none'); addMsg(uCont,msg,'start','bg-white border text-dark',name, msgId); toastr.success('Cevap geldi'); });
+                                        document.getElementById('user-send-btn').onclick=sendU; document.getElementById('user-message-input').onkeypress=e=>{if(e.key==='Enter')sendU();};
+                                        function sendU(){ let i=document.getElementById('user-message-input'); let m=i.value; if(m){ conn.invoke("SendMessageToAdmins",m); addMsg(uCont,m,'end','bg-primary text-white'); i.value=''; } }
+                                        </text>
+                        }
+                        </text>
         }
     </script>
     @await RenderSectionAsync("Scripts", required: false)

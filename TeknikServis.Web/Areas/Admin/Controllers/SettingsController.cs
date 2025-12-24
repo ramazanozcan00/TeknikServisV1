@@ -318,5 +318,66 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
             return RedirectToAction("Company", new { branchId = model.BranchId });
         }
+
+        // Mevcut Sınıf içine aşağıdaki metodları ekleyin:
+
+        // --- WHATSAPP (GET) ---
+        [HttpGet]
+        public async Task<IActionResult> WhatsApp(Guid? branchId)
+        {
+            var branches = await GetAccessibleBranches();
+            ViewBag.Branches = branches;
+
+            var targetBranchId = branchId ?? User.GetBranchId();
+            if (targetBranchId == Guid.Empty && branches.Any()) targetBranchId = branches.First().Id;
+
+            ViewBag.SelectedBranchId = targetBranchId;
+
+            var settingsList = await _unitOfWork.Repository<WhatsAppSetting>().FindAsync(x => x.BranchId == targetBranchId);
+            var setting = settingsList.FirstOrDefault();
+
+            if (setting == null)
+            {
+                setting = new WhatsAppSetting { BranchId = targetBranchId };
+            }
+
+            return View(setting);
+        }
+
+        // --- WHATSAPP (POST) ---
+        [HttpPost]
+        public async Task<IActionResult> WhatsApp(WhatsAppSetting model)
+        {
+            ViewBag.Branches = await GetAccessibleBranches();
+            ViewBag.SelectedBranchId = model.BranchId;
+
+            if (!ModelState.IsValid) return View(model);
+
+            var settingsList = await _unitOfWork.Repository<WhatsAppSetting>().FindAsync(x => x.BranchId == model.BranchId);
+            var existing = settingsList.FirstOrDefault();
+
+            if (existing == null)
+            {
+                model.Id = Guid.NewGuid();
+                model.CreatedDate = DateTime.Now;
+                await _unitOfWork.Repository<WhatsAppSetting>().AddAsync(model);
+            }
+            else
+            {
+                existing.InstanceName = model.InstanceName;
+                existing.ApiUrl = model.ApiUrl;
+                existing.ApiKey = model.ApiKey;
+                existing.IsActive = model.IsActive;
+                existing.UpdatedDate = DateTime.Now;
+
+                _unitOfWork.Repository<WhatsAppSetting>().Update(existing);
+            }
+
+            await _unitOfWork.CommitAsync();
+            TempData["Success"] = "WhatsApp ayarları güncellendi.";
+
+            return RedirectToAction("WhatsApp", new { branchId = model.BranchId });
+        }
+
     }
 }

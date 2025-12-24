@@ -560,8 +560,12 @@ namespace TeknikServis.Web.Controllers
             if (ticket == null) return Json(new { success = false, message = "Fiş bulunamadı." });
             if (currentUser != null && !currentUser.IsWhatsAppEnabled) return Json(new { success = false, message = "WhatsApp gönderme yetkiniz kapalıdır. Yöneticinizle görüşün." });
             if (ticket.Customer == null || string.IsNullOrEmpty(ticket.Customer.Phone)) return Json(new { success = false, message = "Müşterinin telefon numarası kayıtlı değil." });
+
             string mesaj = $"Sayın {ticket.Customer.FirstName} {ticket.Customer.LastName}, {ticket.FisNo} numaralı cihazınızın işlemleri tamamlanmıştır. Teslim alabilirsiniz. - Teknik Servis";
-            bool basarili = await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, mesaj);
+
+            // --- GÜNCELLEME: BranchId eklendi ---
+            bool basarili = await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, mesaj, ticket.Customer.BranchId);
+
             if (basarili) return Json(new { success = true, message = "WhatsApp mesajı başarıyla gönderildi." });
             else return Json(new { success = false, message = "Mesaj gönderilemedi. (Sunucu hatası veya numara geçersiz)" });
         }
