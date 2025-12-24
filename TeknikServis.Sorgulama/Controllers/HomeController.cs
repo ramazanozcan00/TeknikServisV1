@@ -41,45 +41,55 @@ namespace TeknikServis.Sorgulama.Controllers
         }
 
         // SERVİS DURUM SORGULAMA
+        // SERVİS DURUM SORGULAMA
         [HttpPost]
         public async Task<IActionResult> Index(string query)
         {
             if (string.IsNullOrEmpty(query)) return View();
 
-            var client = _httpClientFactory.CreateClient();
-            string baseUrl = _configuration["ApiSettings:BaseUrl"];
-            string checkEndpoint = _configuration["ApiSettings:CheckEndpoint"];
+            // ESKİ KOD: var client = _httpClientFactory.CreateClient();
+            // YENİ KOD: PaymentResult metodundaki gibi SSL hatasını görmezden gelen handler kullanıyoruz.
 
-            if (string.IsNullOrEmpty(baseUrl))
+            var handler = new HttpClientHandler();
+            // Bu satır test ortamındaki SSL hatalarını (geçersiz sertifika) yoksayar.
+            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+            using (var client = new System.Net.Http.HttpClient(handler))
             {
-                ViewBag.Error = "API BaseUrl ayarı appsettings.json dosyasında bulunamadı.";
-                return View();
-            }
+                string baseUrl = _configuration["ApiSettings:BaseUrl"];
+                string checkEndpoint = _configuration["ApiSettings:CheckEndpoint"];
 
-            try
-            {
-                var response = await client.GetAsync(baseUrl + checkEndpoint + query);
-
-                if (response.IsSuccessStatusCode)
+                if (string.IsNullOrEmpty(baseUrl))
                 {
-                    var jsonString = await response.Content.ReadAsStringAsync();
-                    var result = JsonConvert.DeserializeObject<TicketResultViewModel>(jsonString);
+                    ViewBag.Error = "API BaseUrl ayarı appsettings.json dosyasında bulunamadı.";
+                    return View();
+                }
 
-                    if (TempData["SuccessMessage"] != null)
+                try
+                {
+                    var response = await client.GetAsync(baseUrl + checkEndpoint + query);
+
+                    if (response.IsSuccessStatusCode)
                     {
-                        ViewBag.Message = TempData["SuccessMessage"];
-                    }
+                        var jsonString = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<TicketResultViewModel>(jsonString);
 
-                    return View("Result", result);
+                        if (TempData["SuccessMessage"] != null)
+                        {
+                            ViewBag.Message = TempData["SuccessMessage"];
+                        }
+
+                        return View("Result", result);
+                    }
+                    else
+                    {
+                        ViewBag.Error = "Kayıt bulunamadı.";
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    ViewBag.Error = "Kayıt bulunamadı.";
+                    ViewBag.Error = "Sunucuya bağlanılamadı: " + ex.Message;
                 }
-            }
-            catch (Exception ex)
-            {
-                ViewBag.Error = "Sunucuya bağlanılamadı: " + ex.Message;
             }
 
             return View();
@@ -89,29 +99,39 @@ namespace TeknikServis.Sorgulama.Controllers
         [HttpPost]
         public async Task<IActionResult> StartPayment(string fisNo, string ucret, string cihaz)
         {
+            // Debug: Gelen ücret boşsa hemen hata ver
+            if (string.IsNullOrEmpty(ucret))
+            {
+                ViewBag.Error = "Hata: Ücret bilgisi sayfadan gönderilmedi (Boş).";
+                return View("Index");
+            }
+
             Options options = new Options();
             options.ApiKey = _configuration["Iyzico:ApiKey"];
             options.SecretKey = _configuration["Iyzico:SecretKey"];
             options.BaseUrl = _configuration["Iyzico:BaseUrl"];
 
+            // 1. Fiyatı Formatla (Iyzico için "1250.00" formatına çevirir)
             string cleanPrice = FormatPrice(ucret);
-            if (cleanPrice == "0")
+
+            // Eğer formatlama sonucu 0 çıkarsa hata ver ve gelen veriyi ekrana yaz
+            if (cleanPrice == "0" || cleanPrice == "0.00")
             {
-                ViewBag.Error = "Geçersiz tutar formatı.";
+                ViewBag.Error = $"Geçersiz tutar formatı. Gelen: '{ucret}'";
                 return View("Index");
             }
 
             CreateCheckoutFormInitializeRequest request = new CreateCheckoutFormInitializeRequest();
             request.Locale = Locale.TR.ToString();
             request.ConversationId = fisNo;
-            request.Price = cleanPrice;
-            request.PaidPrice = cleanPrice;
+            request.Price = cleanPrice;      // Formatlanmış fiyat
+            request.PaidPrice = cleanPrice;  // Formatlanmış fiyat
             request.Currency = Currency.TRY.ToString();
             request.BasketId = "B-" + fisNo;
             request.PaymentGroup = PaymentGroup.PRODUCT.ToString();
 
-            // Callback URL: HTTPS olduğundan emin olun
-            request.CallbackUrl = Url.Action("PaymentResult", "Home", null, Request.Scheme);
+            // Callback URL: HTTPS zorunlu
+            request.CallbackUrl = Url.Action("PaymentResult", "Home", null, "https");
 
             request.EnabledInstallments = new List<int>() { 2, 3, 6, 9 };
 
@@ -142,7 +162,7 @@ namespace TeknikServis.Sorgulama.Controllers
             item.Name = cihaz + " Servis Bedeli";
             item.Category1 = "Hizmet";
             item.ItemType = BasketItemType.VIRTUAL.ToString();
-            item.Price = cleanPrice;
+            item.Price = cleanPrice; // Formatlanmış fiyat
             basketItems.Add(item);
             request.BasketItems = basketItems;
 
@@ -154,12 +174,60 @@ namespace TeknikServis.Sorgulama.Controllers
             }
             else
             {
-                ViewBag.Error = "Ödeme başlatılamadı: " + form.ErrorMessage;
+                // Hata mesajına Iyzico'nun detayını ve gönderdiğimiz fiyatı ekliyoruz
+                ViewBag.Error = $"Ödeme başlatılamadı: {form.ErrorMessage} (Gönderilen Tutar: {cleanPrice})";
                 return View("Index");
             }
         }
 
-        // ... (Üst kısımlar aynı)
+        // YENİ FORMATLAMA METODU (Daha Akıllı)
+        private string FormatPrice(string priceStr)
+        {
+            if (string.IsNullOrEmpty(priceStr)) return "0.00";
+            try
+            {
+                // 1. Temizlik: Sadece rakam, nokta ve virgül kalsın
+                string clean = System.Text.RegularExpressions.Regex.Replace(priceStr, @"[^0-9.,]", "");
+
+                decimal result = 0;
+
+                // 2. Format Tahmini ve Parse İşlemi
+                // Eğer virgül sondaysa (Örn: 1.250,00) -> Türkçe format kabul et
+                if (clean.LastIndexOf(',') > clean.LastIndexOf('.'))
+                {
+                    decimal.TryParse(clean, NumberStyles.Any, new CultureInfo("tr-TR"), out result);
+                }
+                // Eğer nokta sondaysa (Örn: 1,250.00) -> İngilizce/Global format kabul et
+                else if (clean.LastIndexOf('.') > clean.LastIndexOf(','))
+                {
+                    decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
+                }
+                // Sadece virgül varsa (Örn: 150,00) -> Türkçe
+                else if (clean.Contains(",") && !clean.Contains("."))
+                {
+                    decimal.TryParse(clean, NumberStyles.Any, new CultureInfo("tr-TR"), out result);
+                }
+                // Hiçbiri yoksa veya sadece nokta varsa -> Düz sayı (Invariant)
+                else
+                {
+                    decimal.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
+                }
+
+                // 3. Iyzico için KESİN Format: "1250.00" (Nokta ondalık, binlik ayracı yok)
+                if (result > 0)
+                {
+                    return result.ToString("0.00", CultureInfo.InvariantCulture);
+                }
+
+                return "0.00";
+            }
+            catch
+            {
+                return "0.00";
+            }
+        }
+
+
 
         [HttpPost]
         [IgnoreAntiforgeryToken]
@@ -256,22 +324,7 @@ namespace TeknikServis.Sorgulama.Controllers
             return View("Index");
         }
 
-        // ... (Alt kısımlar aynı)
-        // ... (Alt kısımlar aynı)
-        private string FormatPrice(string priceStr)
-        {
-            if (string.IsNullOrEmpty(priceStr)) return "0";
-            try
-            {
-                string clean = priceStr.Replace("TL", "").Replace("tl", "").Replace("₺", "").Trim();
-                if (decimal.TryParse(clean, NumberStyles.Any, new CultureInfo("tr-TR"), out decimal result))
-                {
-                    return result.ToString(new CultureInfo("en-US"));
-                }
-                return clean.Replace(",", ".");
-            }
-            catch { return "0"; }
-        }
+        
     }
 
     public class TicketResultViewModel
