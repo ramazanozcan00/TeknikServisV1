@@ -545,22 +545,52 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
         }
 
-        [HttpPost] // <-- BURAYI DEĞİŞTİRİN (Eskisi [HttpGet] idi)
+        [HttpPost]
         public async Task<IActionResult> GetTicketContactInfo(Guid id)
         {
-            var ticket = await _unitOfWork.Repository<ServiceTicket>()
-                .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer);
+            // 1. Servis Fişini Çek
+            var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
+            if (ticket == null) return Json(new { success = false, message = "Servis kaydı bulunamadı." });
 
-            if (ticket == null || ticket.Customer == null)
-                return Json(new { success = false, message = "Müşteri bulunamadı." });
+            // 2. Müşteriyi Çek (Taze veri)
+            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(ticket.CustomerId);
+            if (customer == null) return Json(new { success = false, message = "Müşteri kartı bulunamadı." });
+
+            // 3. Varsayılan: Müşterinin kartındaki 2. numara (Eski numara burada olabilir)
+            string phone2ToUse = customer.Phone2;
+
+            // 4. ŞİRKET EŞLEŞTİRME (EN GÜNCEL VE HATASIZ EŞLEŞME)
+            if (!string.IsNullOrWhiteSpace(customer.CompanyName))
+            {
+                // Müşterideki ismin tüm boşluklarını sil ve küçük harfe çevir (Örn: "Özdemir  İnşaat" -> "özdemirinşaat")
+                string arananFirma = customer.CompanyName.ToLower().Replace(" ", "").Trim();
+
+                // Veritabanındaki tüm şirket ayarlarını çek
+                var tumFirmalar = await _unitOfWork.Repository<CompanySetting>().GetAllAsync();
+
+                // Bellekte filtreleme yap:
+                // 1. İsmi normalize ederek eşleştir.
+                // 2. OrderByDescending ile EN SON GÜNCELLENEN (veya eklenen) kaydı en başa al.
+                var eslesenFirma = tumFirmalar
+                    .Where(x => !string.IsNullOrEmpty(x.CompanyName))
+                    .Where(x => x.CompanyName.ToLower().Replace(" ", "").Trim() == arananFirma)
+                    .OrderByDescending(x => x.UpdatedDate ?? x.CreatedDate) // <--- KRİTİK NOKTA: En yeni kaydı seç
+                    .FirstOrDefault();
+
+                // Eğer eşleşen bir firma bulunduysa ve numarasında veri varsa, KESİNLİKLE bunu kullan
+                if (eslesenFirma != null && !string.IsNullOrEmpty(eslesenFirma.Phone))
+                {
+                    phone2ToUse = eslesenFirma.Phone;
+                }
+            }
 
             return Json(new
             {
                 success = true,
-                phone1 = ticket.Customer.Phone,
-                phone2 = ticket.Customer.Phone2, // Firma numarası burasıdır
-                companyName = ticket.Customer.CompanyName,
-                isCorporate = !string.IsNullOrEmpty(ticket.Customer.CompanyName)
+                phone1 = customer.Phone,
+                phone2 = phone2ToUse, // Artık en güncel firma numarası buradadır
+                companyName = customer.CompanyName,
+                isCorporate = !string.IsNullOrEmpty(customer.CompanyName)
             });
         }
 

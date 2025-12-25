@@ -40,6 +40,8 @@ namespace TeknikServis.Data.Repositories
             // Listeleme işlemlerinde de güncel veri için AsNoTracking eklenebilir
             return await query.AsNoTracking().Where(predicate).ToListAsync();
         }
+        // Dosya: GenericRepository.cs
+
         public async Task<T> GetByIdWithIncludesAsync(Expression<Func<T, bool>> predicate, params Expression<Func<T, object>>[] includes)
         {
             IQueryable<T> query = _dbSet;
@@ -52,8 +54,7 @@ namespace TeknikServis.Data.Repositories
                 }
             }
 
-            // .AsNoTracking() veritabanından en güncel veriyi zorlar.
-            // GenericRepository.cs içindeki GetByIdWithIncludesAsync metodunu bulun ve şu satırı güncelleyin:
+            // BURASI DEĞİŞTİ: .AsNoTracking() eklendi
             return await query.AsNoTracking().FirstOrDefaultAsync(predicate);
         }
     }

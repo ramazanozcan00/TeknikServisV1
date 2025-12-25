@@ -627,27 +627,27 @@
     </script>
 
     <script>
-           function sendDetailedWhatsapp(id) {
-        Swal.fire({
-            title: 'Numaralar Kontrol Ediliyor...',
-            didOpen: () => { Swal.showLoading() },
-            allowOutsideClick: false,
-            showConfirmButton: false
-        });
+               
 
-        // --- DEĞİŞİKLİK BURADA: $.get YERİNE $.post YAZIYORUZ ---
-        $.post('/ServiceTicket/GetTicketContactInfo', { id: id }, function(data) {
-            Swal.close();
+        function sendDetailedWhatsapp(id) {
+            Swal.fire({
+                title: 'Numaralar Kontrol Ediliyor...',
+                didOpen: () => { Swal.showLoading() },
+                allowOutsideClick: false,
+                showConfirmButton: false
+            });
 
-            if (!data.success) {
-                Swal.fire('Hata', data.message, 'error');
-                return;
-            }
+            // BURASI DEĞİŞTİ: $.get yerine $.post yapıldı
+            $.post('/ServiceTicket/GetTicketContactInfo', { id: id }, function(data) {
+                Swal.close();
 
-                // HTML İçeriğini Hazırla
+                if (!data.success) {
+                    Swal.fire('Hata', data.message, 'error');
+                    return;
+                }
+
                 var htmlContent = '<div class="text-start">';
 
-                // Eğer firma ise Bilgi Kartı göster
                 if (data.isCorporate && data.companyName) {
                     htmlContent += `
                         <div class="alert alert-primary bg-opacity-10 border-primary border-opacity-25 d-flex align-items-center mb-3 p-3 rounded-3">
@@ -664,7 +664,6 @@
                 htmlContent += '<p class="text-center text-muted small mb-2">Lütfen mesajın gönderileceği numarayı seçiniz:</p>';
                 htmlContent += '<div class="list-group shadow-sm rounded-3 overflow-hidden">';
 
-                // 1. SEÇENEK: Yetkili / Cep Telefonu
                 if (data.phone1) {
                     let label1 = data.isCorporate ? "Yetkili (Cep)" : "Telefon 1 (Cep)";
                     htmlContent += `
@@ -680,15 +679,13 @@
                         </label>`;
                 }
 
-                // 2. SEÇENEK: Firma Numarası / Telefon 2
                 if (data.phone2) {
-                    // Eğer kurumsal ise "Firma Numarası", değilse "Telefon 2"
                     let label2 = data.isCorporate ? "Firma Numarası" : "Telefon 2";
                     let subLabel2 = data.isCorporate ? "Sabit / Ofis Hattı" : "Yedek Numara";
-                    let icon2 = data.isCorporate ? "fa-phone-office" : "fa-phone";
-                    // İkon sınıfı kontrolü (FontAwesome sürümüne göre)
+                    // İkon belirleme
                     let iconClass2 = data.isCorporate ? "fa-solid fa-building" : "fa-solid fa-phone";
                     let textColor = data.isCorporate ? "text-primary" : "text-info";
+
                     htmlContent += `
                         <label class="list-group-item list-group-item-action d-flex gap-3 py-3 align-items-center cursor-pointer">
                             <input class="form-check-input flex-shrink-0 mt-0" type="radio" name="swalPhone" value="${data.phone2}" style="width: 1.2em; height: 1.2em;">
@@ -703,42 +700,29 @@
                 }
 
                 htmlContent += '</div></div>';
-                // Kapanış
 
-                // Numara Yoksa Uyarı
                 if (!data.phone1 && !data.phone2) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Numara Bulunamadı',
-                        text: 'Müşteriye ait kayıtlı telefon numarası bulunmamaktadır.',
-                        confirmButtonText: 'Tamam'
-                    });
+                    Swal.fire({ icon: 'warning', title: 'Numara Bulunamadı', text: 'Müşteriye ait telefon numarası yok.', confirmButtonText: 'Tamam' });
                     return;
                 }
 
-                // Modal Göster
                 Swal.fire({
                     title: 'WhatsApp Gönderimi',
                     html: htmlContent,
                     showCancelButton: true,
                     confirmButtonText: 'Gönder <i class="fa-regular fa-paper-plane ms-1"></i>',
                     cancelButtonText: 'İptal',
-                    confirmButtonColor: '#25D366', // WhatsApp Rengi
+                    confirmButtonColor: '#25D366',
                     cancelButtonColor: '#6c757d',
                     width: '500px',
                     focusConfirm: false,
                     preConfirm: () => {
                         const selectedPhone = document.querySelector('input[name="swalPhone"]:checked');
-                        if (!selectedPhone) {
-                            Swal.showValidationMessage('Lütfen bir numara seçiniz!');
-                            return false;
-                        }
+                        if (!selectedPhone) { Swal.showValidationMessage('Lütfen bir numara seçiniz!'); return false; }
                         return selectedPhone.value;
                     }
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        sendToBackend(id, result.value);
-                    }
+                    if (result.isConfirmed) { sendToBackend(id, result.value); }
                 });
             });
         }
