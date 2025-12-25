@@ -61,7 +61,7 @@
                     </div>
 
                     <div class="row mb-4 bg-light p-3 rounded border mx-0">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label fw-bold text-primary">Mevcut Miktar</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="fa-solid fa-layer-group text-primary"></i></span>
@@ -69,7 +69,8 @@
                             </div>
                             <div class="form-text text-muted small">Stok miktarını buradan manuel düzeltebilirsiniz.</div>
                         </div>
-                        <div class="col-md-6">
+
+                        <div class="col-md-4">
                             <label class="form-label fw-bold">Birim</label>
                             <select asp-for="UnitType" class="form-select">
                                 <option value="Adet">Adet</option>
@@ -78,6 +79,13 @@
                                 <option value="Metre">Metre</option>
                                 <option value="Kutu">Kutu</option>
                                 <option value="Set">Set</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Tedarikçi</label>
+                            <select asp-for="SupplierId" class="form-select" asp-items="ViewBag.Suppliers">
+                                <option value="">-- Firma Seçiniz --</option>
                             </select>
                         </div>
                     </div>

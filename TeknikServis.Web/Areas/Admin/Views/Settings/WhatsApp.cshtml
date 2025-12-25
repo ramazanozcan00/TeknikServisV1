@@ -73,6 +73,27 @@
                     </div>
                 </div>
 
+                <div class="row">
+                </div>
+
+                <div class="card bg-light border-warning mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="fw-bold text-dark"><i class="fa-solid fa-coins text-warning me-2"></i>Mesaj Kredisi</h6>
+                                <small class="text-muted d-block">Şubenin gönderebileceği kalan WhatsApp mesaj sayısı. Her başarılı gönderimde 1 düşer.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input asp-for="WhatsAppCredit" type="number" class="form-control fw-bold text-center fs-5" min="0" />
+                                    <span class="input-group-text bg-white">Adet</span>
+                                </div>
+                                <span asp-validation-for="WhatsAppCredit" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-3 form-check">
                     <input asp-for="IsActive" class="form-check-input" />
                     <label asp-for="IsActive" class="form-check-label">Aktif Et</label>

@@ -24,20 +24,29 @@ namespace TeknikServis.Service.Services
         {
             try
             {
-                // 1. Veritabanından o şubenin ayarlarını çek
+                // 1. Ayarları Çek
                 var setting = (await _unitOfWork.Repository<WhatsAppSetting>()
                     .FindAsync(x => x.BranchId == branchId)).FirstOrDefault();
 
-                // Ayar yoksa veya pasifse gönderme
+                // 2. Kontroller (Ayar var mı, Aktif mi, Numara var mı?)
                 if (setting == null || !setting.IsActive) return false;
                 if (string.IsNullOrEmpty(phoneNumber)) return false;
 
-                // 2. Numara Temizleme
+                // --- YENİ KREDİ KONTROLÜ ---
+                // Kredi 0 veya daha az ise gönderme
+                if (setting.WhatsAppCredit <= 0)
+                {
+                    // İsterseniz buraya log atabilirsiniz: "Kredi yetersiz"
+                    return false;
+                }
+                // ---------------------------
+
+                // 3. Numara Temizleme
                 string cleanNumber = phoneNumber.Replace(" ", "").Replace("+", "").Replace("-", "").Trim();
                 if (cleanNumber.StartsWith("0")) cleanNumber = cleanNumber.Substring(1);
                 if (cleanNumber.StartsWith("5")) cleanNumber = "90" + cleanNumber;
 
-                // 3. Payload Oluşturma
+                // 4. Payload ve Request (Mevcut kodlar)
                 var payload = new
                 {
                     number = cleanNumber,
@@ -46,29 +55,37 @@ namespace TeknikServis.Service.Services
                     linkPreview = false
                 };
 
-                // 4. URL Oluşturma (Sonundaki / işaretini temizleyerek birleştir)
                 var baseUrl = setting.ApiUrl.TrimEnd('/');
                 var requestUrl = $"{baseUrl}/message/sendText/{setting.InstanceName}";
 
-                // 5. Request Oluşturma (Header işlemleri için HttpRequestMessage kullanıyoruz)
                 var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
-
-                // Eğer API Key varsa Header'a ekle
                 if (!string.IsNullOrEmpty(setting.ApiKey))
                 {
                     request.Headers.Add("apikey", setting.ApiKey);
                 }
-
                 request.Content = JsonContent.Create(payload);
 
-                // 6. Gönderim
+                // 5. Gönderim
                 var response = await _httpClient.SendAsync(request);
 
-                return response.IsSuccessStatusCode;
+                // --- YENİ KREDİ DÜŞME İŞLEMİ ---
+                if (response.IsSuccessStatusCode)
+                {
+                    // Başarılı ise krediyi 1 azalt
+                    setting.WhatsAppCredit -= 1;
+
+                    // Güncellemeyi kaydet
+                    _unitOfWork.Repository<WhatsAppSetting>().Update(setting);
+                    await _unitOfWork.CommitAsync();
+
+                    return true;
+                }
+                // -------------------------------
+
+                return false;
             }
             catch
             {
-                // Hata durumunda loglama yapılabilir
                 return false;
             }
         }

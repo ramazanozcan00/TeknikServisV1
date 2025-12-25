@@ -360,6 +360,7 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             {
                 model.Id = Guid.NewGuid();
                 model.CreatedDate = DateTime.Now;
+                // Yeni eklerken formdan gelen krediyi al
                 await _unitOfWork.Repository<WhatsAppSetting>().AddAsync(model);
             }
             else
@@ -368,13 +369,17 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 existing.ApiUrl = model.ApiUrl;
                 existing.ApiKey = model.ApiKey;
                 existing.IsActive = model.IsActive;
-                existing.UpdatedDate = DateTime.Now;
 
+                // --- EKLENEN KISIM ---
+                existing.WhatsAppCredit = model.WhatsAppCredit; // Krediyi güncelle
+                                                                // ---------------------
+
+                existing.UpdatedDate = DateTime.Now;
                 _unitOfWork.Repository<WhatsAppSetting>().Update(existing);
             }
 
             await _unitOfWork.CommitAsync();
-            TempData["Success"] = "WhatsApp ayarları güncellendi.";
+            TempData["Success"] = "WhatsApp ayarları ve kredi bakiyesi güncellendi.";
 
             return RedirectToAction("WhatsApp", new { branchId = model.BranchId });
         }

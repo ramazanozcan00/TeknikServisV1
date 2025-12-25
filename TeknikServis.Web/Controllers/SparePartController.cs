@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
 using TeknikServis.Web.Extensions; // GetBranchId için gerekli
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -45,8 +46,15 @@ namespace TeknikServis.Web.Controllers
 
         // --- EKLEME (GET) ---
         [HttpGet]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            // Şubeye ait firmaları (Tedarikçileri) çekiyoruz
+            var companies = await _unitOfWork.Repository<CompanySetting>()
+                .FindAsync(x => x.BranchId == User.GetBranchId());
+
+            // Dropdown için listeyi hazırlıyoruz
+            ViewBag.Suppliers = new SelectList(companies.OrderBy(x => x.CompanyName), "Id", "CompanyName");
+
             return View();
         }
 
@@ -58,9 +66,9 @@ namespace TeknikServis.Web.Controllers
             {
                 model.Id = Guid.NewGuid();
                 model.CreatedDate = DateTime.Now;
-
-                // Otomatik olarak kullanıcının şubesine kaydet
                 model.BranchId = User.GetBranchId();
+
+                // SupplierId formdan otomatik olarak model içine map edilecektir.
 
                 await _unitOfWork.Repository<SparePart>().AddAsync(model);
                 await _unitOfWork.CommitAsync();
@@ -68,25 +76,35 @@ namespace TeknikServis.Web.Controllers
                 TempData["Success"] = "Yedek parça şube stoğuna eklendi.";
                 return RedirectToAction("Index");
             }
+
+            // Hata olursa dropdown'ı tekrar doldur
+            var companies = await _unitOfWork.Repository<CompanySetting>()
+                .FindAsync(x => x.BranchId == User.GetBranchId());
+            ViewBag.Suppliers = new SelectList(companies.OrderBy(x => x.CompanyName), "Id", "CompanyName");
+
             return View(model);
         }
-
         // --- DÜZENLEME (GET) ---
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id)
         {
             var part = await _unitOfWork.Repository<SparePart>().GetByIdAsync(id);
 
-            // Güvenlik: Parça yoksa veya başka şubeye aitse erişimi engelle
             if (part == null || part.BranchId != User.GetBranchId())
             {
                 return NotFound();
             }
 
+            // Düzenleme sayfasında da tedarikçileri listele
+            var companies = await _unitOfWork.Repository<CompanySetting>()
+                .FindAsync(x => x.BranchId == User.GetBranchId());
+
+            // Mevcut tedarikçiyi seçili getir (part.SupplierId)
+            ViewBag.Suppliers = new SelectList(companies.OrderBy(x => x.CompanyName), "Id", "CompanyName", part.SupplierId);
+
             return View(part);
         }
 
-        // --- DÜZENLEME (POST) ---
         [HttpPost]
         public async Task<IActionResult> Edit(SparePart model)
         {
@@ -94,9 +112,9 @@ namespace TeknikServis.Web.Controllers
             {
                 var existing = await _unitOfWork.Repository<SparePart>().GetByIdAsync(model.Id);
 
-                // Güvenlik Kontrolü
                 if (existing != null && existing.BranchId == User.GetBranchId())
                 {
+                    // Diğer alan güncellemeleri...
                     existing.ProductName = model.ProductName;
                     existing.StockCode = model.StockCode;
                     existing.Barcode = model.Barcode;
@@ -105,9 +123,11 @@ namespace TeknikServis.Web.Controllers
                     existing.VatRate = model.VatRate;
                     existing.UnitType = model.UnitType;
                     existing.Quantity = model.Quantity;
-                    existing.UpdatedDate = DateTime.Now;
 
-                    // BranchId değiştirmiyoruz, aynı kalıyor.
+                    // --- Yeni Eklenen Alan ---
+                    existing.SupplierId = model.SupplierId;
+
+                    existing.UpdatedDate = DateTime.Now;
 
                     _unitOfWork.Repository<SparePart>().Update(existing);
                     await _unitOfWork.CommitAsync();
@@ -116,6 +136,12 @@ namespace TeknikServis.Web.Controllers
                     return RedirectToAction("Index");
                 }
             }
+
+            // Hata durumunda dropdown'ı tekrar doldur
+            var companies = await _unitOfWork.Repository<CompanySetting>()
+                .FindAsync(x => x.BranchId == User.GetBranchId());
+            ViewBag.Suppliers = new SelectList(companies.OrderBy(x => x.CompanyName), "Id", "CompanyName", model.SupplierId);
+
             return View(model);
         }
 

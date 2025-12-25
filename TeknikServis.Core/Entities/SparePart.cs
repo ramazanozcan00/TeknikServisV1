@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TeknikServis.Core.Entities
 {
@@ -28,6 +29,14 @@ namespace TeknikServis.Core.Entities
 
         [Display(Name = "Miktar")]
         public decimal Quantity { get; set; }
+
+        // --- YENİ EKLENEN ALAN ---
+        [Display(Name = "Tedarikçi")]
+        public Guid? SupplierId { get; set; }
+
+        // İlişki (Opsiyonel ama önerilir)
+        [ForeignKey("SupplierId")]
+        public virtual CompanySetting Supplier { get; set; }
 
         public Guid BranchId { get; set; }
     }

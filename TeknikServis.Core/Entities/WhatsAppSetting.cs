@@ -18,6 +18,8 @@ namespace TeknikServis.Core.Entities
         [Display(Name = "API Key")]
         public string ApiKey { get; set; } // API Key (Global Key)
 
+        [Display(Name = "WhatsApp Kredisi")]
+        public int WhatsAppCredit { get; set; } = 0;
         public bool IsActive { get; set; } = true;
     }
 }

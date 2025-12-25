@@ -50,11 +50,11 @@
                     </div>
 
                     <div class="row mb-4 bg-light p-3 rounded border">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label fw-bold">Miktar</label>
                             <input asp-for="Quantity" class="form-control" type="number" step="0.01" required />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label fw-bold">Birim</label>
                             <select asp-for="UnitType" class="form-select">
                                 <option value="Adet">Adet</option>
@@ -63,6 +63,12 @@
                                 <option value="Metre">Metre</option>
                                 <option value="Kutu">Kutu</option>
                                 <option value="Set">Set</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Tedarikçi</label>
+                            <select asp-for="SupplierId" class="form-select" asp-items="ViewBag.Suppliers">
+                                <option value="">-- Firma Seçiniz --</option>
                             </select>
                         </div>
                     </div>
