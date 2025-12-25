@@ -177,71 +177,79 @@
                                 </div>
                             </div>
 
-                        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
-                            <div class="card-body p-4">
-                                <h6 class="fw-bold text-dark mb-4"><i class="fa-solid fa-bars-staggered me-2"></i>Menü Görünürlüğü</h6>
-                                <div class="row g-3">
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowHome"><label class="form-check-label" asp-for="ShowHome">Ana Sayfa</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowCustomer"><label class="form-check-label" asp-for="ShowCustomer">Müşteriler</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowService"><label class="form-check-label" asp-for="ShowService">Servis</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowStock"><label class="form-check-label" asp-for="ShowStock">Stok</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowBarcode"><label class="form-check-label" asp-for="ShowBarcode">Barkod</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowEDevlet"><label class="form-check-label" asp-for="ShowEDevlet">E-Devlet</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowAudit"><label class="form-check-label" asp-for="ShowAudit">Geçmiş</label></div></div>
-                                    <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowSupport"><label class="form-check-label" asp-for="ShowSupport">Destek</label></div></div>
+                            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+                                <div class="card-body p-4">
+                                    <h6 class="fw-bold text-dark mb-4"><i class="fa-solid fa-bars-staggered me-2"></i>Menü Görünürlüğü</h6>
+                                    <div class="row g-3">
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowHome"><label class="form-check-label" asp-for="ShowHome">Ana Sayfa</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowCustomer"><label class="form-check-label" asp-for="ShowCustomer">Müşteriler</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowService"><label class="form-check-label" asp-for="ShowService">Servis</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowStock"><label class="form-check-label" asp-for="ShowStock">Stok</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowBarcode"><label class="form-check-label" asp-for="ShowBarcode">Barkod</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowEDevlet"><label class="form-check-label" asp-for="ShowEDevlet">E-Devlet</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowAudit"><label class="form-check-label" asp-for="ShowAudit">Geçmiş</label></div></div>
+                                        <div class="col-6 col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" asp-for="ShowSupport"><label class="form-check-label" asp-for="ShowSupport">Destek</label></div></div>
 
-                                    <div class="col-6 col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="IsShipmentAuthEnabled">
-                                            <label class="form-check-label" asp-for="IsShipmentAuthEnabled">Sevkiyat</label>
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="IsShipmentAuthEnabled">
+                                                <label class="form-check-label" asp-for="IsShipmentAuthEnabled">Sevkiyat</label>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="IsPriceOfferEnabled">
-                                            <label class="form-check-label text-success fw-bold" asp-for="IsPriceOfferEnabled">Fiyat Teklifi</label>
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="IsPriceOfferEnabled">
+                                                <label class="form-check-label text-success fw-bold" asp-for="IsPriceOfferEnabled">Fiyat Teklifi</label>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    @* Yeni Eklenen Menü Alanları *@
-                                    <div class="col-6 col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="ShowBranchProfile">
-                                            <label class="form-check-label" asp-for="ShowBranchProfile">Şube Profili</label>
+                                        @* Yeni Eklenen Menü Alanları *@
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="ShowBranchProfile">
+                                                <label class="form-check-label" asp-for="ShowBranchProfile">Şube Profili</label>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="ShowCompanyInfo">
-                                            <label class="form-check-label" asp-for="ShowCompanyInfo">Firma Bilgileri</label>
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="ShowCompanyInfo">
+                                                <label class="form-check-label" asp-for="ShowCompanyInfo">Firma Bilgileri</label>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" asp-for="ShowCustomerMovements">
-                                            <label class="form-check-label" asp-for="ShowCustomerMovements">Cari Hareketler</label>
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="ShowCustomerMovements">
+                                                <label class="form-check-label" asp-for="ShowCustomerMovements">Cari Hareketler</label>
+                                            </div>
+                                        </div>
+
+                                        @* Personel Performans Buraya Taşındı *@
+                                        <div class="col-6 col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" asp-for="IsPerformanceMenuVisible">
+                                                <label class="form-check-label text-info fw-bold" asp-for="IsPerformanceMenuVisible">Performans</label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-warning bg-opacity-10 border-warning">
-                            <div class="card-body p-4">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-battery-half me-2"></i>Kullanım Hakları</h6>
-                                <div class="row g-3">
-                                    <div class="col-6 col-md-3"><label class="form-label small fw-bold">Fiş</label><input asp-for="PrintBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
-                                    <div class="col-6 col-md-3"><label class="form-label small fw-bold">Mail</label><input asp-for="MailBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
-                                    <div class="col-6 col-md-3"><label class="form-label small fw-bold">Müşteri</label><input asp-for="CustomerBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
-                                    <div class="col-6 col-md-3"><label class="form-label small fw-bold">Servis</label><input asp-for="TicketBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
+                            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-warning bg-opacity-10 border-warning">
+                                <div class="card-body p-4">
+                                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-battery-half me-2"></i>Kullanım Hakları</h6>
+                                    <div class="row g-3">
+                                        <div class="col-6 col-md-3"><label class="form-label small fw-bold">Fiş</label><input asp-for="PrintBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small fw-bold">Mail</label><input asp-for="MailBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small fw-bold">Müşteri</label><input asp-for="CustomerBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
+                                        <div class="col-6 col-md-3"><label class="form-label small fw-bold">Servis</label><input asp-for="TicketBalance" type="number" class="form-control text-center fw-bold border-0 shadow-sm" min="0" /></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="d-flex justify-content-end gap-3 mt-4">
-                            <a asp-action="Index" class="btn btn-lg btn-light border shadow-sm px-4"><i class="fa-solid fa-arrow-left me-2"></i>Geri Dön</a>
-                            <button type="submit" class="btn btn-lg btn-warning shadow-lg px-5 rounded-pill fw-bold text-dark"><i class="fa-solid fa-check me-2"></i>Değişiklikleri Kaydet</button>
-                        </div>
+                            <div class="d-flex justify-content-end gap-3 mt-4">
+                                <a asp-action="Index" class="btn btn-lg btn-light border shadow-sm px-4"><i class="fa-solid fa-arrow-left me-2"></i>Geri Dön</a>
+                                <button type="submit" class="btn btn-lg btn-warning shadow-lg px-5 rounded-pill fw-bold text-dark"><i class="fa-solid fa-check me-2"></i>Değişiklikleri Kaydet</button>
+                            </div>
                     </form>
 
                 </div>

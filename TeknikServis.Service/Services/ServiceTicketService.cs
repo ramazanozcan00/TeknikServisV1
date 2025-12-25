@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Identity;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TeknikServis.Core.DTOs;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
 
@@ -10,10 +12,12 @@ namespace TeknikServis.Service.Services
     public class ServiceTicketService : IServiceTicketService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly UserManager<AppUser> _userManager; //
 
-        public ServiceTicketService(IUnitOfWork unitOfWork)
+        public ServiceTicketService(IUnitOfWork unitOfWork, UserManager<AppUser> userManager)
         {
             _unitOfWork = unitOfWork;
+            _userManager = userManager;
         }
 
         // --- BARKOD İLE BULMA ---
@@ -247,5 +251,63 @@ namespace TeknikServis.Service.Services
 
             return (pagedTickets, totalCount);
         }
+
+        // Mevcut usinglerin yanına System.Linq ekli olduğundan emin olun
+        public async Task<List<TechnicianPerformanceDto>> GetTechnicianPerformanceStatsAsync(DateTime startDate, DateTime endDate, Guid? branchId = null)
+        {
+            // 1. Kullanıcıları çek (Şube filtresi varsa uygula)
+            var usersQuery = _userManager.Users.AsQueryable();
+
+            if (branchId.HasValue)
+            {
+                usersQuery = usersQuery.Where(u => u.BranchId == branchId.Value);
+            }
+
+            var technicians = usersQuery.ToList();
+
+            // 2. Tarih aralığındaki tüm fişleri çek (Tüm fişleri çekip RAM'de eşleştirmek performans için daha uygun olabilir)
+            // Not: Çok büyük veride bu kısım da şubeye göre filtrelenebilir ama teknisyen ID eşleşmesi zaten bunu süzecektir.
+            var tickets = await _unitOfWork.Repository<ServiceTicket>()
+                .FindAsync(t => t.CreatedDate >= startDate && t.CreatedDate <= endDate && t.TechnicianId != null);
+
+            var ticketList = tickets.ToList();
+            var statsList = new List<TechnicianPerformanceDto>();
+
+            foreach (var tech in technicians)
+            {
+                // Sadece bu teknisyene ait fişler
+                var techTickets = ticketList.Where(t => t.TechnicianId == tech.Id).ToList();
+
+                if (!techTickets.Any()) continue;
+
+                var dto = new TechnicianPerformanceDto
+                {
+                    TechnicianId = tech.Id,
+                    FullName = tech.FullName ?? tech.UserName,
+                    TotalAssignedTickets = techTickets.Count,
+
+                    CompletedTickets = techTickets.Count(t => t.Status == "Tamamlandı" || t.Status == "Teslim Edildi"),
+
+                    PendingTickets = techTickets.Count(t => t.Status == "Bekliyor" || t.Status == "Parça Bekliyor" || t.Status == "İşlemde" || t.Status == "Teknisyen Onayı Bekliyor"),
+
+                    RefundedOrCancelledTickets = techTickets.Count(t => t.Status == "İptal" || t.Status == "İade"),
+
+                    TotalRevenue = techTickets
+                        .Where(t => (t.Status == "Tamamlandı" || t.Status == "Teslim Edildi") && t.TotalPrice.HasValue)
+                        .Sum(t => t.TotalPrice.Value),
+
+                    PotentialRevenue = techTickets
+                        .Where(t => (t.Status == "Bekliyor" || t.Status == "İşlemde") && t.TotalPrice.HasValue)
+                        .Sum(t => t.TotalPrice.Value)
+                };
+
+                statsList.Add(dto);
+            }
+
+            return statsList.OrderByDescending(x => x.TotalRevenue).ToList();
+        }
+
+
+
     }
 }

@@ -152,7 +152,14 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                     if (model.ShowBranchProfile) claims.Add(new Claim("MenuAccess", "BranchProfile"));
                     if (model.ShowCompanyInfo) claims.Add(new Claim("MenuAccess", "CompanyInfo"));
                     if (model.ShowCustomerMovements) claims.Add(new Claim("MenuAccess", "CustomerMovements"));
+
                     if (claims.Any()) await _userManager.AddClaimsAsync(user, claims);
+
+                    // YENİ: Performans Menüsü Yetkisini Ekle
+                    if (model.IsPerformanceMenuVisible)
+                    {
+                        await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("MenuAccess", "Performance"));
+                    }
 
                     // Ek Şubeler
                     if (model.SelectedBranchIds != null && model.SelectedBranchIds.Any())
@@ -235,7 +242,10 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 ShowAudit = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Audit"),
                 ShowSupport = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Support"),
                 ShowStock = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Stock"),
-                // model nesnesi oluşturulurken içine ekleyin:
+
+                // YENİ: Mevcut claim var mı kontrol et
+                IsPerformanceMenuVisible = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "Performance"),
+
                 ShowBranchProfile = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "BranchProfile"),
                 ShowCompanyInfo = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "CompanyInfo"),
                 ShowCustomerMovements = userClaims.Any(c => c.Type == "MenuAccess" && c.Value == "CustomerMovements"),
@@ -327,6 +337,23 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
                 if (model.ShowCustomerMovements) newClaims.Add(new Claim("MenuAccess", "CustomerMovements"));
 
                 if (newClaims.Any()) await _userManager.AddClaimsAsync(user, newClaims);
+
+                // YENİ: Performans Menüsü Yetki Kontrolü ve Güncellemesi
+                // Not: Yukarıdaki toplu silme (claimsToRemove) işlemi performans claim'ini de silebilir.
+                // Bu yüzden kullanıcıdan gelen kod ile tekrar kontrol edip ekliyoruz/siliyoruz.
+                var currentClaims = await _userManager.GetClaimsAsync(user);
+                var perfClaim = currentClaims.FirstOrDefault(c => c.Type == "MenuAccess" && c.Value == "Performance");
+
+                if (model.IsPerformanceMenuVisible && perfClaim == null)
+                {
+                    // Kutucuk işaretli ama yetki yoksa -> EKLE
+                    await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("MenuAccess", "Performance"));
+                }
+                else if (!model.IsPerformanceMenuVisible && perfClaim != null)
+                {
+                    // Kutucuk boş ama yetki varsa -> SİL
+                    await _userManager.RemoveClaimAsync(user, perfClaim);
+                }
 
                 var oldBranches = await _unitOfWork.Repository<UserBranch>().FindAsync(x => x.UserId == user.Id);
                 foreach (var item in oldBranches) _unitOfWork.Repository<UserBranch>().Remove(item);

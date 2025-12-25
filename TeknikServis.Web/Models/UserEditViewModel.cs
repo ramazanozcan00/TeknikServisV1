@@ -44,6 +44,8 @@ namespace TeknikServis.Web.Models
         public bool IsSmsAuthEnabled { get; set; }
 
         public bool IsSidebarVisible { get; set; }
+        [Display(Name = "Personel Performans Menüsü")]
+        public bool IsPerformanceMenuVisible { get; set; }
 
         public List<Guid> SelectedBranchIds { get; set; } = new List<Guid>();
 

@@ -1,0 +1,188 @@
+﻿@model List<TeknikServis.Core.DTOs.TechnicianPerformanceDto>
+
+@{
+    ViewData["Title"] = "Personel Performans Raporu";
+}
+
+<div class="container-fluid">
+
+    <div class="card shadow-sm mb-4 border-left-primary">
+        <div class="card-body p-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                <div class="mb-3 mb-md-0">
+                    <h1 class="h4 mb-0 text-gray-800 font-weight-bold">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>Personel Performans
+                    </h1>
+                    <small class="text-muted">Seçili Dönem: <strong>@ViewBag.StartDate - @ViewBag.EndDate</strong></small>
+                </div>
+
+                <form method="get" class="d-flex flex-column flex-sm-row align-items-center gap-2">
+
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-building text-secondary"></i></span>
+                        <select name="branchId" class="form-select border-start-0 ps-0" onchange="this.form.submit()" style="min-width: 150px;">
+                            <option value="">Tüm Şubeler</option>
+                            @if (ViewBag.BranchList != null)
+                            {
+                                foreach (var item in (SelectList)ViewBag.BranchList)
+                                {
+                                    if (ViewBag.SelectedBranchId?.ToString() == item.Value)
+                                    {
+                                        <option value="@item.Value" selected>@item.Text</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@item.Value">@item.Text</option>
+                                    }
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="btn-group shadow-sm" role="group">
+                        <a href="?period=thisMonth&branchId=@ViewBag.SelectedBranchId" class="btn btn-sm btn-@(ViewBag.Period == "thisMonth" ? "primary" : "light border")">
+                            <i class="fas fa-calendar-day me-1"></i>Bu Ay
+                        </a>
+                        <a href="?period=lastMonth&branchId=@ViewBag.SelectedBranchId" class="btn btn-sm btn-@(ViewBag.Period == "lastMonth" ? "primary" : "light border")">
+                            <i class="fas fa-history me-1"></i>Geçen Ay
+                        </a>
+                        <a href="?period=thisYear&branchId=@ViewBag.SelectedBranchId" class="btn btn-sm btn-@(ViewBag.Period == "thisYear" ? "primary" : "light border")">
+                            <i class="fas fa-calendar me-1"></i>Bu Yıl
+                        </a>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Toplam Ciro</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Sum(x => x.TotalRevenue).ToString("C2")</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-lira-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Tamamlanan</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Sum(x => x.CompletedTickets) <small>Adet</small></div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Bekleyen İş</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Sum(x => x.PendingTickets) <small>Adet</small></div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">İade / İptal</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Sum(x => x.RefundedOrCancelledTickets) <small>Adet</small></div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-undo fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Detaylı Performans Tablosu</h6>
+            <span class="badge bg-secondary">@Model.Count Personel</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Teknisyen</th>
+                            <th class="text-center">Atanan</th>
+                            <th class="text-center">Tamamlanan</th>
+                            <th class="text-center">Bekleyen</th>
+                            <th class="text-center">İade/İptal</th>
+                            <th style="width: 20%;">Başarı Oranı</th>
+                            <th class="text-end">Toplam Ciro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="font-weight-bold text-dark">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-light text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width:32px; height:32px;">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        @item.FullName
+                                    </div>
+                                </td>
+                                <td class="text-center">@item.TotalAssignedTickets</td>
+                                <td class="text-center text-success fw-bold">@item.CompletedTickets</td>
+                                <td class="text-center text-warning">@item.PendingTickets</td>
+                                <td class="text-center text-danger">@item.RefundedOrCancelledTickets</td>
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        <span class="small me-2 font-weight-bold">@item.CompletionRate%</span>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            @{
+                                                string colorClass = "bg-danger";
+                                                if (item.CompletionRate >= 75) { colorClass = "bg-success"; }
+                                                else if (item.CompletionRate >= 50) { colorClass = "bg-info"; }
+                                                else if (item.CompletionRate >= 25) { colorClass = "bg-warning"; }
+                                            }
+                                            <div class="progress-bar @colorClass" role="progressbar" style="width: @item.CompletionRate.ToString().Replace(",", ".")%" aria-valuenow="@item.CompletionRate" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-end font-weight-bold text-primary">@item.TotalRevenue.ToString("C2")</td>
+                            </tr>
+                        }
+                        @if (Model.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">Bu tarih aralığında veri bulunamadı.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

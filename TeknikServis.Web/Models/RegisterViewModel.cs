@@ -57,6 +57,8 @@ namespace TeknikServis.Web.Models
 
         [Display(Name = "Sol Menü Görünsün mü?")]
         public bool IsSidebarVisible { get; set; } = true;
+        [Display(Name = "Personel Performans Menüsü")]
+        public bool IsPerformanceMenuVisible { get; set; }
 
         public List<Guid> SelectedBranchIds { get; set; } = new List<Guid>();
 

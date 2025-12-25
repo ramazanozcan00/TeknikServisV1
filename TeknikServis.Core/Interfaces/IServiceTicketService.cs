@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TeknikServis.Core.DTOs;
 using TeknikServis.Core.Entities;
 
 namespace TeknikServis.Core.Interfaces
@@ -21,5 +22,10 @@ namespace TeknikServis.Core.Interfaces
         Task UpdateTicketAsync(ServiceTicket ticket);
         Task<ServiceTicket> GetTicketByFisNoAsync(string fisNo);
         Task DeleteTicketAsync(Guid id);
+
+        // TeknikServis.Core/Interfaces/IServiceTicketService.cs içine:
+        Task<List<TechnicianPerformanceDto>> GetTechnicianPerformanceStatsAsync(DateTime startDate, DateTime endDate, Guid? branchId = null);
     }
 }
+
+
