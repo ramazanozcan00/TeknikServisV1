@@ -18,6 +18,7 @@
     string baslikRengi = "bg-success";
     string ikon = "fa-calendar-check";
     string durumMesaji = "Yasal süre içindesiniz.";
+
     if (Model.Status == "Tamamlandı" || Model.Status == "İptal")
     {
         kartRengi = "border-secondary";
@@ -372,7 +373,6 @@
                                 <span class="badge bg-light text-muted border w-100 py-2">Henüz durum girilmedi</span>
                             }
                         </div>
-                        @* -------------------------------------- *@
                     }
                     else
                     {
@@ -627,23 +627,22 @@
     </script>
 
     <script>
-        function sendDetailedWhatsapp(id) {
-            // Yükleniyor ekranı
-            Swal.fire({
-                title: 'Numaralar Kontrol Ediliyor...',
-                didOpen: () => { Swal.showLoading() },
-                allowOutsideClick: false,
-                showConfirmButton: false
-            });
+           function sendDetailedWhatsapp(id) {
+        Swal.fire({
+            title: 'Numaralar Kontrol Ediliyor...',
+            didOpen: () => { Swal.showLoading() },
+            allowOutsideClick: false,
+            showConfirmButton: false
+        });
 
-            // 1. İletişim bilgilerini getir
-            $.get('/ServiceTicket/GetTicketContactInfo', { id: id }, function(data) {
-                Swal.close();
+        // --- DEĞİŞİKLİK BURADA: $.get YERİNE $.post YAZIYORUZ ---
+        $.post('/ServiceTicket/GetTicketContactInfo', { id: id }, function(data) {
+            Swal.close();
 
-                if (!data.success) {
-                    Swal.fire('Hata', data.message, 'error');
-                    return;
-                }
+            if (!data.success) {
+                Swal.fire('Hata', data.message, 'error');
+                return;
+            }
 
                 // HTML İçeriğini Hazırla
                 var htmlContent = '<div class="text-start">';
@@ -690,7 +689,6 @@
                     // İkon sınıfı kontrolü (FontAwesome sürümüne göre)
                     let iconClass2 = data.isCorporate ? "fa-solid fa-building" : "fa-solid fa-phone";
                     let textColor = data.isCorporate ? "text-primary" : "text-info";
-
                     htmlContent += `
                         <label class="list-group-item list-group-item-action d-flex gap-3 py-3 align-items-center cursor-pointer">
                             <input class="form-check-input flex-shrink-0 mt-0" type="radio" name="swalPhone" value="${data.phone2}" style="width: 1.2em; height: 1.2em;">
@@ -704,7 +702,8 @@
                         </label>`;
                 }
 
-                htmlContent += '</div></div>'; // Kapanış
+                htmlContent += '</div></div>';
+                // Kapanış
 
                 // Numara Yoksa Uyarı
                 if (!data.phone1 && !data.phone2) {
@@ -744,7 +743,7 @@
             });
         }
 
-        // Backend'e Gönderme Fonksiyonu (Aynı Kalıyor)
+        // Backend'e Gönderme Fonksiyonu
         function sendToBackend(id, phone) {
             Swal.fire({
                 title: 'Gönderiliyor...',
@@ -752,7 +751,6 @@
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading() }
             });
-
             $.post('/ServiceTicket/SendDetailedInfoMessage', { id: id, targetPhone: phone }, function(res) {
                 if (res.success) {
                     Swal.fire({
@@ -765,8 +763,13 @@
                 } else {
                     Swal.fire('Hata!', res.message, 'error');
                 }
-            }).fail(function() {
-                Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error');
+            }).fail(function(xhr, status, error) {
+                // Burada hatanın detayını gösteriyoruz
+                var msg = "Sunucu ile iletişim kurulamadı.";
+                if(xhr.responseText) {
+                   msg += "\nDetay: " + xhr.responseText.substring(0, 100);
+                }
+                Swal.fire('Hata!', msg, 'error');
             });
         }
     </script>

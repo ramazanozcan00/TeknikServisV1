@@ -203,7 +203,6 @@ namespace TeknikServis.Web.Controllers
                 return RedirectToAction("TechnicianPanel");
             }
 
-            // Status yerine TechnicianStatus güncelleniyor
             ticket.TechnicianStatus = technicianStatus;
 
             if (price.HasValue) ticket.TotalPrice = price;
@@ -402,20 +401,14 @@ namespace TeknikServis.Web.Controllers
         [Authorize(Policy = "EditPolicy")]
         public async Task<IActionResult> ChangeStatus(Guid id, string status, string price)
         {
-            // 1. Kaydı veritabanından çek
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
             if (ticket == null) return NotFound();
 
-            // 2. Durumu güncelle
             ticket.Status = status;
 
-            // 3. Fiyatı güncelle (Format hatasını önlemek için string olarak alıp çeviriyoruz)
             if (!string.IsNullOrEmpty(price))
             {
-                // "TL", "₺" ve boşlukları temizle
                 string cleanPrice = price.Replace("₺", "").Replace("TL", "").Trim();
-
-                // Önce Türkçe formatı (Virgül) dene, olmazsa Uluslararası formatı (Nokta) dene
                 if (decimal.TryParse(cleanPrice, System.Globalization.NumberStyles.Any, new System.Globalization.CultureInfo("tr-TR"), out decimal parsedPrice))
                 {
                     ticket.TotalPrice = parsedPrice;
@@ -427,12 +420,9 @@ namespace TeknikServis.Web.Controllers
             }
 
             ticket.UpdatedDate = DateTime.Now;
-
-            // 4. Veritabanına kaydet
             _unitOfWork.Repository<ServiceTicket>().Update(ticket);
             await _unitOfWork.CommitAsync();
 
-            // 5. Loglama ve Mail İşlemleri
             try
             {
                 string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -555,103 +545,7 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
         }
 
-        [HttpPost]
-        [Authorize(Roles = "Technician,Admin,Personnel")]
-        public async Task<IActionResult> SendDetailedInfoMessage(Guid id)
-        {
-            // 1. Kullanıcı WhatsApp Yetki Kontrolü
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser != null && !currentUser.IsWhatsAppEnabled)
-            {
-                return Json(new { success = false, message = "WhatsApp gönderme yetkiniz kapalıdır." });
-            }
-
-            // 2. Fişi ve İlişkili Verileri Getir
-            var ticket = await _unitOfWork.Repository<ServiceTicket>()
-                .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.UsedParts);
-
-            if (ticket == null) return Json(new { success = false, message = "Servis kaydı bulunamadı." });
-            if (ticket.Customer == null || string.IsNullOrEmpty(ticket.Customer.Phone))
-                return Json(new { success = false, message = "Müşterinin telefon numarası kayıtlı değil." });
-
-            // 3. Parça Detaylarını Yükle
-            if (ticket.UsedParts != null && ticket.UsedParts.Any())
-            {
-                foreach (var usedPart in ticket.UsedParts)
-                {
-                    if (usedPart.SparePart == null)
-                    {
-                        usedPart.SparePart = await _unitOfWork.Repository<SparePart>().GetByIdAsync(usedPart.SparePartId);
-                    }
-                }
-            }
-
-            // 4. Mesaj İçeriğini Oluşturma
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-
-            sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
-            sb.AppendLine($"*{ticket.FisNo}* fiş numaralı cihazınızın ({ticket.DeviceBrand?.Name} {ticket.DeviceModel}) işlemleri hakkında detaylar aşağıdadır:");
-            sb.AppendLine("");
-
-            // Teknisyen Notu
-            if (!string.IsNullOrEmpty(ticket.TechnicianNotes))
-            {
-                sb.AppendLine("*📝 Teknisyen Notları:*");
-                sb.AppendLine(ticket.TechnicianNotes);
-                sb.AppendLine("");
-            }
-
-            // Değişen Parçalar Listesi
-            if (ticket.UsedParts != null && ticket.UsedParts.Any())
-            {
-                sb.AppendLine("*🛠 Değişen Parçalar:*");
-                foreach (var part in ticket.UsedParts)
-                {
-                    string parcaAdi = part.SparePart != null ? part.SparePart.ProductName : "Yedek Parça";
-                    sb.AppendLine($"- {parcaAdi} ({part.Quantity} Adet): {part.TotalPrice:N2} TL");
-                }
-                sb.AppendLine("");
-            }
-
-            // Toplam Tutar
-            decimal toplamTutar = ticket.TotalPrice ?? 0;
-            sb.AppendLine($"*💰 Toplam Tutar:* {toplamTutar:N2} TL");
-
-            // --- DİNAMİK URL OLUŞTURMA KISMI ---
-
-            // appsettings.json'dan URL'i oku
-            string baseUrl = _configuration["DomainSettings:SorgulamaUrl"];
-
-            // Eğer appsettings boşsa (unutulursa) otomatik olarak mevcut sitenin adresini al (Yedek Plan)
-            if (string.IsNullOrEmpty(baseUrl))
-            {
-                baseUrl = $"{Request.Scheme}://{Request.Host}";
-            }
-
-            // URL'in sonundaki / işaretini temizle (çift // olmasın diye)
-            baseUrl = baseUrl.TrimEnd('/');
-
-            // Linki oluştur
-            string odemeLinki = $"{baseUrl}/Home/Result?fisNo={ticket.FisNo}";
-            // -----------------------------------
-
-            sb.AppendLine($"*💳 Ödeme/Detay Linki:* {odemeLinki}");
-
-            sb.AppendLine("");
-            sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
-            sb.AppendLine("- Teknik Servis");
-
-            // 5. WhatsApp Servisine Gönderim
-            bool basarili = await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, sb.ToString(), ticket.Customer.BranchId);
-
-            if (basarili)
-                return Json(new { success = true, message = "Detaylı bilgilendirme mesajı gönderildi." });
-            else
-                return Json(new { success = false, message = "Mesaj gönderilirken bir hata oluştu." });
-        }
-
-        // 1. Müşteri İletişim Bilgilerini Getiren Metot (YENİ)
-        [HttpGet]
+        [HttpPost] // <-- BURAYI DEĞİŞTİRİN (Eskisi [HttpGet] idi)
         public async Task<IActionResult> GetTicketContactInfo(Guid id)
         {
             var ticket = await _unitOfWork.Repository<ServiceTicket>()
@@ -664,85 +558,124 @@ namespace TeknikServis.Web.Controllers
             {
                 success = true,
                 phone1 = ticket.Customer.Phone,
-                phone2 = ticket.Customer.Phone2, // Customer entity'nizde Phone2 varsa
+                phone2 = ticket.Customer.Phone2, // Firma numarası burasıdır
                 companyName = ticket.Customer.CompanyName,
-                // Eğer ayrı bir firma numarası alanı yoksa Phone2 veya Phone kullanılır
                 isCorporate = !string.IsNullOrEmpty(ticket.Customer.CompanyName)
             });
         }
 
-        // 2. Mesaj Gönderme Metodu (GÜNCELLENMİŞ HALİ)
+        // --- GÜNCELLENEN METOD 1: Detaylı Bilgi Gönder ---
         [HttpPost]
         [Authorize(Roles = "Technician,Admin,Personnel")]
-        public async Task<IActionResult> SendDetailedInfoMessage(Guid id, string targetPhone)
+        public async Task<IActionResult> SendDetailedInfoMessage(Guid id, string targetPhone = null)
         {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser != null && !currentUser.IsWhatsAppEnabled)
-                return Json(new { success = false, message = "WhatsApp yetkiniz yok." });
-
-            // Fişi getir
-            var ticket = await _unitOfWork.Repository<ServiceTicket>()
-                .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.UsedParts);
-
-            if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
-
-            // HEDEF NUMARA KONTROLÜ
-            // Eğer parametre olarak numara geldiyse onu kullan, gelmediyse kayıtlı ana numarayı kullan
-            string gonderilecekNo = !string.IsNullOrEmpty(targetPhone) ? targetPhone : ticket.Customer.Phone;
-
-            if (string.IsNullOrEmpty(gonderilecekNo))
-                return Json(new { success = false, message = "Geçerli bir telefon numarası bulunamadı." });
-
-            // --- MESAJ İÇERİĞİ OLUŞTURMA (Aynı Kalıyor) ---
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
-            if (!string.IsNullOrEmpty(ticket.Customer.CompanyName)) sb.AppendLine($"({ticket.Customer.CompanyName})"); // Firma ismini de ekledik
-
-            sb.AppendLine($"*{ticket.FisNo}* fiş numaralı cihazınızın ({ticket.DeviceBrand?.Name} {ticket.DeviceModel}) işlemleri hakkında detaylar aşağıdadır:");
-            sb.AppendLine("");
-
-            if (!string.IsNullOrEmpty(ticket.TechnicianNotes))
+            try
             {
-                sb.AppendLine("*📝 Teknisyen Notları:*");
-                sb.AppendLine(ticket.TechnicianNotes);
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser != null && !currentUser.IsWhatsAppEnabled)
+                    return Json(new { success = false, message = "WhatsApp yetkiniz yok." });
+
+                var ticket = await _unitOfWork.Repository<ServiceTicket>()
+                    .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.UsedParts);
+
+                if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
+
+                // HEDEF NUMARA KONTROLÜ
+                string gonderilecekNo = !string.IsNullOrEmpty(targetPhone) ? targetPhone : ticket.Customer.Phone;
+
+                if (string.IsNullOrEmpty(gonderilecekNo))
+                    return Json(new { success = false, message = "Geçerli bir telefon numarası bulunamadı." });
+
+                // Mesaj İçeriği
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
+                if (!string.IsNullOrEmpty(ticket.Customer.CompanyName)) sb.AppendLine($"({ticket.Customer.CompanyName})");
+
+                sb.AppendLine($"*{ticket.FisNo}* fiş numaralı cihazınızın ({ticket.DeviceBrand?.Name} {ticket.DeviceModel}) işlemleri hakkında detaylar aşağıdadır:");
                 sb.AppendLine("");
-            }
 
-            if (ticket.UsedParts != null && ticket.UsedParts.Any())
-            {
-                sb.AppendLine("*🛠 Değişen Parçalar:*");
-                foreach (var usedPart in ticket.UsedParts)
+                if (!string.IsNullOrEmpty(ticket.TechnicianNotes))
                 {
-                    if (usedPart.SparePart == null) usedPart.SparePart = await _unitOfWork.Repository<SparePart>().GetByIdAsync(usedPart.SparePartId);
-                    string parcaAdi = usedPart.SparePart != null ? usedPart.SparePart.ProductName : "Yedek Parça";
-                    sb.AppendLine($"- {parcaAdi} ({usedPart.Quantity} Adet): {usedPart.TotalPrice:N2} TL");
+                    sb.AppendLine("*📝 Teknisyen Notları:*");
+                    sb.AppendLine(ticket.TechnicianNotes);
+                    sb.AppendLine("");
                 }
+
+                if (ticket.UsedParts != null && ticket.UsedParts.Any())
+                {
+                    sb.AppendLine("*🛠 Değişen Parçalar:*");
+                    foreach (var usedPart in ticket.UsedParts)
+                    {
+                        if (usedPart.SparePart == null) usedPart.SparePart = await _unitOfWork.Repository<SparePart>().GetByIdAsync(usedPart.SparePartId);
+                        string parcaAdi = usedPart.SparePart != null ? usedPart.SparePart.ProductName : "Yedek Parça";
+                        sb.AppendLine($"- {parcaAdi} ({usedPart.Quantity} Adet): {usedPart.TotalPrice:N2} TL");
+                    }
+                    sb.AppendLine("");
+                }
+
+                decimal toplamTutar = ticket.TotalPrice ?? 0;
+                sb.AppendLine($"*💰 Toplam Tutar:* {toplamTutar:N2} TL");
+
+                string baseUrl = _configuration["DomainSettings:SorgulamaUrl"];
+                if (string.IsNullOrEmpty(baseUrl)) baseUrl = $"{Request.Scheme}://{Request.Host}";
+                baseUrl = baseUrl.TrimEnd('/');
+                string odemeLinki = $"{baseUrl}/Home/Result?fisNo={ticket.FisNo}";
+
+                sb.AppendLine($"*💳 Ödeme/Detay Linki:* {odemeLinki}");
                 sb.AppendLine("");
-            }
+                sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
+                sb.AppendLine("- Teknik Servis");
 
-            decimal toplamTutar = ticket.TotalPrice ?? 0;
-            sb.AppendLine($"*💰 Toplam Tutar:* {toplamTutar:N2} TL");
+                // Gönderim
+                bool basarili = await _whatsAppService.SendMessageAsync(gonderilecekNo, sb.ToString(), ticket.Customer.BranchId);
 
-            // Link Oluşturma
-            string baseUrl = _configuration["DomainSettings:SorgulamaUrl"];
-            if (string.IsNullOrEmpty(baseUrl)) baseUrl = $"{Request.Scheme}://{Request.Host}";
-            baseUrl = baseUrl.TrimEnd('/');
-            string odemeLinki = $"{baseUrl}/Home/Result?fisNo={ticket.FisNo}";
-
-            sb.AppendLine($"*💳 Ödeme/Detay Linki:* {odemeLinki}");
-            sb.AppendLine("");
-            sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
-            sb.AppendLine("- Teknik Servis");
-
-            // --- GÖNDERİM (Seçilen numaraya) ---
-            bool basarili = await _whatsAppService.SendMessageAsync(gonderilecekNo, sb.ToString(), ticket.Customer.BranchId);
-
-            if (basarili)
                 return Json(new { success = true, message = $"Mesaj başarıyla gönderildi. ({gonderilecekNo})" });
-            else
-                return Json(new { success = false, message = "Mesaj gönderilemedi." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Gönderim Hatası: " + ex.Message });
+            }
         }
 
+        // --- GÜNCELLENEN METOD 2: Cihaz Hazır Mesajı Gönder (Eksik Olan) ---
+        [HttpPost]
+        [Authorize(Roles = "Technician,Admin,Personnel")]
+        public async Task<IActionResult> SendReadyMessage(Guid id)
+        {
+            try
+            {
+                // 1. Yetki Kontrolü
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser != null && !currentUser.IsWhatsAppEnabled)
+                    return Json(new { success = false, message = "WhatsApp gönderme yetkiniz kapalıdır." });
 
+                // 2. Fişi Getir
+                var ticket = await _unitOfWork.Repository<ServiceTicket>()
+                    .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand);
+
+                if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
+                if (ticket.Customer == null || string.IsNullOrEmpty(ticket.Customer.Phone))
+                    return Json(new { success = false, message = "Müşterinin telefon numarası kayıtlı değil." });
+
+                // 3. Mesajı Hazırla
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
+                sb.AppendLine("");
+                sb.AppendLine($"*{ticket.FisNo}* fiş numaralı cihazınızın ({ticket.DeviceBrand?.Name} {ticket.DeviceModel}) işlemleri tamamlanmıştır.");
+                sb.AppendLine("Cihazınızı teslim almak için servisimize bekleriz.");
+                sb.AppendLine("");
+                sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
+                sb.AppendLine("- Teknik Servis");
+
+                // 4. Gönder
+                await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, sb.ToString(), ticket.Customer.BranchId);
+
+                return Json(new { success = true, message = "Hazır mesajı başarıyla gönderildi." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Gönderim Hatası: " + ex.Message });
+            }
+        }
     }
 }

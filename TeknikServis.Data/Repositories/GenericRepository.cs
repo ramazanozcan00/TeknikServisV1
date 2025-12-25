@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 using System.Threading.Tasks;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
@@ -22,22 +21,15 @@ namespace TeknikServis.Data.Repositories
             _dbSet = _context.Set<T>();
         }
 
-        // ... (Add, Update, Remove, GetAllAsync aynen kalıyor) ...
         public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);
         public async Task<IEnumerable<T>> GetAllAsync() => await _dbSet.ToListAsync();
         public async Task<T> GetByIdAsync(Guid id) => await _dbSet.FindAsync(id);
         public void Remove(T entity) => _dbSet.Remove(entity);
         public void Update(T entity) => _dbSet.Update(entity);
 
-
-        // --- YENİ METOTLAR ---
-
-        // Filtrele + İlişkili Tabloları Dahil Et
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, params Expression<Func<T, object>>[] includes)
         {
             IQueryable<T> query = _dbSet;
-
-            // İlişkiler varsa döngüyle sorguya ekle
             if (includes != null)
             {
                 foreach (var include in includes)
@@ -45,11 +37,9 @@ namespace TeknikServis.Data.Repositories
                     query = query.Include(include);
                 }
             }
-
-            return await query.Where(predicate).ToListAsync();
+            // Listeleme işlemlerinde de güncel veri için AsNoTracking eklenebilir
+            return await query.AsNoTracking().Where(predicate).ToListAsync();
         }
-
-        // Tek Kayıt + İlişkili Tablolar
         public async Task<T> GetByIdWithIncludesAsync(Expression<Func<T, bool>> predicate, params Expression<Func<T, object>>[] includes)
         {
             IQueryable<T> query = _dbSet;
@@ -62,7 +52,9 @@ namespace TeknikServis.Data.Repositories
                 }
             }
 
-            return await query.FirstOrDefaultAsync(predicate);
+            // .AsNoTracking() veritabanından en güncel veriyi zorlar.
+            // GenericRepository.cs içindeki GetByIdWithIncludesAsync metodunu bulun ve şu satırı güncelleyin:
+            return await query.AsNoTracking().FirstOrDefaultAsync(predicate);
         }
     }
 }
