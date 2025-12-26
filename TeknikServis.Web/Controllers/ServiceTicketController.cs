@@ -221,15 +221,25 @@ namespace TeknikServis.Web.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string s, string status, int page = 1)
+        public async Task<IActionResult> Index(string s, string status, DateTime? startDate, DateTime? endDate, int page = 1)
         {
             Guid currentBranchId = User.GetBranchId();
             int pageSize = 10;
-            var result = await _ticketService.GetAllTicketsByBranchAsync(currentBranchId, page, pageSize, s, status);
+
+            // Tarih filtrelerini servise iletiyoruz
+            var result = await _ticketService.GetAllTicketsByBranchAsync(currentBranchId, page, pageSize, s, status, startDate, endDate);
+
             ViewBag.Search = s;
             ViewBag.Status = status;
+
+            // Tarih değerlerini sayfada input içinde göstermek için ViewBag'e geri yüklüyoruz
+            // Format yyyy-MM-dd olmalı ki input type="date" bunu okuyabilsin.
+            ViewBag.StartDate = startDate.HasValue ? startDate.Value.ToString("yyyy-MM-dd") : "";
+            ViewBag.EndDate = endDate.HasValue ? endDate.Value.ToString("yyyy-MM-dd") : "";
+
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = (int)Math.Ceiling((double)result.totalCount / pageSize);
+
             return View(result.tickets);
         }
 
@@ -271,15 +281,25 @@ namespace TeknikServis.Web.Controllers
                 await _userManager.UpdateAsync(user);
             }
 
+            // Şube ID'sini alıyoruz
+            Guid branchId = User.GetBranchId();
+
             if (photo != null && photo.Length > 0)
             {
                 string extension = Path.GetExtension(photo.FileName);
                 string uniqueFileName = Guid.NewGuid().ToString() + extension;
-                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+
+                // Şube ID'sine göre klasör yolu oluşturuyoruz
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", branchId.ToString());
+
+                // Klasör yoksa oluştur
                 if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                 using (var fileStream = new FileStream(filePath, FileMode.Create)) { await photo.CopyToAsync(fileStream); }
-                ticket.PhotoPath = "/uploads/" + uniqueFileName;
+
+                // DB yoluna da şube ID ekleniyor
+                ticket.PhotoPath = $"/uploads/{branchId}/{uniqueFileName}";
             }
 
             if (pdfFile != null && pdfFile.Length > 0)
@@ -288,11 +308,18 @@ namespace TeknikServis.Web.Controllers
                 if (extension.ToLower() == ".pdf")
                 {
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
+
+                    // Şube ID'sine göre belge klasörü
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents", branchId.ToString());
+
+                    // Klasör yoksa oluştur
                     if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create)) { await pdfFile.CopyToAsync(fileStream); }
-                    ticket.PdfPath = "/documents/" + uniqueFileName;
+
+                    // DB yoluna da şube ID ekleniyor
+                    ticket.PdfPath = $"/documents/{branchId}/{uniqueFileName}";
                 }
             }
 
@@ -317,7 +344,7 @@ namespace TeknikServis.Web.Controllers
             {
                 string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 string userName = User.GetFullName();
-                Guid branchId = User.GetBranchId();
+                // branchId zaten yukarıda alındı
                 string userIp = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
                 await _auditLogService.LogAsync(userId, userName, branchId, "Servis", "Ekleme", $"Yeni kayıt açıldı: {ticket.FisNo}", userIp);
             }
@@ -356,13 +383,21 @@ namespace TeknikServis.Web.Controllers
             var existingTicket = await _ticketService.GetTicketByIdAsync(ticket.Id);
             if (existingTicket == null) return NotFound();
 
+            // Güncelleme işleminde de Şube ID alıyoruz (Mevcut kaydın şubesi değil, işlem yapanın şubesi veya kaydın şubesi. 
+            // Genelde dosya fiziksel yolu için mevcut kaydın şubesi ya da işlem yapanın şubesi kullanılır.
+            // Burada User.GetBranchId() kullanıyoruz ki dosyalar işlem yapılan şube klasörüne gitsin ya da mantığınıza göre existingTicket.Customer.BranchId de olabilir.)
+            Guid branchId = User.GetBranchId();
+
             if (photo != null && photo.Length > 0)
             {
                 string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
-                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+
+                // Şube klasörü
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", branchId.ToString());
                 if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
                 using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create)) { await photo.CopyToAsync(fileStream); }
-                existingTicket.PhotoPath = "/uploads/" + uniqueFileName;
+                existingTicket.PhotoPath = $"/uploads/{branchId}/{uniqueFileName}";
             }
 
             if (pdfFile != null && pdfFile.Length > 0)
@@ -371,11 +406,14 @@ namespace TeknikServis.Web.Controllers
                 if (extension.ToLower() == ".pdf")
                 {
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents");
+
+                    // Şube belge klasörü
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents", branchId.ToString());
                     if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create)) { await pdfFile.CopyToAsync(fileStream); }
-                    existingTicket.PdfPath = "/documents/" + uniqueFileName;
+                    existingTicket.PdfPath = $"/documents/{branchId}/{uniqueFileName}";
                 }
             }
 

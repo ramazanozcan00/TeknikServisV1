@@ -9,37 +9,44 @@
     string status = ViewBag.Status as string;
 }
 
-<div class="card bg-light border-0 mb-4">
-    <div class="card-body p-3">
-        <form asp-action="Index" method="get" class="row g-2 align-items-center">
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-center">
 
-            <div class="col-md-6">
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="fa-solid fa-search text-muted"></i></span>
-                    <input type="text" name="s" value="@search" class="form-control" placeholder="Fiş No, Seri No, Marka veya Model..." />
-                </div>
+            <div class="col-12 col-md-3">
+                <input type="text" name="s" class="form-control" placeholder="Fiş No, Müşteri, Tel..." value="@ViewBag.Search">
             </div>
 
-            <div class="col-md-4">
+            <div class="col-12 col-md-2">
                 <select name="status" class="form-select">
-                    <option value="">-- Tüm Durumlar --</option>
-                    <option value="Bekliyor" selected="@(status == "Bekliyor")">Bekliyor</option>
-                    <option value="İşlemde" selected="@(status == "İşlemde")">İşlemde</option>
-                    <option value="Parça Bekliyor" selected="@(status == "Parça Bekliyor")">Parça Bekliyor</option>
-                    <option value="Ödeme Bekleniyor" selected="@(status == "Ödeme Bekleniyor")">Ödeme Bekleniyor</option>
-                    <option value="Ödeme Yapıldı" selected="@(status == "Ödeme Yapıldı")">Ödeme Yapıldı</option>
-                    <option value="Tamamlandı" selected="@(status == "Tamamlandı")">Tamamlandı</option>
-                    <option value="İptal" selected="@(status == "İptal")">İptal</option>
+                    <option value="">Tüm Durumlar</option>
+                    <option value="Yeni" selected="@(ViewBag.Status == "Yeni")">Yeni</option>
+                    <option value="İşlemde" selected="@(ViewBag.Status == "İşlemde")">İşlemde</option>
+                    <option value="Bekliyor" selected="@(ViewBag.Status == "Bekliyor")">Bekliyor</option>
+                    <option value="Parça Bekliyor" selected="@(ViewBag.Status == "Parça Bekliyor")">Parça Bekliyor</option>
+                    <option value="Tamamlandı" selected="@(ViewBag.Status == "Tamamlandı")">Tamamlandı</option>
+                    <option value="Teslim Edildi" selected="@(ViewBag.Status == "Teslim Edildi")">Teslim Edildi</option>
+                    <option value="İptal" selected="@(ViewBag.Status == "İptal")">İptal</option>
                 </select>
             </div>
 
-            <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100">Filtrele</button>
-                @if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(status))
-                {
-                    <a asp-action="Index" class="btn btn-outline-secondary" title="Filtreleri Temizle"><i class="fa-solid fa-xmark"></i></a>
-                }
+            <div class="col-6 col-md-2">
+                <input type="date" name="startDate" class="form-control" value="@ViewBag.StartDate" title="Başlangıç Tarihi">
             </div>
+
+            <div class="col-6 col-md-2">
+                <input type="date" name="endDate" class="form-control" value="@ViewBag.EndDate" title="Bitiş Tarihi">
+            </div>
+
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i class="fa-solid fa-filter me-1"></i> Filtrele
+                </button>
+                <a href="/ServiceTicket/Index" class="btn btn-outline-secondary" title="Temizle">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+            </div>
+
         </form>
     </div>
 </div>

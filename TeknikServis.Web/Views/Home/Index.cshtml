@@ -1,179 +1,4 @@
-﻿@* @using TeknikServis.Web.Extensions
-@model TeknikServis.Web.Models.DashboardViewModel
-
-@{
-    ViewData["Title"] = "Genel Bakış";
-}
-
-@if (Model == null)
-{
-    <div class="alert alert-danger">
-        Veri yüklenemedi. Lütfen çıkış yapıp tekrar giriş yapınız.
-    </div>
-    return;
-}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold text-dark mb-0">Şube Durumu</h2>
-        <p class="text-muted small">@User.GetBranchName() şubesi anlık istatistikleri</p>
-    </div>
-    <a asp-controller="ServiceTicket" asp-action="Create" class="btn btn-primary">
-        <i class="fa-solid fa-plus me-2"></i>Hızlı Kayıt Aç
-    </a>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card shadow-sm border-start border-4 border-warning h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="overflow-hidden me-2">
-                        <h6 class="text-muted text-uppercase small fw-bold text-truncate">Bekleyen</h6>
-                        <h2 class="fw-bold text-dark mb-0 text-truncate" title="@Model.PendingTickets">@Model.PendingTickets</h2>
-                    </div>
-                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                        <i class="fa-solid fa-clock fs-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-start border-4 border-info h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="overflow-hidden me-2">
-                        <h6 class="text-muted text-uppercase small fw-bold text-truncate">İşlemde</h6>
-                        <h2 class="fw-bold text-dark mb-0 text-truncate" title="@Model.InProgressTickets">@Model.InProgressTickets</h2>
-                    </div>
-                    <div class="bg-info bg-opacity-10 text-info rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                        <i class="fa-solid fa-screwdriver-wrench fs-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-start border-4 border-success h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="overflow-hidden me-2">
-                        <h6 class="text-muted text-uppercase small fw-bold text-truncate">Tamamlanan</h6>
-                        <h2 class="fw-bold text-dark mb-0 text-truncate" title="@Model.CompletedTickets">@Model.CompletedTickets</h2>
-                    </div>
-                    <div class="bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                        <i class="fa-solid fa-check fs-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-start border-4 border-secondary h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="overflow-hidden me-2">
-                        <h6 class="text-muted text-uppercase small fw-bold text-truncate">Toplam</h6>
-                        <h2 class="fw-bold text-dark mb-0 text-truncate" title="@Model.TotalTickets">@Model.TotalTickets</h2>
-                    </div>
-                    <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                        <i class="fa-solid fa-list fs-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="col-md-3">
-    <div class="card shadow-sm border-start border-4 border-primary h-100">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="overflow-hidden me-2">
-                    <h6 class="text-muted text-uppercase small fw-bold text-truncate">Toplam Ciro</h6>
-                    <h2 class="fw-bold text-primary mb-0 text-truncate" title="₺@Model.TotalEarnings.ToString("N2")">
-                        ₺@Model.TotalEarnings.ToString("N2")
-                    </h2>
-                </div>
-                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                    <i class="fa-solid fa-wallet fs-4"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<br />
-
-<div class="card shadow-sm">
-    <div class="card-header bg-white py-3 border-bottom">
-        <h5 class="card-title mb-0 fw-bold">Son Gelen Cihazlar</h5>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light small text-uppercase text-muted">
-                <tr>
-                    <th class="ps-4">Fiş No</th>
-                    <th>Müşteri</th>
-                    <th>Cihaz</th>
-                    <th>Durum</th>
-                    <th>Tarih</th>
-                    <th class="text-end pe-4">Detay</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.LastTickets)
-                {
-                    <tr>
-                        <td class="ps-4">
-                            <span class="badge bg-dark font-monospace">@(item.FisNo ?? "-")</span>
-                        </td>
-
-                        <td class="fw-bold">@item.Customer?.FirstName @item.Customer?.LastName</td>
-
-                        <td>
-                            @(item.DeviceBrand != null ? item.DeviceBrand.Name : "-") @item.DeviceModel
-                        </td>
-
-                        <td>
-                            @if (item.Status == "Bekliyor")
-                            {
-                                <span class="badge bg-warning text-dark">Bekliyor</span>
-                            }
-                            else if (item.Status == "Tamamlandı")
-                            {
-                                <span class="badge bg-success">Bitti</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-info">@item.Status</span>
-                            }
-                        </td>
-                        <td class="text-muted small">@item.CreatedDate.ToString("dd.MM.yyyy HH:mm")</td>
-                        <td class="text-end pe-4">
-                            <a asp-controller="ServiceTicket" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-light border">
-                                <i class="fa-solid fa-chevron-right"></i>
-                            </a>
-                        </td>
-                    </tr>
-                }
-                @if (Model.LastTickets.Count == 0)
-                {
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">Henüz kayıt yok.</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
- *@
-
-
-@model TeknikServis.Web.Models.DashboardViewModel
+﻿@model TeknikServis.Web.Models.DashboardViewModel
 @{
     ViewData["Title"] = "Genel Bakış";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -279,73 +104,122 @@
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="card-title fw-bold mb-0 text-danger">
-                        <i class="fa-solid fa-stopwatch me-2"></i>Acil / Bekleyen İşler
-                    </h5>
-                    <small class="text-muted">En uzun süredir işlem bekleyen kayıtlar</small>
-                </div>
-                <a href="/ServiceTicket/Index?status=Bekliyor" class="btn btn-sm btn-outline-danger">Hepsini Gör</a>
+                <h5 class="card-title fw-bold mb-0 text-danger">
+                    <i class="fa-solid fa-stopwatch me-2"></i>Acil / Bekleyen İşler
+                </h5>
+                <a href="/ServiceTicket/Index?status=Bekliyor" class="btn btn-sm btn-outline-danger">
+                    Hepsini Gör <i class="fa-solid fa-chevron-right ms-1"></i>
+                </a>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light text-muted small text-uppercase">
-                            <tr>
-                                <th class="ps-4">Fiş No</th>
-                                <th>Cihaz</th>
-                                <th>Durum</th>
-                                <th>Bekleme Süresi</th>
-                                <th class="text-end pe-4">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody class="border-top-0">
-                            @if (Model.UrgentTickets != null && Model.UrgentTickets.Any())
+            <div class="table-responsive">
+                <table class="table table-hover table-nowrap mb-0 align-middle">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Fiş No</th>
+                            <th>Müşteri</th>
+                            <th>Cihaz</th>
+                            <th>Durum</th>
+                            <th>Bekleme</th>
+                            <th class="text-end pe-4">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.UrgentTickets != null && Model.UrgentTickets.Any())
+                        {
+                            @foreach (var item in Model.UrgentTickets)
                             {
-                                @foreach (var item in Model.UrgentTickets)
-                                {
-                                    // Gün farkını hesapla
-                                    var daysPending = (DateTime.Now - item.CreatedDate).Days;
-                                    var badgeColor = daysPending > 7 ? "bg-danger" : (daysPending > 3 ? "bg-warning text-dark" : "bg-info text-dark");
+                                // Bekleme süresi hesabı
+                                var timeSpan = DateTime.Now - item.CreatedDate;
+                                string waitingTime;
+                                string badgeColor;
 
-                                    <tr>
-                                        <td class="ps-4 fw-bold">
-                                            <a href="/ServiceTicket/Details/@item.Id" class="text-decoration-none text-dark">#@item.FisNo</a>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-semibold">@(item.DeviceBrand?.Name ?? "-") @item.DeviceModel</span>
-                                                <span class="small text-muted">@item.Customer?.FirstName @item.Customer?.LastName</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">@item.Status</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge @badgeColor rounded-pill">
-                                                <i class="fa-regular fa-clock me-1"></i>@daysPending Gün
-                                            </span>
-                                        </td>
-                                        <td class="text-end pe-4">
-                                            <a href="/ServiceTicket/Edit/@item.Id" class="btn btn-sm btn-primary" title="İşleme Al">
-                                                <i class="fa-solid fa-arrow-right"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
+                                if (timeSpan.TotalDays >= 1)
+                                {
+                                    waitingTime = $"{(int)timeSpan.TotalDays} Gün";
+                                    badgeColor = timeSpan.TotalDays > 7 ? "bg-danger" : "bg-warning text-dark";
                                 }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">
-                                        <i class="fa-solid fa-check-circle fa-2x text-success mb-3"></i>
-                                        <br />Harika! Bekleyen acil işiniz yok.
+                                else
+                                {
+                                    waitingTime = $"{(int)timeSpan.TotalHours} Saat";
+                                    badgeColor = "bg-info text-dark";
+                                }
+
+                                // Satıra tıklayınca detaya gitmesi için onclick
+                                <tr onclick="location.href='@Url.Action("Details", "ServiceTicket", new { id = item.Id })'" style="cursor: pointer;">
+
+                                    <td class="ps-4">
+                                        <span class="fw-bold text-primary">
+                                            <i class="fa-solid fa-ticket me-1 text-muted opacity-50"></i>@item.FisNo
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (item.Customer != null)
+                                        {
+                                            <div class="d-flex align-items-center">
+                                                <div class="ms-0">
+                                                    <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.9rem;">
+                                                        @item.Customer.FirstName @item.Customer.LastName
+                                                        @if (!string.IsNullOrEmpty(item.Customer.CompanyName))
+                                                        {
+                                                            <span class="text-muted small fw-normal"> - @item.Customer.CompanyName</span>
+                                                        }
+                                                    </h6>
+                                                    <small class="text-muted"><i class="fa-solid fa-phone me-1" style="font-size: 0.7rem;"></i>@item.Customer.Phone</small>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="text-dark">@(item.DeviceBrand != null ? item.DeviceBrand.Name : "") @item.DeviceModel</span>
+                                    </td>
+                                    <td>
+                                        @{
+                                            // DURUM RENGİ AYARLAMASI
+                                            var statusColor = item.Status switch
+                                            {
+                                                "Yeni" => "bg-info text-dark",
+                                                "Bekliyor" => "bg-warning text-dark",
+                                                "İşlem Bekliyor" => "bg-warning text-dark",
+                                                "Parça Bekliyor" => "bg-danger",
+                                                "İşlemde" => "bg-primary",
+                                                "Onarım Sürüyor" => "bg-primary",
+                                                "Onarım Bekliyor" => "bg-warning text-dark",
+                                                "Tamamlandı" => "bg-success",
+                                                "Onarım Tamamlandı" => "bg-success",
+                                                _ => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @statusColor bg-opacity-75 rounded-pill px-2">@item.Status</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @badgeColor rounded-pill font-monospace">
+                                            <i class="fa-regular fa-clock me-1"></i>@waitingTime
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("Details", "ServiceTicket", new { id = item.Id })" class="btn btn-sm btn-light text-primary">
+                                            Detay <i class="fa-solid fa-arrow-right ms-1"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             }
-                        </tbody>
-                    </table>
-                </div>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fa-regular fa-thumbs-up fa-2x mb-2 text-success opacity-50"></i>
+                                    <br />
+                                    Harika! Bekleyen acil iş bulunmamaktadır.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -385,7 +259,7 @@
                                 if (item.Code == "USD" || item.Code == "EUR" || item.Code == "GBP")
                                 {
                                     <tr>
-                                        <td class="ps-3 fw-bold">@item.Code</td>
+                                        <td class="ps-3 fw-bold text-primary">@item.Code</td>
                                         <td>@item.ForexBuying</td>
                                         <td>@item.ForexSelling</td>
                                     </tr>
@@ -431,7 +305,7 @@
                             <td class="ps-4 fw-bold text-primary">#@item.FisNo</td>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-initials bg-light text-primary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width:32px; height:32px; font-size: 12px; fw-bold">
+                                    <div class="avatar-initials bg-light text-primary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width:32px; height:32px; font-size: 12px; font-weight:bold;">
                                         @(item.Customer?.FirstName?.Substring(0, 1) ?? "M")
                                     </div>
                                     <div>

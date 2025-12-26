@@ -59,5 +59,32 @@ namespace TeknikServis.Web.Controllers.Api
 
             return NotFound(new { message = "Kayıt bulunamadı." });
         }
+
+        // TicketApiController.cs içine eklenecek:
+        [HttpPost("Create")]
+        // Test için şimdilik güvenlik kontrolünü kapatıyoruz, sonra JWT eklenmeli.
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+        public IActionResult Create([FromBody] ServiceTicketDto model)
+        {
+            try
+            {
+                // Burada veritabanına kayıt işlemi yapılacak. 
+                // Örnek simülasyon:
+                var fisNo = "SRV" + new Random().Next(1000, 9999);
+                return Ok(new { Message = "Kayıt Başarılı", FisNo = fisNo });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("Hata: " + ex.Message);
+            }
+        }
+
+        public class ServiceTicketDto
+        {
+            public Guid CustomerId { get; set; }
+            public string DeviceModel { get; set; }
+            public string SerialNo { get; set; }
+            public string Problem { get; set; }
+        }
     }
 }

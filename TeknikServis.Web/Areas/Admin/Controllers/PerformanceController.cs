@@ -4,19 +4,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
 using System.Linq;
+using System.Security.Claims; // Claim kontrolü için gerekli
 using System.Threading.Tasks;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
-using TeknikServis.Web.Extensions; // User.GetBranchId() için gerekebilir
+using TeknikServis.Web.Extensions;
 
 namespace TeknikServis.Web.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize] // Rol kısıtlaması kaldırıldı, sadece giriş yapmış olmak yeterli
     public class PerformanceController : Controller
     {
         private readonly IServiceTicketService _ticketService;
-        private readonly IUnitOfWork _unitOfWork; // Şubeleri çekmek için eklendi
+        private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<AppUser> _userManager;
 
         public PerformanceController(IServiceTicketService ticketService, IUnitOfWork unitOfWork, UserManager<AppUser> userManager)
@@ -28,6 +29,16 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index(string period = "thisMonth", Guid? branchId = null)
         {
+            // --- YETKİ KONTROLÜ ---
+            // Eğer kullanıcı Admin değilse, Manager değilse VE "Performance" menü yetkisi (kutucuğu) yoksa engelle.
+            if (!User.IsInRole("Admin") &&
+                !User.IsInRole("Manager") &&
+                !User.HasClaim(c => c.Type == "MenuAccess" && c.Value == "Performance"))
+            {
+                return RedirectToAction("AccessDenied", "Account", new { area = "" });
+            }
+            // ---------------------
+
             // --- Tarih Ayarları ---
             DateTime startDate, endDate;
             endDate = DateTime.Now;
@@ -48,20 +59,15 @@ namespace TeknikServis.Web.Areas.Admin.Controllers
             }
 
             // --- Şube Ayarları ---
-            // Şube listesini doldur (Filtreleme dropdown'ı için)
             var branches = await _unitOfWork.Repository<Branch>().GetAllAsync();
             ViewBag.BranchList = new SelectList(branches, "Id", "BranchName", branchId);
 
-            // Eğer branchId seçilmemişse, giriş yapan kullanıcının şubesini varsayılan yap
-            // (İsteğe bağlı: Global Admin değilse kendi şubesine zorla)
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser != null && !branchId.HasValue)
             {
-                // Eğer "Tümü" seçeneği gibi bir özellik istemiyorsanız burayı açın:
+                // Eğer şube seçilmemişse kullanıcının kendi şubesini getir
                 branchId = currentUser.BranchId;
             }
-
-            // Eğer dropdown'dan "Tümü" (boş) gelirse branchId null gider ve servis herkesi getirir.
 
             // --- Verileri Çek ---
             var stats = await _ticketService.GetTechnicianPerformanceStatsAsync(startDate, endDate, branchId);
