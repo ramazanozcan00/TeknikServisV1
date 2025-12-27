@@ -141,23 +141,37 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Parça iptal edildi." });
         }
 
+
+
         [HttpGet]
         [Authorize(Roles = "Technician")]
         public async Task<IActionResult> TechnicianPanel()
         {
             var user = await _userManager.GetUserAsync(User);
+
+            // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
+
+            // AKTİF GÖREVLER:
+            // 1. İptal edilmemiş
+            // 2. Tamamen kapatılmamış (Tamamlandı değil)
+            // 3. VE EN ÖNEMLİSİ: Teknisyen durumu "Onarım Tamamlandı" OLMAYANLAR.
+            // (Böylece "Ödeme Yapıldı" olsa bile teknisyen bitirmediyse burada görünür)
             var myTickets = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
                            t.Status != "Tamamlandı" &&
-                           t.Status != "Onarım Tamamlandı" &&
-                           t.Status != "Ödeme Yapıldı" &&
-                           t.Status != "İptal",
+                           t.Status != "İptal" &&
+                           t.TechnicianStatus != "Onarım Tamamlandı", // <--- KRİTİK KONTROL
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
 
+            // TAMAMLANANLAR:
+            // 1. Durumu "Tamamlandı" olanlar (Arşiv)
+            // 2. VEYA Teknisyenin "Onarım Tamamlandı" olarak işaretledikleri.
             var completed = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
-                           (t.Status == "Tamamlandı" || t.Status == "Onarım Tamamlandı" || t.Status == "Ödeme Yapıldı"),
+                           (t.Status == "Tamamlandı" || t.TechnicianStatus == "Onarım Tamamlandı"), // <--- KRİTİK KONTROL
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
+
+            // -----------------------------------
 
             ViewBag.CompletedTickets = completed;
             return View(myTickets);
@@ -555,24 +569,33 @@ namespace TeknikServis.Web.Controllers
         [Authorize(Roles = "Personnel,Admin")]
         public async Task<IActionResult> ApproveToAccount(Guid ticketId, string finalAmount, string paymentType)
         {
+            // 1. Tutar Kontrolü
             if (!decimal.TryParse(finalAmount, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal amount))
                 return Json(new { success = false, message = "Geçersiz tutar formatı." });
 
+            // 2. Servis Kaydını Bul
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticketId);
             if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
 
+            // 3. Servis Kaydını Güncelle (Kapat)
             ticket.Status = "Tamamlandı";
             ticket.TotalPrice = amount;
+            ticket.UpdatedDate = DateTime.Now;
             _unitOfWork.Repository<ServiceTicket>().Update(ticket);
 
+            // 4. Cari Hareket (CustomerMovement) Oluştur
+            // Mantık: Eğer 'Borç' seçilirse müşteriye borç yazılır. Nakit/KK seçilirse ödeme alınmış (Alacak) sayılır veya işlem türüne göre kaydedilir.
+            // Burada basitçe seçilen tipi açıklama ve tip olarak ekliyoruz.
             var movement = new CustomerMovement
             {
                 Id = Guid.NewGuid(),
                 CustomerId = ticket.CustomerId,
                 ServiceTicketId = ticket.Id,
                 Amount = amount,
+                // Örnek Mantık: Eğer "Borç" seçildiyse hareket tipi Borç, değilse (Nakit/KK) Alacak (Ödeme) olabilir.
+                // Veya direkt seçilen ödeme tipini kaydedebilirsiniz. Aşağıdaki kod "Borç" ise Borç, değilse Alacak yazar.
                 MovementType = paymentType == "Borç" ? "Borç" : "Alacak",
-                Description = $"{ticket.FisNo} No'lu servis bedeli. Tip: {paymentType}",
+                Description = $"{ticket.FisNo} No'lu servis işlemi bedeli. Ödeme Yöntemi: {paymentType}",
                 BranchId = User.GetBranchId(),
                 CreatedDate = DateTime.Now
             };
@@ -580,7 +603,7 @@ namespace TeknikServis.Web.Controllers
             await _unitOfWork.Repository<CustomerMovement>().AddAsync(movement);
             await _unitOfWork.CommitAsync();
 
-            return Json(new { success = true, message = "Cariye başarıyla aktarıldı." });
+            return Json(new { success = true, message = "İşlem onaylandı ve cariye işlendi." });
         }
 
         [HttpPost]

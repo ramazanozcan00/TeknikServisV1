@@ -86,15 +86,28 @@
     <div class="row">
         <div class="col-lg-8">
 
-            @if (Model.Status == "Onarım Tamamlandı" && (User.IsInRole("Admin") || User.IsInRole("Personnel")))
+            @* --- DÜZELTME: Butonun Görünmesi İçin Teknisyen Durumunu da Kontrol Ediyoruz --- *@
+            @if ((Model.Status == "Onarım Tamamlandı" || Model.TechnicianStatus == "Onarım Tamamlandı")
+                        && Model.Status != "Tamamlandı"
+                        && Model.Status != "Ödeme Yapıldı"
+                        && (User.IsInRole("Admin") || User.IsInRole("Personnel")))
             {
                 <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm">
-                    <span><i class="fa-solid fa-circle-info me-2"></i><strong>Onarım Bitti:</strong> Teknisyen @Model.TotalPrice?.ToString("C2") tutarında işlem tamamladı.</span>
-                    <button type="button" class="btn btn-success fw-bold" onclick="openAccountModal('@Model.Id', '@(Model.TotalPrice?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))')">
+                    <span>
+                        <i class="fa-solid fa-circle-check me-2"></i>
+                        <strong>Onarım Tamamlandı:</strong> Teknisyen işlemi bitirdi. Cari hesaba aktararak kapatabilirsiniz.
+                        <br />
+                        <small>Teknisyenin Belirlediği Tutar: <strong>@(Model.TotalPrice?.ToString("C2"))</strong></small>
+                    </span>
+
+                    @* Modal'ı açan buton *@
+                    <button type="button" class="btn btn-success fw-bold"
+                            onclick="openAccountModal('@Model.Id', '@(Model.TotalPrice?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))')">
                         <i class="fa-solid fa-file-invoice-dollar me-2"></i>Cariye Aktar ve Onayla
                     </button>
                 </div>
             }
+            @* --------------------------------------------------------------------------------- *@
 
             <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary rounded-3 overflow-hidden">
                 <div class="card-header bg-white fw-bold text-uppercase small py-3 d-flex justify-content-between align-items-center">
@@ -537,38 +550,78 @@
 </style>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
+        // Modal Açma Fonksiyonu
         function openAccountModal(id, amount) {
             document.getElementById('modalTicketId').value = id;
-            var cleanAmount = parseFloat(amount.replace(',', '.'));
+            // Tutarı inputa yerleştir (Nokta/Virgül formatına dikkat ederek)
+            var cleanAmount = amount ? parseFloat(amount.replace(',', '.')) : 0;
             document.getElementById('modalAmount').value = cleanAmount.toFixed(2);
+
             var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
             myModal.show();
         }
 
+        // Onay ve Gönderme Fonksiyonu (SweetAlert ile Güvenli Onay)
         function submitToAccount() {
             var id = document.getElementById('modalTicketId').value;
             var amount = document.getElementById('modalAmount').value;
             var type = document.getElementById('modalPaymentType').value;
 
             if (!amount || amount < 0) {
-                showToast("Hata", "Geçerli bir tutar giriniz.", "text-white bg-danger");
+                Swal.fire('Uyarı', 'Geçerli bir tutar giriniz.', 'warning');
                 return;
             }
 
-            $.post("/ServiceTicket/ApproveToAccount", {
-                ticketId: id,
-                finalAmount: amount,
-                paymentType: type
-            }, function(res) {
-                if (res.success) {
-                    var modalEl = document.getElementById('paymentModal');
-                    var modalInstance = bootstrap.Modal.getInstance(modalEl);
-                    if(modalInstance) modalInstance.hide();
-                    showToast("İşlem Başarılı", res.message, "text-white bg-success");
-                    setTimeout(function() { location.reload(); }, 2000);
+            // 1. Modalı Gizle (SweetAlert arkada kalmasın diye)
+            var modalEl = document.getElementById('paymentModal');
+            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+
+            // 2. SweetAlert ile Onay İste
+            Swal.fire({
+                title: 'Cariye Aktarılıyor...',
+                html: `Bu işlem sonucunda servis durumu <b>'Tamamlandı'</b> olacak ve <br/><b>${amount} TL</b> tutar müşterinin cari hesabına <b>'${type}'</b> olarak işlenecektir.<br/><br/>Onaylıyor musunuz?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#198754', // Yeşil buton
+                cancelButtonColor: '#d33',     // Kırmızı buton
+                confirmButtonText: 'Evet, Onayla ve Bitir',
+                cancelButtonText: 'Vazgeç'
+            }).then((result) => {
+                if (result.isConfirmed) {
+
+                    // 3. Kullanıcı 'Evet' dedi, Backend'e gönder
+                    Swal.fire({
+                        title: 'İşleniyor...',
+                        text: 'Lütfen bekleyin.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading() }
+                    });
+
+                    $.post("/ServiceTicket/ApproveToAccount", {
+                        ticketId: id,
+                        finalAmount: amount,
+                        paymentType: type
+                    }, function(res) {
+                        if (res.success) {
+                            Swal.fire('Başarılı!', res.message, 'success').then(() => {
+                                location.reload(); // Sayfayı yenile
+                            });
+                        } else {
+                            Swal.fire('Hata!', res.message, 'error');
+                            // Hata durumunda modalı tekrar açmak isterseniz:
+                            // if (modalInstance) modalInstance.show();
+                        }
+                    }).fail(function() {
+                        Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error');
+                    });
+
                 } else {
-                    showToast("Hata", res.message, "text-white bg-danger");
+                    // 4. Vazgeçilirse modalı tekrar aç (Kullanıcı düzeltme yapmak isteyebilir)
+                    if (modalInstance) modalInstance.show();
                 }
             });
         }
@@ -597,7 +650,6 @@
           return new bootstrap.Tooltip(tooltipTriggerEl)
         })
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function sendWhatsappMessage(id) {
             Swal.fire({
@@ -627,7 +679,7 @@
     </script>
 
     <script>
-               
+
 
         function sendDetailedWhatsapp(id) {
             Swal.fire({
