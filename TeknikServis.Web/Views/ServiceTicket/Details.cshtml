@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Servis Detayı";
+
     // --- YASAL SÜRE HESAPLAMALARI ---
     var yasalBitisTarihi = Model.CreatedDate.AddBusinessDays(21);
     var kalanIsGunu = yasalBitisTarihi.GetRemainingBusinessDays();
@@ -40,6 +41,24 @@
         ikon = "fa-clock";
         durumMesaji = "Dikkat! Süre dolmak üzere.";
     }
+
+    // --- CARİYE AKTAR BUTONU GÖRÜNME MANTIĞI (DÜZELTİLDİ) ---
+    string tStatus = Model.TechnicianStatus ?? "";
+    string mStatus = Model.Status ?? "";
+
+    // 1. Onarım Bitti mi? (Teknisyen "Onarım Tamamlandı" dediyse veya Ana Durum "Onarım Tamamlandı" ise)
+    bool isOnarimBitti = tStatus.Trim() == "Onarım Tamamlandı" || mStatus.Trim() == "Onarım Tamamlandı";
+
+    // 2. Kapanmış mı?
+    // DÜZELTME: "Ödeme Yapıldı" durumu listeden çıkarıldı. Çünkü ödeme yapılmış olsa bile cariye aktarılmamış olabilir.
+    // Sadece "Tamamlandı" veya "İptal" ise buton GİZLENİR.
+    bool isClosed = mStatus == "Tamamlandı" || mStatus == "İptal";
+
+    // 3. Yetki Kontrolü
+    bool isAuthorized = User.IsInRole("Admin") || User.IsInRole("Personnel");
+
+    // SONUÇ: Onarım bitmişse, henüz kapanmamışsa ve yetki varsa butonu göster.
+    bool showApproveButton = isOnarimBitti && !isClosed && isAuthorized;
 }
 
 <div class="container py-4">
@@ -86,28 +105,26 @@
     <div class="row">
         <div class="col-lg-8">
 
-            @* --- DÜZELTME: Butonun Görünmesi İçin Teknisyen Durumunu da Kontrol Ediyoruz --- *@
-            @if ((Model.Status == "Onarım Tamamlandı" || Model.TechnicianStatus == "Onarım Tamamlandı")
-                        && Model.Status != "Tamamlandı"
-                        && Model.Status != "Ödeme Yapıldı"
-                        && (User.IsInRole("Admin") || User.IsInRole("Personnel")))
+            @* --- UYARI BLOĞU --- *@
+            @if (showApproveButton)
             {
-                <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm">
-                    <span>
-                        <i class="fa-solid fa-circle-check me-2"></i>
-                        <strong>Onarım Tamamlandı:</strong> Teknisyen işlemi bitirdi. Cari hesaba aktararak kapatabilirsiniz.
-                        <br />
-                        <small>Teknisyenin Belirlediği Tutar: <strong>@(Model.TotalPrice?.ToString("C2"))</strong></small>
-                    </span>
+                <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm border-2 border-success bg-success bg-opacity-10 mb-4">
+                    <div>
+                        <h5 class="alert-heading fw-bold mb-1"><i class="fa-solid fa-check-circle me-2"></i>Onarım Tamamlandı!</h5>
+                        <p class="mb-0 small">
+                            Teknisyen işlemi bitirdi. Tutarı onaylayıp cariye aktararak fişi kapatabilirsiniz.<br />
+                            <span class="fw-bold">Teknisyen Tutarı: @(Model.TotalPrice?.ToString("C2") ?? "0,00 ₺")</span>
+                        </p>
+                    </div>
 
                     @* Modal'ı açan buton *@
-                    <button type="button" class="btn btn-success fw-bold"
+                    <button type="button" class="btn btn-success fw-bold px-4 py-2 shadow"
                             onclick="openAccountModal('@Model.Id', '@(Model.TotalPrice?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))')">
                         <i class="fa-solid fa-file-invoice-dollar me-2"></i>Cariye Aktar ve Onayla
                     </button>
                 </div>
             }
-            @* --------------------------------------------------------------------------------- *@
+            @* ----------------------------------------------------- *@
 
             <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary rounded-3 overflow-hidden">
                 <div class="card-header bg-white fw-bold text-uppercase small py-3 d-flex justify-content-between align-items-center">
@@ -582,13 +599,15 @@
 
             // 2. SweetAlert ile Onay İste
             Swal.fire({
-                title: 'Cariye Aktarılıyor...',
-                html: `Bu işlem sonucunda servis durumu <b>'Tamamlandı'</b> olacak ve <br/><b>${amount} TL</b> tutar müşterinin cari hesabına <b>'${type}'</b> olarak işlenecektir.<br/><br/>Onaylıyor musunuz?`,
-                icon: 'question',
+                title: 'Onaylıyor musunuz?',
+                html: `Servis durumu <b>'Tamamlandı'</b> yapılacak.<br/>` +
+                      `Cari Hesaba: <b>${amount} TL</b> (${type}) olarak işlenecek.<br/><br/>` +
+                      `Bu işlem geri alınamaz!`,
+                icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#198754', // Yeşil buton
                 cancelButtonColor: '#d33',     // Kırmızı buton
-                confirmButtonText: 'Evet, Onayla ve Bitir',
+                confirmButtonText: 'Evet, Onayla',
                 cancelButtonText: 'Vazgeç'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -607,13 +626,19 @@
                         paymentType: type
                     }, function(res) {
                         if (res.success) {
-                            Swal.fire('Başarılı!', res.message, 'success').then(() => {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Başarılı!',
+                                text: res.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
                                 location.reload(); // Sayfayı yenile
                             });
                         } else {
                             Swal.fire('Hata!', res.message, 'error');
                             // Hata durumunda modalı tekrar açmak isterseniz:
-                            // if (modalInstance) modalInstance.show();
+                            if (modalInstance) modalInstance.show();
                         }
                     }).fail(function() {
                         Swal.fire('Hata!', 'Sunucu ile iletişim kurulamadı.', 'error');

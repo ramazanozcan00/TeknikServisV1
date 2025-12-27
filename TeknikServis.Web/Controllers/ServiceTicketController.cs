@@ -141,37 +141,23 @@ namespace TeknikServis.Web.Controllers
             return Json(new { success = true, message = "Parça iptal edildi." });
         }
 
-
-
         [HttpGet]
         [Authorize(Roles = "Technician")]
         public async Task<IActionResult> TechnicianPanel()
         {
             var user = await _userManager.GetUserAsync(User);
 
-            // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
-
-            // AKTİF GÖREVLER:
-            // 1. İptal edilmemiş
-            // 2. Tamamen kapatılmamış (Tamamlandı değil)
-            // 3. VE EN ÖNEMLİSİ: Teknisyen durumu "Onarım Tamamlandı" OLMAYANLAR.
-            // (Böylece "Ödeme Yapıldı" olsa bile teknisyen bitirmediyse burada görünür)
             var myTickets = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
                            t.Status != "Tamamlandı" &&
                            t.Status != "İptal" &&
-                           t.TechnicianStatus != "Onarım Tamamlandı", // <--- KRİTİK KONTROL
+                           t.TechnicianStatus != "Onarım Tamamlandı",
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
 
-            // TAMAMLANANLAR:
-            // 1. Durumu "Tamamlandı" olanlar (Arşiv)
-            // 2. VEYA Teknisyenin "Onarım Tamamlandı" olarak işaretledikleri.
             var completed = await _unitOfWork.Repository<ServiceTicket>()
                 .FindAsync(t => t.TechnicianId == user.Id &&
-                           (t.Status == "Tamamlandı" || t.TechnicianStatus == "Onarım Tamamlandı"), // <--- KRİTİK KONTROL
+                           (t.Status == "Tamamlandı" || t.TechnicianStatus == "Onarım Tamamlandı"),
                            inc => inc.Customer, inc => inc.DeviceBrand, inc => inc.DeviceType);
-
-            // -----------------------------------
 
             ViewBag.CompletedTickets = completed;
             return View(myTickets);
@@ -240,14 +226,10 @@ namespace TeknikServis.Web.Controllers
             Guid currentBranchId = User.GetBranchId();
             int pageSize = 10;
 
-            // Tarih filtrelerini servise iletiyoruz
             var result = await _ticketService.GetAllTicketsByBranchAsync(currentBranchId, page, pageSize, s, status, startDate, endDate);
 
             ViewBag.Search = s;
             ViewBag.Status = status;
-
-            // Tarih değerlerini sayfada input içinde göstermek için ViewBag'e geri yüklüyoruz
-            // Format yyyy-MM-dd olmalı ki input type="date" bunu okuyabilsin.
             ViewBag.StartDate = startDate.HasValue ? startDate.Value.ToString("yyyy-MM-dd") : "";
             ViewBag.EndDate = endDate.HasValue ? endDate.Value.ToString("yyyy-MM-dd") : "";
 
@@ -295,24 +277,16 @@ namespace TeknikServis.Web.Controllers
                 await _userManager.UpdateAsync(user);
             }
 
-            // Şube ID'sini alıyoruz
             Guid branchId = User.GetBranchId();
 
             if (photo != null && photo.Length > 0)
             {
                 string extension = Path.GetExtension(photo.FileName);
                 string uniqueFileName = Guid.NewGuid().ToString() + extension;
-
-                // Şube ID'sine göre klasör yolu oluşturuyoruz
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", branchId.ToString());
-
-                // Klasör yoksa oluştur
                 if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                 using (var fileStream = new FileStream(filePath, FileMode.Create)) { await photo.CopyToAsync(fileStream); }
-
-                // DB yoluna da şube ID ekleniyor
                 ticket.PhotoPath = $"/uploads/{branchId}/{uniqueFileName}";
             }
 
@@ -322,17 +296,10 @@ namespace TeknikServis.Web.Controllers
                 if (extension.ToLower() == ".pdf")
                 {
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
-
-                    // Şube ID'sine göre belge klasörü
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents", branchId.ToString());
-
-                    // Klasör yoksa oluştur
                     if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create)) { await pdfFile.CopyToAsync(fileStream); }
-
-                    // DB yoluna da şube ID ekleniyor
                     ticket.PdfPath = $"/documents/{branchId}/{uniqueFileName}";
                 }
             }
@@ -358,7 +325,6 @@ namespace TeknikServis.Web.Controllers
             {
                 string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 string userName = User.GetFullName();
-                // branchId zaten yukarıda alındı
                 string userIp = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
                 await _auditLogService.LogAsync(userId, userName, branchId, "Servis", "Ekleme", $"Yeni kayıt açıldı: {ticket.FisNo}", userIp);
             }
@@ -397,19 +363,13 @@ namespace TeknikServis.Web.Controllers
             var existingTicket = await _ticketService.GetTicketByIdAsync(ticket.Id);
             if (existingTicket == null) return NotFound();
 
-            // Güncelleme işleminde de Şube ID alıyoruz (Mevcut kaydın şubesi değil, işlem yapanın şubesi veya kaydın şubesi. 
-            // Genelde dosya fiziksel yolu için mevcut kaydın şubesi ya da işlem yapanın şubesi kullanılır.
-            // Burada User.GetBranchId() kullanıyoruz ki dosyalar işlem yapılan şube klasörüne gitsin ya da mantığınıza göre existingTicket.Customer.BranchId de olabilir.)
             Guid branchId = User.GetBranchId();
 
             if (photo != null && photo.Length > 0)
             {
                 string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
-
-                // Şube klasörü
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", branchId.ToString());
                 if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
                 using (var fileStream = new FileStream(Path.Combine(uploadsFolder, uniqueFileName), FileMode.Create)) { await photo.CopyToAsync(fileStream); }
                 existingTicket.PhotoPath = $"/uploads/{branchId}/{uniqueFileName}";
             }
@@ -420,11 +380,8 @@ namespace TeknikServis.Web.Controllers
                 if (extension.ToLower() == ".pdf")
                 {
                     string uniqueFileName = Guid.NewGuid().ToString() + extension;
-
-                    // Şube belge klasörü
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "documents", branchId.ToString());
                     if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     using (var fileStream = new FileStream(filePath, FileMode.Create)) { await pdfFile.CopyToAsync(fileStream); }
                     existingTicket.PdfPath = $"/documents/{branchId}/{uniqueFileName}";
@@ -565,80 +522,107 @@ namespace TeknikServis.Web.Controllers
             return RedirectToAction("Index");
         }
 
+        // --- GÜNCELLENEN CARİYE AKTAR METODU (MAIL ÖZELLİĞİ EKLENDİ) ---
         [HttpPost]
         [Authorize(Roles = "Personnel,Admin")]
         public async Task<IActionResult> ApproveToAccount(Guid ticketId, string finalAmount, string paymentType)
         {
-            // 1. Tutar Kontrolü
-            if (!decimal.TryParse(finalAmount, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal amount))
-                return Json(new { success = false, message = "Geçersiz tutar formatı." });
+            // 1. Tutar Dönüştürme (Güvenli)
+            decimal amount = 0;
+            if (!string.IsNullOrEmpty(finalAmount))
+            {
+                string cleanVal = finalAmount.Replace("₺", "").Replace("TL", "").Trim();
+                if (!decimal.TryParse(cleanVal, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out amount))
+                {
+                    decimal.TryParse(cleanVal, System.Globalization.NumberStyles.Any, new System.Globalization.CultureInfo("tr-TR"), out amount);
+                }
+            }
 
             // 2. Servis Kaydını Bul
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(ticketId);
             if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
 
-            // 3. Servis Kaydını Güncelle (Kapat)
+            // 3. Servis Kaydını Kapat (Tamamlandı)
             ticket.Status = "Tamamlandı";
             ticket.TotalPrice = amount;
             ticket.UpdatedDate = DateTime.Now;
             _unitOfWork.Repository<ServiceTicket>().Update(ticket);
 
-            // 4. Cari Hareket (CustomerMovement) Oluştur
-            // Mantık: Eğer 'Borç' seçilirse müşteriye borç yazılır. Nakit/KK seçilirse ödeme alınmış (Alacak) sayılır veya işlem türüne göre kaydedilir.
-            // Burada basitçe seçilen tipi açıklama ve tip olarak ekliyoruz.
-            var movement = new CustomerMovement
+            // 4. MUHASEBE KAYDI
+            // ADIM A: Hizmet Verildi -> Müşteri Borçlanır (Borç)
+            var serviceDebt = new CustomerMovement
             {
                 Id = Guid.NewGuid(),
                 CustomerId = ticket.CustomerId,
                 ServiceTicketId = ticket.Id,
                 Amount = amount,
-                // Örnek Mantık: Eğer "Borç" seçildiyse hareket tipi Borç, değilse (Nakit/KK) Alacak (Ödeme) olabilir.
-                // Veya direkt seçilen ödeme tipini kaydedebilirsiniz. Aşağıdaki kod "Borç" ise Borç, değilse Alacak yazar.
-                MovementType = paymentType == "Borç" ? "Borç" : "Alacak",
-                Description = $"{ticket.FisNo} No'lu servis işlemi bedeli. Ödeme Yöntemi: {paymentType}",
+                MovementType = "Borç", // Müşteri borçlandı
+                Description = $"{ticket.FisNo} nolu servis hizmet bedeli",
                 BranchId = User.GetBranchId(),
                 CreatedDate = DateTime.Now
             };
+            await _unitOfWork.Repository<CustomerMovement>().AddAsync(serviceDebt);
 
-            await _unitOfWork.Repository<CustomerMovement>().AddAsync(movement);
+            // ADIM B: Eğer işlem 'Borç' (Veresiye) DEĞİLSE, ödeme alınmış demektir (Alacak)
+            if (paymentType != "Borç")
+            {
+                var paymentCredit = new CustomerMovement
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = ticket.CustomerId,
+                    ServiceTicketId = ticket.Id,
+                    Amount = amount,
+                    MovementType = "Alacak", // Para alındı, bakiye düştü
+                    Description = $"Tahsilat ({paymentType}) - Fiş: {ticket.FisNo}",
+                    BranchId = User.GetBranchId(),
+                    CreatedDate = DateTime.Now.AddSeconds(2) // Sıralama için ufak fark
+                };
+                await _unitOfWork.Repository<CustomerMovement>().AddAsync(paymentCredit);
+            }
+
             await _unitOfWork.CommitAsync();
 
-            return Json(new { success = true, message = "İşlem onaylandı ve cariye işlendi." });
+            // --- YENİ EKLENEN KISIM: CİHAZ HAZIR MAİLİ GÖNDERME ---
+            try
+            {
+                // Müşteri bilgisini çek (E-posta için)
+                var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(ticket.CustomerId);
+                if (customer != null && !string.IsNullOrEmpty(customer.Email))
+                {
+                    string konu = $"Cihazınız Hazır - Fiş No: {ticket.FisNo}";
+                    string icerik = $@"<div style='font-family: Segoe UI, Helvetica, Arial, sans-serif; padding: 20px; background-color: #f9f9f9; border: 1px solid #eee;'><div style='background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'><h2 style='color: #198754; margin-top: 0;'>İşlem Tamamlandı</h2><p style='font-size: 16px; color: #555;'>Sayın {customer.FirstName} {customer.LastName},</p><p style='font-size: 16px; color: #555;'>Cihazınızın servis işlemleri tamamlanmıştır. Servisimizden teslim alabilirsiniz.</p><table style='width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #e0e0e0;'><tr style='background-color: #f1f5f9;'><td style='padding: 12px; border-bottom: 1px solid #e0e0e0; width: 30%;'><strong>Fiş No:</strong></td><td style='padding: 12px; border-bottom: 1px solid #e0e0e0; font-weight: bold;'>{ticket.FisNo}</td></tr><tr><td style='padding: 12px; border-bottom: 1px solid #e0e0e0;'><strong>İşlem Tutarı:</strong></td><td style='padding: 12px; border-bottom: 1px solid #e0e0e0; color: #198754; font-weight: bold;'>{amount:C2}</td></tr></table><p style='margin-top: 20px; font-size: 14px; color: #888;'>Bizi tercih ettiğiniz için teşekkür ederiz.</p></div></div>";
+
+                    await _emailService.SendEmailAsync(customer.Email, konu, icerik);
+                }
+            }
+            catch { /* Mail hatası akışı bozmasın */ }
+            // -----------------------------------------------------
+
+            return Json(new { success = true, message = "Servis kapatıldı, cariye işlendi ve müşteriye mail gönderildi." });
         }
+        // -----------------------------------------------------
 
         [HttpPost]
         public async Task<IActionResult> GetTicketContactInfo(Guid id)
         {
-            // 1. Servis Fişini Çek
             var ticket = await _unitOfWork.Repository<ServiceTicket>().GetByIdAsync(id);
             if (ticket == null) return Json(new { success = false, message = "Servis kaydı bulunamadı." });
 
-            // 2. Müşteriyi Çek (Taze veri)
             var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(ticket.CustomerId);
             if (customer == null) return Json(new { success = false, message = "Müşteri kartı bulunamadı." });
 
-            // 3. Varsayılan: Müşterinin kartındaki 2. numara (Eski numara burada olabilir)
             string phone2ToUse = customer.Phone2;
 
-            // 4. ŞİRKET EŞLEŞTİRME (EN GÜNCEL VE HATASIZ EŞLEŞME)
             if (!string.IsNullOrWhiteSpace(customer.CompanyName))
             {
-                // Müşterideki ismin tüm boşluklarını sil ve küçük harfe çevir (Örn: "Özdemir  İnşaat" -> "özdemirinşaat")
                 string arananFirma = customer.CompanyName.ToLower().Replace(" ", "").Trim();
-
-                // Veritabanındaki tüm şirket ayarlarını çek
                 var tumFirmalar = await _unitOfWork.Repository<CompanySetting>().GetAllAsync();
-
-                // Bellekte filtreleme yap:
-                // 1. İsmi normalize ederek eşleştir.
-                // 2. OrderByDescending ile EN SON GÜNCELLENEN (veya eklenen) kaydı en başa al.
                 var eslesenFirma = tumFirmalar
                     .Where(x => !string.IsNullOrEmpty(x.CompanyName))
                     .Where(x => x.CompanyName.ToLower().Replace(" ", "").Trim() == arananFirma)
-                    .OrderByDescending(x => x.UpdatedDate ?? x.CreatedDate) // <--- KRİTİK NOKTA: En yeni kaydı seç
+                    .OrderByDescending(x => x.UpdatedDate ?? x.CreatedDate)
                     .FirstOrDefault();
 
-                // Eğer eşleşen bir firma bulunduysa ve numarasında veri varsa, KESİNLİKLE bunu kullan
                 if (eslesenFirma != null && !string.IsNullOrEmpty(eslesenFirma.Phone))
                 {
                     phone2ToUse = eslesenFirma.Phone;
@@ -649,13 +633,12 @@ namespace TeknikServis.Web.Controllers
             {
                 success = true,
                 phone1 = customer.Phone,
-                phone2 = phone2ToUse, // Artık en güncel firma numarası buradadır
+                phone2 = phone2ToUse,
                 companyName = customer.CompanyName,
                 isCorporate = !string.IsNullOrEmpty(customer.CompanyName)
             });
         }
 
-        // --- GÜNCELLENEN METOD 1: Detaylı Bilgi Gönder ---
         [HttpPost]
         [Authorize(Roles = "Technician,Admin,Personnel")]
         public async Task<IActionResult> SendDetailedInfoMessage(Guid id, string targetPhone = null)
@@ -671,13 +654,11 @@ namespace TeknikServis.Web.Controllers
 
                 if (ticket == null) return Json(new { success = false, message = "Kayıt bulunamadı." });
 
-                // HEDEF NUMARA KONTROLÜ
                 string gonderilecekNo = !string.IsNullOrEmpty(targetPhone) ? targetPhone : ticket.Customer.Phone;
 
                 if (string.IsNullOrEmpty(gonderilecekNo))
                     return Json(new { success = false, message = "Geçerli bir telefon numarası bulunamadı." });
 
-                // Mesaj İçeriği
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
                 if (!string.IsNullOrEmpty(ticket.Customer.CompanyName)) sb.AppendLine($"({ticket.Customer.CompanyName})");
@@ -717,7 +698,6 @@ namespace TeknikServis.Web.Controllers
                 sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
                 sb.AppendLine("- Teknik Servis");
 
-                // Gönderim
                 bool basarili = await _whatsAppService.SendMessageAsync(gonderilecekNo, sb.ToString(), ticket.Customer.BranchId);
 
                 return Json(new { success = true, message = $"Mesaj başarıyla gönderildi. ({gonderilecekNo})" });
@@ -728,19 +708,16 @@ namespace TeknikServis.Web.Controllers
             }
         }
 
-        // --- GÜNCELLENEN METOD 2: Cihaz Hazır Mesajı Gönder (Eksik Olan) ---
         [HttpPost]
         [Authorize(Roles = "Technician,Admin,Personnel")]
         public async Task<IActionResult> SendReadyMessage(Guid id)
         {
             try
             {
-                // 1. Yetki Kontrolü
                 var currentUser = await _userManager.GetUserAsync(User);
                 if (currentUser != null && !currentUser.IsWhatsAppEnabled)
                     return Json(new { success = false, message = "WhatsApp gönderme yetkiniz kapalıdır." });
 
-                // 2. Fişi Getir
                 var ticket = await _unitOfWork.Repository<ServiceTicket>()
                     .GetByIdWithIncludesAsync(x => x.Id == id, inc => inc.Customer, inc => inc.DeviceBrand);
 
@@ -748,7 +725,6 @@ namespace TeknikServis.Web.Controllers
                 if (ticket.Customer == null || string.IsNullOrEmpty(ticket.Customer.Phone))
                     return Json(new { success = false, message = "Müşterinin telefon numarası kayıtlı değil." });
 
-                // 3. Mesajı Hazırla
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Sayın *{ticket.Customer.FirstName} {ticket.Customer.LastName}*,");
                 sb.AppendLine("");
@@ -758,7 +734,6 @@ namespace TeknikServis.Web.Controllers
                 sb.AppendLine("Bizi tercih ettiğiniz için teşekkür ederiz.");
                 sb.AppendLine("- Teknik Servis");
 
-                // 4. Gönder
                 await _whatsAppService.SendMessageAsync(ticket.Customer.Phone, sb.ToString(), ticket.Customer.BranchId);
 
                 return Json(new { success = true, message = "Hazır mesajı başarıyla gönderildi." });

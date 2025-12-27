@@ -1,0 +1,98 @@
+﻿@model IEnumerable<TeknikServis.Core.Entities.SecondHandOffer>
+
+@{
+    ViewData["Title"] = "İkinci El Teklifleri";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-secondary"><i class="fa-solid fa-robot me-2 text-primary"></i>Yapay Zeka Teklifleri</h4>
+        <span class="badge bg-primary fs-6">Toplam: @Model.Count()</span>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Tarih</th>
+                            <th>Müşteri</th>
+                            <th>Cihaz Bilgisi</th>
+                            <th>Durum (Kozmetik)</th>
+                            <th class="text-center">Özellikler</th>
+                            <th class="text-end">Robot Fiyatı</th>
+                            <th class="text-center">Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Any())
+                        {
+                            foreach (var item in Model.OrderByDescending(x => x.CreatedDate))
+                            {
+                                <tr>
+                                    <td class="ps-4 small text-muted">@item.CreatedDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.CustomerName</div>
+                                        <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i>@item.Phone</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">@item.DeviceBrand</span>
+                                        <div class="fw-bold mt-1">@item.DeviceModel</div>
+                                    </td>
+                                    <td>
+                                        <span class="small border px-2 py-1 rounded bg-light">@item.Condition</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.IsWorking)
+                                        {
+                                            <i class="fa-solid fa-power-off text-success me-1" title="Çalışıyor"></i>
+                                        }
+                                        else
+                                        {
+
+                                            <i class="fa-solid fa-power-off text-danger me-1" title="Çalışmıyor"></i>
+                                        }
+                                        @if (item.HasBox)
+                                        {
+                                            <i class="fa-solid fa-box-open text-primary me-1" title="Kutulu"></i>
+                                        }
+                                        else
+                                        {
+
+                                            <i class="fa-solid fa-box-open text-muted opacity-25 me-1" title="Kutusuz"></i>
+                                        }
+                                        @if (item.HasWarranty)
+                                        {
+                                            <i class="fa-solid fa-shield-check text-warning" title="Garantili"></i>
+                                        }
+                                        else
+                                        {
+
+                                            <i class="fa-solid fa-shield-xmark text-muted opacity-25" title="Garantisiz"></i>
+                                        }
+                                    </td>
+                                    <td class="text-end fw-bold text-success fs-6">
+                                        @item.EstimatedPrice.ToString("C0")
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">@item.Status</span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-inbox fa-3x mb-3 opacity-25"></i><br />
+                                    Henüz robot tarafından alınan bir teklif yok.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

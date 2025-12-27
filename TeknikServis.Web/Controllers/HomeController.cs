@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TeknikServis.Core.Entities;
 using TeknikServis.Core.Interfaces;
-using TeknikServis.Web.Extensions; // BranchId için gerekli
+using TeknikServis.Web.Extensions;
 using TeknikServis.Web.Models;
 
 namespace TeknikServis.Web.Controllers
@@ -52,12 +52,9 @@ namespace TeknikServis.Web.Controllers
 
             // --- VERÝLERÝ ÇEK ---
 
-            // 1. Ýstatistikleri ve Listeleri Hesapla
-            // HATA DÜZELTMESÝ BURADA YAPILDI:
-            // IGenericRepository yapýnýza uygun olarak 'include:' isimlendirmesi kaldýrýldý.
-            // Ýliþkili tablolar (Customer ve DeviceBrand) virgülle ayrýlarak parametre olarak geçildi.
+            // 1. Servis Fiþlerini Çek (Silinmemiþ olanlar)
             var allTicketsEnumerable = await _unitOfWork.Repository<ServiceTicket>()
-                .FindAsync(x => x.Customer.BranchId == branchId,
+                .FindAsync(x => x.Customer.BranchId == branchId && !x.IsDeleted,
                            x => x.Customer,
                            x => x.DeviceBrand);
 
@@ -66,13 +63,17 @@ namespace TeknikServis.Web.Controllers
             // Ýstatistikler
             int activeCount = allTickets.Count(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi");
             int completedCount = allTickets.Count(x => x.Status == "Tamamlandý" || x.Status == "Teslim Edildi");
-            int pendingRepairCount = allTickets.Count(x => x.Status == "Onarým Bekliyor" || x.Status == "Parça Bekliyor");
+            int pendingRepairCount = allTickets.Count(x => x.Status == "Bekliyor" || x.Status == "Ýþlem Bekliyor" || x.Status == "Parça Bekliyor");
 
-            var customers = await _unitOfWork.Repository<Customer>().FindAsync(x => x.BranchId == branchId);
+            // --- GÜNCELLEME: KAYITLI MÜÞTERÝ SAYISI DÝNAMÝK HALE GETÝRÝLDÝ ---
+            // Þubeye ait ve silinmemiþ müþterileri çekiyoruz.
+            var customers = await _unitOfWork.Repository<Customer>().FindAsync(x => x.BranchId == branchId && !x.IsDeleted);
+            int totalCustomersCount = customers.Count();
+            // ----------------------------------------------------------------
+
             var stocks = await _unitOfWork.Repository<SparePart>().FindAsync(x => x.BranchId == branchId && x.Quantity <= 10 && !x.IsDeleted);
 
-            // 2. ACÝL / BEKLEYEN ÝÞLER (DÝNAMÝK KISIM)
-            // Tamamlanmamýþ kayýtlarý, oluþturulma tarihine göre (en eski en baþta) sýralýyoruz.
+            // 2. ACÝL / BEKLEYEN ÝÞLER
             var urgentTickets = allTickets
                 .Where(x => x.Status != "Tamamlandý" && x.Status != "Ýptal" && x.Status != "Teslim Edildi")
                 .OrderBy(x => x.CreatedDate)
@@ -105,7 +106,10 @@ namespace TeknikServis.Web.Controllers
                 ActiveTickets = activeCount,
                 CompletedTickets = completedCount,
                 PendingRepairs = pendingRepairCount,
-                TotalCustomers = customers.Count(),
+
+                // Dinamik müþteri sayýsý buraya atandý
+                TotalCustomers = totalCustomersCount,
+
                 LowStockCount = stocks.Count(),
 
                 MonthlyRevenue = monthlyRevenue,

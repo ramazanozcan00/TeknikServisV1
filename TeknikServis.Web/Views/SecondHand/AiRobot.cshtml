@@ -1,0 +1,335 @@
+﻿@{
+    ViewData["Title"] = "Cihaz Alım Robotu";
+    Layout = null; // Tam ekran deneyimi için Layout kullanmıyoruz veya özel layout kullanabilirsiniz.
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeknikServis AI - Cihazını Sat</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            padding: 15px 20px;
+            border-radius: 20px;
+            max-width: 80%;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+            .message.bot {
+                background-color: #ffffff;
+                color: #333;
+                align-self: flex-start;
+                border-bottom-left-radius: 5px;
+            }
+
+            .message.user {
+                background-color: #2563eb;
+                color: white;
+                align-self: flex-end;
+                border-bottom-right-radius: 5px;
+            }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #2563eb;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            bottom: -10px;
+            left: -15px;
+            font-size: 20px;
+            border: 3px solid #f0f2f5;
+        }
+
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .option-btn {
+            border-radius: 20px;
+            padding: 8px 20px;
+            border: 2px solid #2563eb;
+            color: #2563eb;
+            background: transparent;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+            .option-btn:hover, .option-btn.selected {
+                background: #2563eb;
+                color: white;
+            }
+
+        .input-area {
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            border-radius: 15px 15px 0 0;
+        }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 20px;
+            align-self: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .dot {
+            height: 8px;
+            width: 8px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+            .dot:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            .dot:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+
+        @@keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-white shadow-sm py-3 px-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                <i class="fa-solid fa-robot fs-5"></i>
+            </div>
+            <div>
+                <h5 class="mb-0 fw-bold">Asistan Robot</h5>
+                <small class="text-success"><i class="fa-solid fa-circle fa-xs me-1"></i>Çevrimiçi</small>
+            </div>
+        </div>
+        <a href="/" class="btn btn-outline-secondary btn-sm">Ana Sayfaya Dön</a>
+    </div>
+
+    <div class="chat-container" id="chatBox">
+    </div>
+
+    <div class="input-area" id="inputArea" style="display: none;">
+        <div class="input-group">
+            <input type="text" id="userInput" class="form-control form-control-lg border-0 bg-light" placeholder="Cevabınızı yazın...">
+            <button class="btn btn-primary px-4" onclick="handleInput()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // --- SOHBET AKIŞI VERİLERİ ---
+        const flow = {
+            step: 0,
+            data: {},
+            questions: [
+                { id: 'start', text: "Merhaba! Ben Teknik Servis'in yapay zeka asistanıyım. 🤖<br>Size cihazınızı satmanızda yardımcı olacağım. Hazırsanız başlayalım mı?", type: 'options', options: ['Başlayalım', 'Hayır'] },
+                { id: 'brand', text: "Harika! Öncelikle satmak istediğiniz cihazın **Markası** nedir?", type: 'input' },
+                { id: 'model', text: "Peki, cihazın **Modeli** nedir? (Örn: iPhone 13, Galaxy S23)", type: 'input' },
+                { id: 'working', text: "Cihazınız sorunsuz **açılıyor ve çalışıyor mu**?", type: 'options', options: ['Evet, Çalışıyor', 'Hayır, Açılmıyor'] },
+                { id: 'condition', text: "Cihazın **kozmetik durumu** nasıl?", type: 'options', options: ['Mükemmel (Çiziksiz)', 'İyi (Ufak Çizikler)', 'Kötü (Kırık/Çatlak)'] },
+                { id: 'box', text: "Cihazın orijinal **kutusu ve şarj aleti** var mı?", type: 'options', options: ['Evet, Var', 'Hayır, Yok'] },
+                { id: 'warranty', text: "Cihazın devam eden **garantisi** var mı?", type: 'options', options: ['Evet, Var', 'Hayır, Bitti'] },
+                { id: 'name', text: "Son aşamaya geldik! Size hitap edebilmem için **Adınız Soyadınız**?", type: 'input' },
+                { id: 'phone', text: "Size teklifimizi iletebilmemiz için **Telefon Numaranız**?", type: 'input' }
+            ]
+        };
+
+        // --- FONKSİYONLAR ---
+        $(document).ready(function() {
+            setTimeout(() => nextStep(), 1000);
+        });
+
+        function addBotMessage(html) {
+            $('#chatBox').append(`<div class="typing-indicator" id="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`);
+            scrollToBottom();
+
+            setTimeout(() => {
+                $('#typing').remove();
+                $('#chatBox').append(`
+                    <div class="message bot">
+                        <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+                        ${html}
+                    </div>
+                `);
+                scrollToBottom();
+            }, 1000);
+        }
+
+        function addUserMessage(text) {
+            $('#chatBox').append(`<div class="message user">${text}</div>`);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function nextStep() {
+            if (flow.step >= flow.questions.length) {
+                finishChat();
+                return;
+            }
+
+            const q = flow.questions[flow.step];
+            addBotMessage(q.text);
+
+            setTimeout(() => {
+                if (q.type === 'options') {
+                    $('#inputArea').hide();
+                    let optsHtml = '<div class="options ms-4">';
+                    q.options.forEach(opt => {
+                        optsHtml += `<button class="option-btn" onclick="selectOption('${opt}')">${opt}</button>`;
+                    });
+                    optsHtml += '</div>';
+                    $('#chatBox').append(optsHtml);
+                    scrollToBottom();
+                } else {
+                    $('#inputArea').show();
+                    $('#userInput').val('').focus();
+                }
+            }, 1200);
+        }
+
+        function selectOption(val) {
+            if(val === 'Hayır' && flow.step === 0) {
+                addUserMessage(val);
+                addBotMessage("Peki, iyi günler dilerim! 👋");
+                $('.options').remove();
+                return;
+            }
+
+            // Seçimi kaydet
+            saveData(val);
+
+            // Görsel güncelleme
+            $('.options').last().find('button').prop('disabled', true);
+            $('.options').last().find(`button:contains('${val}')`).addClass('selected');
+
+            addUserMessage(val);
+            flow.step++;
+            setTimeout(() => nextStep(), 500);
+        }
+
+        function handleInput() {
+            const val = $('#userInput').val();
+            if (!val.trim()) return;
+
+            saveData(val);
+            addUserMessage(val);
+            $('#inputArea').hide();
+            flow.step++;
+            setTimeout(() => nextStep(), 500);
+        }
+
+        // Enter tuşu desteği
+        document.getElementById("userInput").addEventListener("keyup", function(event) {
+            if (event.key === "Enter") handleInput();
+        });
+
+        function saveData(val) {
+            const qId = flow.questions[flow.step].id;
+
+            // Boolean dönüşümleri
+            if(qId === 'working' || qId === 'box' || qId === 'warranty') {
+                flow.data[qId] = val.includes('Evet');
+            } else {
+                flow.data[qId] = val;
+            }
+        }
+
+        function finishChat() {
+            addBotMessage("Bilgileri aldım, yapay zeka motorumuz fiyatı hesaplıyor... Lütfen bekleyin ⏳");
+
+            // Backend'e Gönder
+            $.ajax({
+                url: '/SecondHand/SubmitOffer',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(flow.data),
+                success: function(res) {
+                    setTimeout(() => {
+                        if (res.success) {
+                            addBotMessage(`
+                                <h4>🎉 Tahmini Teklifimiz: <span class="text-success fw-bold">${res.price} ₺</span></h4>
+                                <p>Bu fiyat cihazın ön değerlendirme sonucudur. Kesin fiyat için sizi servisimize bekleriz.</p>
+                                <p>Kaydınız oluşturuldu, arkadaşlarımız size <b>${flow.data.phone}</b> numarasından ulaşacaktır.</p>
+                                <br>
+                                <a href="/" class="btn btn-primary btn-sm">Ana Sayfaya Dön</a>
+                            `);
+                        } else {
+                            addBotMessage("Bir hata oluştu: " + res.message);
+                        }
+                    }, 2000);
+                },
+                error: function() {
+                    addBotMessage("Sunucu ile iletişim kurulamadı.");
+                }
+            });
+        }
+    </script>
+</body>
+</html>

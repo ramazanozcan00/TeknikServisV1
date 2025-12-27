@@ -34,6 +34,7 @@ namespace TeknikServis.Data.Context
         public DbSet<SupportRequest> SupportRequests { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<SecondHandOffer> SecondHandOffers { get; set; }
         // AppUsers dbset'ine gerek yok, IdentityDbContext içinde "Users" olarak zaten var.
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
