@@ -20,5 +20,8 @@ namespace TeknikServis.Core.Interfaces
         Task UpdateTicketStatusAsync(Guid ticketId, string newStatus, decimal? price = null);
         Task DeleteTicketAsync(Guid id);
         Task<List<TechnicianPerformanceDto>> GetTechnicianPerformanceStatsAsync(DateTime startDate, DateTime endDate, Guid? branchId = null);
+
+
+        Task<IEnumerable<ServiceTicket>> GetActiveTicketsByCustomerIdAsync(Guid customerId);
     }
 }

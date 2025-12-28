@@ -129,5 +129,17 @@ namespace TeknikServis.Service.Services
                 await _unitOfWork.CommitAsync();
             }
         }
+
+
+        public async Task<Customer> GetByPhoneAsync(string phoneNumber)
+        {
+            // Telefon numarasına göre (silinmemiş) ilk müşteriyi bul
+            // Not: Telefon formatı veritabanında nasıl tutuluyorsa ona dikkat etmelisiniz.
+            // Contains yerine tam eşleşme veya 'EndsWith' daha güvenli olabilir.
+            var customers = await _unitOfWork.Repository<Customer>()
+                .FindAsync(x => x.Phone.Contains(phoneNumber) && !x.IsDeleted);
+
+            return customers.FirstOrDefault();
+        }
     }
 }

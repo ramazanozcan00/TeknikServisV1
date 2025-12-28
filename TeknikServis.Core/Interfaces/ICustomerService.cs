@@ -21,5 +21,8 @@ namespace TeknikServis.Core.Interfaces
         Task DeleteCustomerAsync(Guid id);
 
         Task UpdateCustomerAsync(Customer customer);
+
+
+        Task<Customer> GetByPhoneAsync(string phoneNumber);
     }
 }

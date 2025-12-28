@@ -238,5 +238,23 @@ namespace TeknikServis.Service.Services
             }
             return statsList.OrderByDescending(x => x.TotalRevenue).ToList();
         }
+
+
+        public async Task<IEnumerable<ServiceTicket>> GetActiveTicketsByCustomerIdAsync(Guid customerId)
+        {
+            // "Aktif" fişler: Teslim edilmemiş ve İptal edilmemiş olanlar.
+            var tickets = await _unitOfWork.Repository<ServiceTicket>()
+                .FindAsync(x => x.CustomerId == customerId
+                                && x.Status != "Teslim Edildi"
+                                && x.Status != "İptal"
+                                && !x.IsDeleted,
+                           inc => inc.DeviceBrand,
+                           inc => inc.DeviceType);
+
+            return tickets.OrderByDescending(x => x.CreatedDate);
+        }
+
+
+
     }
 }

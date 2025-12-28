@@ -107,6 +107,28 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
 });
 
+// Mevcut servis kayýtlarýnýn olduðu bloða ekle:
+
+// 1. HttpClient ile Gemini Servisini ekle
+builder.Services.AddHttpClient<IGeminiService, GeminiService>();
+
+// 2. Controller'larýn JSON desteðini aç (Webhook için gerekli olabilir)
+builder.Services.AddControllers().AddNewtonsoftJson(options =>
+    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+);
+
+// NOT: IWhatsAppService ve CustomerService zaten ekli olmalý, deðilse:
+// builder.Services.AddScoped<IWhatsAppService, EvolutionApiWhatsAppService>();
+// builder.Services.AddScoped<ICustomerService, CustomerService>();
+
+
+
+
+
+
+
+
+
 // Dil Ayarý
 var supportedCultures = new[] { "tr-TR" };
 var localizationOptions = new Microsoft.AspNetCore.Builder.RequestLocalizationOptions()
