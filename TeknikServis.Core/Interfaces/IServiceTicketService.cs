@@ -22,6 +22,6 @@ namespace TeknikServis.Core.Interfaces
         Task<List<TechnicianPerformanceDto>> GetTechnicianPerformanceStatsAsync(DateTime startDate, DateTime endDate, Guid? branchId = null);
 
 
-        Task<IEnumerable<ServiceTicket>> GetActiveTicketsByCustomerIdAsync(Guid customerId);
+        
     }
 }
