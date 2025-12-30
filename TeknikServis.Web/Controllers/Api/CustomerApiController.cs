@@ -22,26 +22,25 @@ namespace TeknikServis.Web.Controllers.Api
         }
 
         [HttpGet("FormData")]
+        // Eğer giriş yapmadan (Token göndermeden) erişim hatası alıyorsanız bu satırı ekleyin:
+        // [Microsoft.AspNetCore.Authorization.AllowAnonymous] 
         public async Task<IActionResult> GetFormData()
         {
-            var companies = await _unitOfWork.Repository<CompanySetting>()
+            // ESKİ HATALI KOD:
+            // var companies = await _unitOfWork.Repository<CompanySetting>()...
+
+            // YENİ DOĞRU KOD (Müşteriler tablosundan firma isimlerini çeker):
+            var customers = await _unitOfWork.Repository<Customer>()
                 .FindAsync(x => !string.IsNullOrEmpty(x.CompanyName));
 
-            var companyNames = companies
+            var companyNames = customers
                 .Select(c => c.CompanyName)
-                .Distinct()
+                .Distinct() // Aynı isimleri teke düşürür
                 .OrderBy(n => n)
                 .ToList();
 
-            if (!companyNames.Any())
-            {
-                companyNames.Add("Bireysel");
-                companyNames.Add("Kurumsal (Diğer)");
-            }
-
             return Ok(new { Companies = companyNames });
         }
-
         [HttpPost("Create")]
         public async Task<IActionResult> Create([FromBody] CustomerDto model)
         {
@@ -52,30 +51,36 @@ namespace TeknikServis.Web.Controllers.Api
 
             try
             {
-                // Şube ID boş ise varsayılan şubeyi bul
+                // 1. Şube Kontrolü (Aynı kalıyor)
                 Guid targetBranchId = model.BranchId;
                 if (targetBranchId == Guid.Empty)
                 {
                     var defaultBranch = (await _unitOfWork.Repository<Branch>().GetAllAsync()).FirstOrDefault();
-
-                    if (defaultBranch == null)
-                        return BadRequest("Sistemde kayıtlı şube bulunamadı. Web panelinden şube ekleyiniz.");
-
+                    if (defaultBranch == null) return BadRequest("Şube bulunamadı.");
                     targetBranchId = defaultBranch.Id;
                 }
 
-                // Mükerrer kayıt kontrolü
+                // 2. Mükerrer Kayıt Kontrolü (Aynı kalıyor)
                 var existingCustomer = (await _unitOfWork.Repository<Customer>()
                     .FindAsync(x => x.Phone == model.Phone)).FirstOrDefault();
 
                 if (existingCustomer != null)
                     return BadRequest($"Bu telefon numarası ({model.Phone}) zaten kayıtlı.");
 
+                // --- DÜZELTİLEN KISIM: OTOMATİK TİP DEĞİŞTİRME İPTAL EDİLDİ ---
+
+                // Mobilden ne geliyorsa onu kullan. Boşsa "Normal" yap.
+                // Firma adı girilse bile "Normal" ise "Normal" kalır.
+                string finalCustomerType = !string.IsNullOrEmpty(model.CustomerType)
+                                           ? model.CustomerType
+                                           : "Normal";
+
                 var customer = new Customer
                 {
                     FirstName = model.FirstName,
                     LastName = model.LastName ?? "",
                     Phone = model.Phone,
+                    Phone2 = model.Phone2,
                     Email = model.Email ?? "",
                     Address = model.Address,
                     City = model.City,
@@ -84,9 +89,10 @@ namespace TeknikServis.Web.Controllers.Api
                     CompanyName = model.CompanyName,
                     TaxOffice = model.TaxOffice,
                     TaxNumber = model.TaxNumber,
-                    CustomerType = !string.IsNullOrEmpty(model.CompanyName) ? "Kurumsal" : "Normal",
-                    BranchId = targetBranchId,
-                    Phone2 = model.Phone2
+
+                    CustomerType = finalCustomerType, // Müdahale etmeden kaydediyoruz
+
+                    BranchId = targetBranchId
                 };
 
                 await _unitOfWork.Repository<Customer>().AddAsync(customer);
@@ -99,6 +105,32 @@ namespace TeknikServis.Web.Controllers.Api
                 return StatusCode(500, $"Sunucu hatası: {ex.Message}");
             }
         }
+        // --- BU METODU EKLEYİN ---
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var customers = await _unitOfWork.Repository<Customer>().GetAllAsync();
+
+                // Mobilde Dropdown içinde göstermek için sadeleştiriyoruz
+                var list = customers.Select(c => new
+                {
+                    Id = c.Id,
+                    Text = $"{c.FirstName} {c.LastName} - {c.Phone}" // Görünecek Metin
+                })
+                .OrderBy(x => x.Text) // İsme göre sırala
+                .ToList();
+
+                return Ok(list);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Liste çekilemedi: " + ex.Message);
+            }
+        }
+
+
     }
 
     public class CustomerDto

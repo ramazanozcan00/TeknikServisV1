@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using TeknikServis.Service.Services;
-using System.Threading.Tasks;
-using TeknikServis.Core.Interfaces;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using TeknikServis.Core.Entities;
+using TeknikServis.Core.Interfaces;
 
 namespace TeknikServis.Web.Controllers.Api
 {
@@ -10,81 +14,139 @@ namespace TeknikServis.Web.Controllers.Api
     [ApiController]
     public class TicketApiController : ControllerBase
     {
-        private readonly IServiceTicketService _serviceTicketService;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly UserManager<AppUser> _userManager;
 
-        public TicketApiController(IServiceTicketService serviceTicketService)
+        public TicketApiController(IUnitOfWork unitOfWork, UserManager<AppUser> userManager)
         {
-            _serviceTicketService = serviceTicketService;
+            _unitOfWork = unitOfWork;
+            _userManager = userManager;
         }
 
-        [HttpGet("CheckStatus")]
-        public async Task<IActionResult> CheckStatus(string q)
-        {
-            if (string.IsNullOrEmpty(q)) return BadRequest();
-
-            var ticket = await _serviceTicketService.GetTicketByFisNoAsync(q);
-
-            if (ticket == null) return NotFound();
-
-            string markaAdi = ticket.DeviceBrand != null ? ticket.DeviceBrand.Name : "";
-
-            return Ok(new
-            {
-                FisNo = ticket.FisNo,
-                Cihaz = $"{markaAdi} {ticket.DeviceModel}",
-                SeriNo = ticket.SerialNumber ?? "-",
-                Durum = ticket.Status,
-                Ariza = ticket.ProblemDescription,
-                GirisTarihi = ticket.CreatedDate.ToString("dd.MM.yyyy"),
-                Ucret = ticket.TotalPrice.HasValue ? ticket.TotalPrice.Value.ToString("N2") : "0"
-            });
-        }
-
-        [HttpPost("UpdatePaymentStatus")]
-        public async Task<IActionResult> UpdatePaymentStatus([FromForm] string fisNo)
-        {
-            if (string.IsNullOrEmpty(fisNo))
-                return BadRequest(new { message = "Fiş numarası (fisNo) boş olamaz." });
-
-            // 1. Fiş numarasına göre kaydı bul
-            var ticket = await _serviceTicketService.GetTicketByFisNoAsync(fisNo);
-
-            if (ticket != null)
-            {
-                // 2. Durumu güncelle (Ödeme Yapıldı)
-                await _serviceTicketService.UpdateTicketStatusAsync(ticket.Id, "Ödeme Yapıldı");
-
-                return Ok(new { message = "Durum başarıyla güncellendi." });
-            }
-
-            return NotFound(new { message = "Kayıt bulunamadı." });
-        }
-
-        // TicketApiController.cs içine eklenecek:
-        [HttpPost("Create")]
-        // Test için şimdilik güvenlik kontrolünü kapatıyoruz, sonra JWT eklenmeli.
-        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
-        public IActionResult Create([FromBody] ServiceTicketDto model)
+        // --- 1. FORM VERİLERİNİ GETİREN METOD (Şubeye Göre Filtreli) ---
+        [HttpGet("FormData")]
+        public async Task<IActionResult> GetTicketFormData([FromQuery] Guid? branchId)
         {
             try
             {
-                // Burada veritabanına kayıt işlemi yapılacak. 
-                // Örnek simülasyon:
-                var fisNo = "SRV" + new Random().Next(1000, 9999);
-                return Ok(new { Message = "Kayıt Başarılı", FisNo = fisNo });
+                // Cihaz Türleri
+                var types = (await _unitOfWork.Repository<DeviceType>().GetAllAsync())
+                            .Select(x => new { x.Id, x.Name }).OrderBy(x => x.Name).ToList();
+
+                // Markalar
+                var brands = (await _unitOfWork.Repository<DeviceBrand>().GetAllAsync())
+                             .Select(x => new { x.Id, x.Name }).OrderBy(x => x.Name).ToList();
+
+                // Teknisyenler (Kullanıcılar)
+                // Şube ID geldiyse ona göre filtrele, gelmediyse hepsini getir.
+                var usersQuery = _userManager.Users.AsQueryable();
+
+                if (branchId.HasValue && branchId.Value != Guid.Empty)
+                {
+                    usersQuery = usersQuery.Where(u => u.BranchId == branchId.Value);
+                }
+
+                var technicians = await usersQuery
+                                  .Select(x => new
+                                  {
+                                      Id = x.Id,
+                                      // İsim varsa getir, yoksa Kullanıcı Adını getir
+                                      Name = x.FullName ?? x.UserName
+                                  })
+                                  .OrderBy(x => x.Name)
+                                  .ToListAsync();
+
+                return Ok(new { Types = types, Brands = brands, Technicians = technicians });
             }
             catch (Exception ex)
             {
-                return BadRequest("Hata: " + ex.Message);
+                return StatusCode(500, "Veriler çekilemedi: " + ex.Message);
             }
         }
 
-        public class ServiceTicketDto
+        // --- 2. KAYIT METODU ---
+        [HttpPost("Create")]
+        public async Task<IActionResult> Create([FromBody] ServiceTicketDto model)
         {
-            public Guid CustomerId { get; set; }
-            public string DeviceModel { get; set; }
-            public string SerialNo { get; set; }
-            public string Problem { get; set; }
+            if (model == null) return BadRequest("Veri yok.");
+
+            try
+            {
+                // Fiş No Üretme (Örn: SRV-20231231-1234)
+                string newFisNo = "SRV-" + DateTime.Now.ToString("yyyyMMdd-HHmm");
+
+                var ticket = new ServiceTicket
+                {
+                    FisNo = newFisNo,
+                    CustomerId = model.CustomerId,
+
+                    DeviceTypeId = model.DeviceTypeId,
+                    DeviceBrandId = model.DeviceBrandId,
+                    TechnicianId = model.TechnicianId, // Boş gelirse null olur
+
+                    DeviceModel = model.DeviceModel ?? "",
+                    SerialNumber = model.SerialNo ?? "",
+                    ProblemDescription = model.Problem ?? "",
+                    Accessories = model.Accessories,
+                    PhysicalDamage = model.PhysicalDamage,
+                    IsWarranty = model.IsWarranty,
+
+                    // Teknisyen seçildiyse "İşlemde", seçilmediyse "Bekliyor"
+                    Status = model.TechnicianId != null ? "İşlemde" : "Bekliyor",
+                    TechnicianStatus = model.TechnicianId != null ? "Atandı" : "Atanmadı",
+                    CreatedDate = DateTime.Now
+                };
+
+                await _unitOfWork.Repository<ServiceTicket>().AddAsync(ticket);
+                await _unitOfWork.CommitAsync();
+
+                return Ok(new { Message = "Kayıt Başarılı", FisNo = newFisNo });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Hata: " + ex.Message);
+            }
         }
+
+        // --- BU METODU EKLEYİN: ŞİRKET LİSTESİ ---
+        [HttpGet("GetCompanies")]
+        public async Task<IActionResult> GetCompanies()
+        {
+            try
+            {
+                // Tüm müşterileri çek
+                var customers = await _unitOfWork.Repository<Customer>().GetAllAsync();
+
+                // Sadece Şirket Adı dolu olanları al, tekrarlayanları sil (Distinct), sırala ve gönder
+                var companies = customers
+                    .Where(c => !string.IsNullOrEmpty(c.CompanyName))
+                    .Select(c => c.CompanyName)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
+
+                return Ok(companies);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Şirket listesi çekilemedi: " + ex.Message);
+            }
+        }
+    }
+
+    // DTO Sınıfı
+    public class ServiceTicketDto
+    {
+        public Guid CustomerId { get; set; }
+        public Guid DeviceTypeId { get; set; }
+        public Guid DeviceBrandId { get; set; }
+        public Guid? TechnicianId { get; set; }
+
+        public string DeviceModel { get; set; }
+        public string SerialNo { get; set; }
+        public string Problem { get; set; }
+        public string Accessories { get; set; }
+        public string PhysicalDamage { get; set; }
+        public bool IsWarranty { get; set; }
     }
 }
