@@ -30,7 +30,7 @@ namespace TeknikServis.Web.Identity
 
             // 2. Ad Soyad ekle (Zaten yapmıştık)
             identity.AddClaim(new Claim("FullName", user.FullName ?? user.UserName));
-
+            identity.AddClaim(new Claim("IsWhatsAppEnabled", user.IsWhatsAppEnabled.ToString()));
             identity.AddClaim(new Claim("IsShipmentAuthEnabled", user.IsShipmentAuthEnabled.ToString()));
             // 3. YENİ KISIM: Şube Adını Veritabanından Bul ve Ekle
             // Kullanıcı her giriş yaptığında sadece 1 kere çalışır, performansı etkilemez.
