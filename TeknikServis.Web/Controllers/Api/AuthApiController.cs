@@ -14,7 +14,7 @@ using TeknikServis.Core.Entities;
 
 namespace TeknikServis.Web.Controllers.Api
 {
-    [Route("api/[controller]")]
+    [Route("api/Auth")]
     [ApiController]
     public class AuthApiController : ControllerBase
     {

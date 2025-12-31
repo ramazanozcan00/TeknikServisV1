@@ -13,7 +13,8 @@ namespace TeknikServis.Core.DTOs
         public string DeviceModel { get; set; }
         public string SerialNo { get; set; }
         public string Problem { get; set; }
-
+      
+       
         // Bunları ekleyin:
         public string Accessories { get; set; }
         public string PhysicalDamage { get; set; }
