@@ -28,7 +28,7 @@ namespace TeknikServis.Core.Entities
         public string DeviceModel { get; set; }
 
         // ------------------------
-        public DateTime? InvoiceDate { get; set; } // Fatura Tarihi
+        public DateTime? InvoiceDate { get; set; } // Fatura Tarihi333
         public string Accessories { get; set; }    // Cihazla Gelen Aksesuarlar
         public string PhysicalDamage { get; set; } // Fiziksel Hasar Durumu
         public string PdfPath { get; set; }        // PDF Dosya Yolu
