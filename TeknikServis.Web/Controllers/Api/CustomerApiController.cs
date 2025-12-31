@@ -8,8 +8,6 @@ using System.Collections.Generic;
 
 namespace TeknikServis.Web.Controllers.Api
 {
-    // ESKİ HALİ: [Route("api/[controller]")] -> Bu "api/CustomerApi" üretiyordu.
-    // YENİ HALİ: Aşağıdaki gibi sabitledik.
     [Route("api/Customer")]
     [ApiController]
     public class CustomerApiController : ControllerBase
@@ -21,59 +19,107 @@ namespace TeknikServis.Web.Controllers.Api
             _unitOfWork = unitOfWork;
         }
 
-        [HttpGet("FormData")]
-        // Eğer giriş yapmadan (Token göndermeden) erişim hatası alıyorsanız bu satırı ekleyin:
-        // [Microsoft.AspNetCore.Authorization.AllowAnonymous] 
-        public async Task<IActionResult> GetFormData()
+        // --- 1. FİRMA LİSTESİ (SİLİNENLER HARİÇ) ---
+        [HttpGet("GetCompanies")]
+        public async Task<IActionResult> GetCompanies([FromQuery] Guid? branchId)
         {
-            // ESKİ HATALI KOD:
-            // var companies = await _unitOfWork.Repository<CompanySetting>()...
+            try
+            {
+                IEnumerable<Customer> customers;
 
-            // YENİ DOĞRU KOD (Müşteriler tablosundan firma isimlerini çeker):
-            var customers = await _unitOfWork.Repository<Customer>()
-                .FindAsync(x => !string.IsNullOrEmpty(x.CompanyName));
+                if (branchId.HasValue && branchId.Value != Guid.Empty)
+                {
+                    // Şube ID VARSA: Şube + Firma Adı Dolu + Silinmemiş
+                    customers = await _unitOfWork.Repository<Customer>()
+                        .FindAsync(x => x.BranchId == branchId.Value
+                                     && !string.IsNullOrEmpty(x.CompanyName)
+                                     && !x.IsDeleted); // <-- SİLİNENLERİ ENGELLE
+                }
+                else
+                {
+                    // Şube ID YOKSA: Firma Adı Dolu + Silinmemiş
+                    customers = await _unitOfWork.Repository<Customer>()
+                        .FindAsync(x => !string.IsNullOrEmpty(x.CompanyName)
+                                     && !x.IsDeleted); // <-- SİLİNENLERİ ENGELLE
+                }
 
-            var companyNames = customers
-                .Select(c => c.CompanyName)
-                .Distinct() // Aynı isimleri teke düşürür
-                .OrderBy(n => n)
+                var companyNames = customers
+                    .Select(c => c.CompanyName)
+                    .Distinct()
+                    .OrderBy(n => n)
+                    .ToList();
+
+                return Ok(companyNames);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Firma listesi çekilemedi: " + ex.Message);
+            }
+        }
+
+        // --- 2. MÜŞTERİ ARAMA LİSTESİ (SİLİNENLER HARİÇ) ---
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll([FromQuery] Guid? branchId)
+        {
+            try
+            {
+                IEnumerable<Customer> customers;
+
+                if (branchId.HasValue && branchId.Value != Guid.Empty)
+                {
+                    // Şube ID VARSA: Şube + Silinmemiş
+                    customers = await _unitOfWork.Repository<Customer>()
+                        .FindAsync(c => c.BranchId == branchId.Value && !c.IsDeleted); // <-- SİLİNENLERİ ENGELLE
+                }
+                else
+                {
+                    // Şube ID YOKSA: Sadece Silinmemiş Olanlar
+                    customers = await _unitOfWork.Repository<Customer>()
+                        .FindAsync(c => !c.IsDeleted); // <-- SİLİNENLERİ ENGELLE
+                }
+
+                var list = customers.Select(c => new
+                {
+                    Id = c.Id,
+                    Text = $"{c.FirstName} {c.LastName} - {c.Phone}" +
+                           (!string.IsNullOrEmpty(c.CompanyName) ? $" ({c.CompanyName})" : "")
+                })
+                .OrderBy(x => x.Text)
                 .ToList();
 
-            return Ok(new { Companies = companyNames });
+                return Ok(list);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Liste çekilemedi: " + ex.Message);
+            }
         }
+
+        // --- 3. CREATE METODU (DEĞİŞİKLİK YOK) ---
         [HttpPost("Create")]
         public async Task<IActionResult> Create([FromBody] CustomerDto model)
         {
             if (model == null) return BadRequest("Veri gönderilmedi.");
-
             if (string.IsNullOrWhiteSpace(model.FirstName) || string.IsNullOrWhiteSpace(model.Phone))
                 return BadRequest("Ad ve Telefon alanları zorunludur.");
 
             try
             {
-                // 1. Şube Kontrolü (Aynı kalıyor)
                 Guid targetBranchId = model.BranchId;
                 if (targetBranchId == Guid.Empty)
                 {
-                    var defaultBranch = (await _unitOfWork.Repository<Branch>().GetAllAsync()).FirstOrDefault();
+                    var allBranches = await _unitOfWork.Repository<Branch>().GetAllAsync();
+                    var defaultBranch = allBranches.FirstOrDefault();
                     if (defaultBranch == null) return BadRequest("Şube bulunamadı.");
                     targetBranchId = defaultBranch.Id;
                 }
 
-                // 2. Mükerrer Kayıt Kontrolü (Aynı kalıyor)
-                var existingCustomer = (await _unitOfWork.Repository<Customer>()
-                    .FindAsync(x => x.Phone == model.Phone)).FirstOrDefault();
+                // Silinmemişler arasında telefon kontrolü yap
+                var checkPhone = await _unitOfWork.Repository<Customer>()
+                    .FindAsync(x => x.Phone == model.Phone && !x.IsDeleted);
 
-                if (existingCustomer != null)
+                if (checkPhone.Any())
                     return BadRequest($"Bu telefon numarası ({model.Phone}) zaten kayıtlı.");
-
-                // --- DÜZELTİLEN KISIM: OTOMATİK TİP DEĞİŞTİRME İPTAL EDİLDİ ---
-
-                // Mobilden ne geliyorsa onu kullan. Boşsa "Normal" yap.
-                // Firma adı girilse bile "Normal" ise "Normal" kalır.
-                string finalCustomerType = !string.IsNullOrEmpty(model.CustomerType)
-                                           ? model.CustomerType
-                                           : "Normal";
 
                 var customer = new Customer
                 {
@@ -89,48 +135,20 @@ namespace TeknikServis.Web.Controllers.Api
                     CompanyName = model.CompanyName,
                     TaxOffice = model.TaxOffice,
                     TaxNumber = model.TaxNumber,
-
-                    CustomerType = finalCustomerType, // Müdahale etmeden kaydediyoruz
-
+                    CustomerType = !string.IsNullOrEmpty(model.CustomerType) ? model.CustomerType : "Normal",
                     BranchId = targetBranchId
                 };
 
                 await _unitOfWork.Repository<Customer>().AddAsync(customer);
                 await _unitOfWork.CommitAsync();
 
-                return Ok(new { Message = "Müşteri başarıyla kaydedildi.", Id = customer.Id });
+                return Ok(new { Message = "Başarılı", Id = customer.Id });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Sunucu hatası: {ex.Message}");
+                return StatusCode(500, ex.Message);
             }
         }
-        // --- BU METODU EKLEYİN ---
-        [HttpGet("GetAll")]
-        public async Task<IActionResult> GetAll()
-        {
-            try
-            {
-                var customers = await _unitOfWork.Repository<Customer>().GetAllAsync();
-
-                // Mobilde Dropdown içinde göstermek için sadeleştiriyoruz
-                var list = customers.Select(c => new
-                {
-                    Id = c.Id,
-                    Text = $"{c.FirstName} {c.LastName} - {c.Phone}" // Görünecek Metin
-                })
-                .OrderBy(x => x.Text) // İsme göre sırala
-                .ToList();
-
-                return Ok(list);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "Liste çekilemedi: " + ex.Message);
-            }
-        }
-
-
     }
 
     public class CustomerDto

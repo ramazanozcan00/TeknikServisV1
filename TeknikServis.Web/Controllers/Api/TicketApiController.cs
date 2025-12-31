@@ -23,7 +23,7 @@ namespace TeknikServis.Web.Controllers.Api
             _userManager = userManager;
         }
 
-        // --- 1. FORM VERİLERİNİ GETİREN METOD (Şubeye Göre Filtreli) ---
+        // --- 1. FORM VERİLERİNİ GETİREN METOD (Şube + Rol Filtreli) ---
         [HttpGet("FormData")]
         public async Task<IActionResult> GetTicketFormData([FromQuery] Guid? branchId)
         {
@@ -37,16 +37,20 @@ namespace TeknikServis.Web.Controllers.Api
                 var brands = (await _unitOfWork.Repository<DeviceBrand>().GetAllAsync())
                              .Select(x => new { x.Id, x.Name }).OrderBy(x => x.Name).ToList();
 
-                // Teknisyenler (Kullanıcılar)
-                // Şube ID geldiyse ona göre filtrele, gelmediyse hepsini getir.
-                var usersQuery = _userManager.Users.AsQueryable();
+                // --- GÜNCELLENEN KISIM: SADECE TEKNİSYENLERİ GETİR ---
 
+                // 1. Adım: Önce "Technician" rolündeki tüm kullanıcıları çek
+                // (Not: Rol isminiz 'Technician' ise bunu kullanın, 'Personel' ise onu yazın)
+                var usersInRole = await _userManager.GetUsersInRoleAsync("Technician");
+
+                // 2. Adım: Şube ID geldiyse, sadece o şubedeki teknisyenleri filtrele
                 if (branchId.HasValue && branchId.Value != Guid.Empty)
                 {
-                    usersQuery = usersQuery.Where(u => u.BranchId == branchId.Value);
+                    usersInRole = usersInRole.Where(u => u.BranchId == branchId.Value).ToList();
                 }
 
-                var technicians = await usersQuery
+                // 3. Adım: Listeyi formata uygun hale getir
+                var technicians = usersInRole
                                   .Select(x => new
                                   {
                                       Id = x.Id,
@@ -54,7 +58,7 @@ namespace TeknikServis.Web.Controllers.Api
                                       Name = x.FullName ?? x.UserName
                                   })
                                   .OrderBy(x => x.Name)
-                                  .ToListAsync();
+                                  .ToList();
 
                 return Ok(new { Types = types, Brands = brands, Technicians = technicians });
             }
@@ -64,7 +68,6 @@ namespace TeknikServis.Web.Controllers.Api
             }
         }
 
-        // --- 2. KAYIT METODU ---
         [HttpPost("Create")]
         public async Task<IActionResult> Create([FromBody] ServiceTicketDto model)
         {
@@ -72,7 +75,6 @@ namespace TeknikServis.Web.Controllers.Api
 
             try
             {
-                // Fiş No Üretme (Örn: SRV-20231231-1234)
                 string newFisNo = "SRV-" + DateTime.Now.ToString("yyyyMMdd-HHmm");
 
                 var ticket = new ServiceTicket
@@ -80,9 +82,12 @@ namespace TeknikServis.Web.Controllers.Api
                     FisNo = newFisNo,
                     CustomerId = model.CustomerId,
 
+                    // --- KRİTİK EKLEME: ŞUBE ID KAYDEDİLİYOR ---
+                    BranchId = model.BranchId,
+
                     DeviceTypeId = model.DeviceTypeId,
                     DeviceBrandId = model.DeviceBrandId,
-                    TechnicianId = model.TechnicianId, // Boş gelirse null olur
+                    TechnicianId = model.TechnicianId,
 
                     DeviceModel = model.DeviceModel ?? "",
                     SerialNumber = model.SerialNo ?? "",
@@ -91,7 +96,6 @@ namespace TeknikServis.Web.Controllers.Api
                     PhysicalDamage = model.PhysicalDamage,
                     IsWarranty = model.IsWarranty,
 
-                    // Teknisyen seçildiyse "İşlemde", seçilmediyse "Bekliyor"
                     Status = model.TechnicianId != null ? "İşlemde" : "Bekliyor",
                     TechnicianStatus = model.TechnicianId != null ? "Atandı" : "Atanmadı",
                     CreatedDate = DateTime.Now
@@ -137,6 +141,7 @@ namespace TeknikServis.Web.Controllers.Api
     // DTO Sınıfı
     public class ServiceTicketDto
     {
+        public Guid BranchId { get; set; }
         public Guid CustomerId { get; set; }
         public Guid DeviceTypeId { get; set; }
         public Guid DeviceBrandId { get; set; }

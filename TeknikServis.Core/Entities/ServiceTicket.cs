@@ -9,6 +9,7 @@ namespace TeknikServis.Core.Entities
 {
     public class ServiceTicket : BaseEntity
     {
+        public Guid BranchId { get; set; }
         public string FisNo { get; set; }
         public Guid CustomerId { get; set; }
         public virtual Customer Customer { get; set; }

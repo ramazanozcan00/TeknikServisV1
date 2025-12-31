@@ -1,66 +1,88 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration; // <-- BU GEREKLİ
+using Microsoft.IdentityModel.Tokens;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using TeknikServis.Core.Entities;
 
 namespace TeknikServis.Web.Controllers.Api
 {
-    // BURASI ÇOK ÖNEMLİ: Adresi 'api/Auth' olarak sabitliyoruz
-    [Route("api/Auth")]
+    [Route("api/[controller]")]
     [ApiController]
     public class AuthApiController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly SignInManager<AppUser> _signInManager;
 
-        public AuthApiController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager)
+        // 1. EKSİK OLAN DEĞİŞKEN BURASIYDI
+        private readonly IConfiguration _configuration;
+
+        // 2. CONSTRUCTOR (YAPICI METOD) GÜNCELLENDİ
+        public AuthApiController(UserManager<AppUser> userManager, IConfiguration configuration)
         {
             _userManager = userManager;
-            _signInManager = signInManager;
+            _configuration = configuration; // <-- ATAMA BURADA YAPILIYOR
         }
-        [HttpGet("Test")]
-        public IActionResult Test()
-        {
-            return Ok("API Çalışıyor!");
-        }
+
         [HttpPost("Login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
-            if (model == null) return BadRequest("Veri alınamadı.");
-            if (string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.Password))
-                return BadRequest("Kullanıcı adı ve şifre zorunludur.");
+            // Kullanıcıyı ve Şubeyi Çek
+            var user = await _userManager.Users
+                .Include(u => u.Branch)
+                .FirstOrDefaultAsync(u => u.UserName == model.Username);
 
-            AppUser user = null;
-
-            // 1. E-Posta mı?
-            if (model.Username.Contains("@"))
-                user = await _userManager.FindByEmailAsync(model.Username);
-
-            // 2. Kullanıcı Adı mı?
-            if (user == null)
-                user = await _userManager.FindByNameAsync(model.Username);
-
-            if (user == null) return Unauthorized("Kullanıcı bulunamadı.");
-
-            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
-
-            if (result.Succeeded)
+            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
             {
+                // --- TOKEN OLUŞTURMA ---
+                var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                };
+
+                var userRoles = await _userManager.GetRolesAsync(user);
+                foreach (var role in userRoles)
+                {
+                    authClaims.Add(new Claim(ClaimTypes.Role, role));
+                }
+
+                // _configuration ARTIK HATA VERMEZ
+                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+
+                var token = new JwtSecurityToken(
+                    issuer: _configuration["Jwt:Issuer"],
+                    audience: _configuration["Jwt:Audience"],
+                    expires: DateTime.Now.AddHours(3),
+                    claims: authClaims,
+                    signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+                );
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+                // --- CEVAP ---
                 return Ok(new
                 {
-                    UserId = user.Id,
-                    Username = user.UserName,
-                    FullName = user.FullName,
-                    BranchId = user.BranchId,
-                    Role = "Personel",
-                    Message = "Giriş Başarılı"
+                    token = tokenString,
+                    expiration = token.ValidTo,
+                    username = user.UserName,
+                    userId = user.Id,
+                    branchId = user.BranchId,
+                    branchName = user.Branch != null ? user.Branch.BranchName : "Merkez"
                 });
             }
-
-            return Unauthorized("Şifre hatalı.");
+            return Unauthorized();
         }
     }
 
+    // DTO Sınıfı (Eğer dosyanın altında değilse buraya ekleyebilirsiniz)
     public class LoginDto
     {
         public string Username { get; set; }
